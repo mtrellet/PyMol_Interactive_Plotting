@@ -31,7 +31,7 @@ import logging
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename='pymol_session.log',level=logging.DEBUG)
+logging.basicConfig(filename='pymol_session.log',level=logging.INFO)
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
 with_mainloop = False
@@ -415,7 +415,7 @@ class SimplePlot(Tkinter.Canvas):
 
         distance = math.sqrt( (self.coords(spot[0])[0] - x)*(self.coords(spot[0])[0] - x) + (self.coords(spot[0])[1] -y)*(self.coords(spot[0])[1] - y) ) 
         logging.debug("Distance of "+str(distance))
-        
+
         # Print the shape's meta information corresponding with the shape that was picked
         if spot[0] in self.shapes and distance < 10:
             # self.picked = self.shapes[spot[0]][5][1]
@@ -477,19 +477,19 @@ class SimplePlot(Tkinter.Canvas):
             self.lasty = event.y
 
 
-def set_phipsi(model, index, phi, psi, state=-1):
-    atsele = [
-        'first ((%s`%d) extend 2 and name C)' % (model, index),  # prev C
-        'first ((%s`%d) extend 1 and name N)' % (model, index),  # this N
-        '(%s`%d)' % (model, index),                             # this CA
-        'last ((%s`%d) extend 1 and name C)' % (model, index),  # this C
-        'last ((%s`%d) extend 2 and name N)' % (model, index),  # next N
-    ]
-    try:
-        cmd.set_dihedral(atsele[0], atsele[1], atsele[2], atsele[3], phi, state)
-        cmd.set_dihedral(atsele[1], atsele[2], atsele[3], atsele[4], psi, state)
-    except:
-        print ' DynoPlot Error: cmd.set_dihedral failed'
+# def set_phipsi(model, index, phi, psi, state=-1):
+#     atsele = [
+#         'first ((%s`%d) extend 2 and name C)' % (model, index),  # prev C
+#         'first ((%s`%d) extend 1 and name N)' % (model, index),  # this N
+#         '(%s`%d)' % (model, index),                             # this CA
+#         'last ((%s`%d) extend 1 and name C)' % (model, index),  # this C
+#         'last ((%s`%d) extend 2 and name N)' % (model, index),  # next N
+#     ]
+#     try:
+#         cmd.set_dihedral(atsele[0], atsele[1], atsele[2], atsele[3], phi, state)
+#         cmd.set_dihedral(atsele[1], atsele[2], atsele[3], atsele[4], psi, state)
+#     except:
+#         print ' DynoPlot Error: cmd.set_dihedral failed'
 
 # New Callback object, so that we can update the structure when phi,psi points are moved.
 
@@ -499,12 +499,11 @@ def check_selections(queue):
     global myspace
     while True:
         # Check if the user changed the selection mode (atom/residue/chain/molecule)
-        print cmd.get("mouse_selection_mode")
-        print len(cmd.get_names("selections"))
-        print previous_mouse_mode
+        logging.debug("Current mouse selection mode : %d" % int(cmd.get("mouse_selection_mode")))
+        logging.debug("Number of selections: %d" % len(cmd.get_names("selections")))
         if int(cmd.get("mouse_selection_mode")) == 5 and previous_mouse_mode == cmd.get("mouse_selection_mode") and len(cmd.get_names("selections")) >= 2:
-            print "Selection done by the user..."
-            print cmd.get_names("selections")[1]
+            logging.info("--- Selection made by the user ---")
+            logging.debug(cmd.get_names("selections")[1])
             if(cmd.get_names("selections")[1] == 'lb'):
                 cmd.iterate('(lb)', 'models.add(model)', space=myspace)
                 tmp = set()
@@ -576,7 +575,6 @@ class DynoRamaObject:
 
         # command
         def onDrag(start, end):
-            print "onDrag in progress"
             global x,y, locked
             items = rect.hit_test(start, end)
             display=set()
@@ -627,10 +625,10 @@ class DynoRamaObject:
     def update_plot(self, source =0, to_display=set()):
         """ Check for updated selections data """
         if source == 1:
-            print "Display models sent by OnDrag: "
-            print to_display
+            logging.info("Display models sent by OnDrag: ")
+            logging.info(to_display)
             self.models_to_display = to_display.intersection(self.all_models)
-            print self.models_to_display
+            logging.info(self.models_to_display)
             for k,s in self.current_canvas.shapes.iteritems():
                 if s[5][1] in self.models_to_display:
                     self.current_canvas.itemconfig(k, fill='blue')
@@ -638,9 +636,7 @@ class DynoRamaObject:
                     cmd.show('line', '(sele)')
                     cmd.disable('sele')
                 else:
-                    #print k
                     self.current_canvas.itemconfig(k, fill='grey')
-                    #print ("We hide: %04d" % s[5][1])
                     cmd.select('sele', '%04d' % s[5][1])
                     cmd.hide('line', '(sele)')
                     cmd.disable('sele')
@@ -660,16 +656,16 @@ class DynoRamaObject:
             # Check selection from PyMol viewer
             try:
                 models = self.queue.get_nowait()
-                print models
+                logging.info("Models from user selection in the viewer: "+str(models))
                 self.models_to_display = models.intersection(self.all_models)
                 if len(self.models_to_display) > 0:
                     for k,s in self.current_canvas.shapes.iteritems():
                         if s[5][1] in self.models_to_display:
-                            print ("Color red -> %04d" % s[5][1]) 
+                            logging.info("Color red -> %04d" % s[5][1]) 
                             self.current_canvas.itemconfig(k, fill='blue')
                             cmd.color('red', '%04d' % s[5][1])
                         else:
-                            print ("Color default -> %04d" % s[5][1]) 
+                            logging.info("Color default -> %04d" % s[5][1]) 
                             self.current_canvas.itemconfig(k, fill='grey')
                             util.cbag('%04d' % s[5][1])
                             # cmd.select('sele', '%04d' % s[5][1])
@@ -736,14 +732,16 @@ class DynoRamaObject:
         import time
         g=Graph()
         start_time = time.time()
-        g.parse("/Users/trellet/Dev/Protege_OWL/data/tmp.ntriples", format="nt")
-        print ("---- %s seconds ----" % str(time.time()-start_time))
-        print len(g)
+        filename = "/Users/trellet/Dev/Protege_OWL/data/tmp.ntriples"
+        logging.info("Parsing of %s..." % filename)
+        g.parse(filename, format="nt")
+        logging.info ("---- %s seconds ----" % str(time.time()-start_time))
+        logging.info("Number of triples: %d" % len(g))
         q = prepareQuery(
         'SELECT ?x ?y ?id  WHERE { ?point rdf:type my:point . ?point my:Y_value ?y . ?point my:represent ?mod . ?mod my:time_frame ?x . ?mod my:model_id ?id .}', initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres= g.query(q)
         
-        print len(qres)
+        logging.info("Number of queried entities: %d " % len(qres))
 
         for row in qres:
             self.all_models.add(int(row[2]))
@@ -805,7 +803,7 @@ ARGUMENTS
     # Start background thread to check selections
     t = threading.Thread(target=check_selections, args=(queue,))
     t.start()
-    print "Checking changes in selections..."
+    logging.info("Checking changes in selections... (infinite loop)")
     dyno = DynoRamaObject(queue, sel, name, symbols, int(state))
     if filename is not None:
         dyno.canvas.postscript(file=filename)
@@ -822,7 +820,7 @@ def __init_plugin__(self):
     # Start background thread to check selections
     t = threading.Thread(target=check_selections, args=(queue,))
     t.start()
-    print "Checking changes in selections..."
+    logging.info("Checking changes in selections... (infinite loop)")
     self.menuBar.addcascademenu('Plugin', 'PlotTools', 'Plot Tools', label='Analyses Plot Tools')
     self.menuBar.addmenuitem('PlotTools', 'command', 'Launch Rama Plot', label='RMSD Plot',
                              command=lambda: DynoRamaObject(queue, '(enabled)'))
