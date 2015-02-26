@@ -31,7 +31,7 @@ import logging
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename='pymol_session.log',level=logging.INFO)
+logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
 with_mainloop = False
