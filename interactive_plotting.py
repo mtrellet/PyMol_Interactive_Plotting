@@ -32,6 +32,7 @@ import logging
 # Parameters of logging output
 import logging
 logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
+#logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
 with_mainloop = False
@@ -524,7 +525,7 @@ def check_selections(queue):
             time.sleep(1)
 
 
-class DynoRamaObject:
+class Handler:
 
     def __init__(self, queue, selection=None, name=None, symbols='', state=-1):
         from pymol import _ext_gui as pmgapp
@@ -546,10 +547,13 @@ class DynoRamaObject:
 
         if name is None:
             try:
-                name = cmd.get_unused_name('DynoRama')
+                name = cmd.get_unused_name('Handler')
             except AttributeError:
-                name = 'DynoRamaObject'
+                name = 'Handler'
 
+        from rdflib import Graph
+
+        self.rdf_graph = Graph()
         self.queue = queue
         self.rootframe = rootframe
         self.current_canvas = self.canvas[-1]
@@ -559,6 +563,7 @@ class DynoRamaObject:
         self.show = [False]*251
         self.models_to_display = set()
         self.all_models = set()
+        self.models_shown = set()
         
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
@@ -592,6 +597,7 @@ class DynoRamaObject:
                         display.add(self.current_canvas.shapes[x][5][1])
                         # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
                         # cmd.show('line', '(sele)')
+                        logging.debug(display)
                         self.show[self.current_canvas.shapes[x][5][1]-1] = True
                         self.update_plot(1, display)
                         locked = False
@@ -624,23 +630,28 @@ class DynoRamaObject:
 
     def update_plot(self, source =0, to_display=set()):
         """ Check for updated selections data """
+        start_time = time.time()
+        
         if source == 1:
             logging.info("Display models sent by OnDrag: ")
             logging.info(to_display)
             self.models_to_display = to_display.intersection(self.all_models)
             logging.info(self.models_to_display)
             for k,s in self.current_canvas.shapes.iteritems():
-                if s[5][1] in self.models_to_display:
+                if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
                     self.current_canvas.itemconfig(k, fill='blue')
-                    cmd.select('sele', '%04d' % s[5][1])
-                    cmd.show('line', '(sele)')
-                    cmd.disable('sele')
-                else:
+                    logging.debug("Color: %04d" % s[5][1])
+                    #cmd.select('sele', '%04d' % s[5][1])
+                    cmd.show('line', '%04d' % s[5][1])
+                    #cmd.disable('sele')
+                elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
                     self.current_canvas.itemconfig(k, fill='grey')
-                    cmd.select('sele', '%04d' % s[5][1])
-                    cmd.hide('line', '(sele)')
-                    cmd.disable('sele')
-        
+                    logging.debug("Hide: %04d" % s[5][1])
+                    #cmd.select('sele', '%04d' % s[5][1])
+                    cmd.hide('line', '%04d' % s[5][1])
+                    #cmd.disable('sele')
+            self.models_shown = self.models_to_display  
+
         elif source == 0:
             # Check single picking items
             if self.current_canvas.picked != 0 and self.current_canvas.picked != self.current_canvas.previous:
@@ -673,6 +684,16 @@ class DynoRamaObject:
                             # cmd.disable('sele')
             except Queue.Empty:
                 pass
+        # Reset plot and viewer
+        elif source == 3:
+            for k,s in self.current_canvas.shapes.iteritems():
+                self.current_canvas.itemconfig(k, fill='grey')
+                cmd.hide('line', '%04d' % s[5][1])
+        # "Selection mode"
+        elif source == 4:
+            cmd.show('line', 'all')
+
+        logging.debug("---- %s seconds ----" % str(time.time()-start_time))
         self.rootframe.after(1000, self.update_plot)
 
 
@@ -723,25 +744,36 @@ class DynoRamaObject:
     #         self.canvas.plot(phi, psi, model_index)
     #     self.lock = 0
 
+    def parse_rdf(self,filename):
+        """ Parse the RDF database """
+        start_time = time.time()
+
+        logging.info("Parsing of %s..." % filename)
+        self.rdf_graph.parse(filename, format="nt")
+        logging.info ("---- %s seconds ----" % str(time.time()-start_time))
+        logging.info("Number of triples: %d" % len(self.rdf_graph))
+
+    def query_rdf(self, type):
+        """ Query the RDF graph for specific values """
+        from rdflib.plugins.sparql import prepareQuery
+        
+        q = prepareQuery(
+        'SELECT ?x ?y ?id  WHERE { ?point rdf:type my:point . ?point my:value_type "RMSD" . ?point my:Y_value ?y . ?point my:represent ?mod . ?mod my:time_frame ?x . ?mod my:model_id ?id .}', initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres= self.rdf_graph.query(q)
+        
+        logging.info("Number of queried entities: %d " % len(qres))
+
+        return qres
+
     def start(self, sel):
         self.lock = 1
         cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
                      space={'idx2resn': self.current_canvas.idx2resn})
-        from rdflib import Graph
-        from rdflib.plugins.sparql import prepareQuery
-        import time
-        g=Graph()
-        start_time = time.time()
-        filename = "/Users/trellet/Dev/Protege_OWL/data/tmp.ntriples"
-        logging.info("Parsing of %s..." % filename)
-        g.parse(filename, format="nt")
-        logging.info ("---- %s seconds ----" % str(time.time()-start_time))
-        logging.info("Number of triples: %d" % len(g))
-        q = prepareQuery(
-        'SELECT ?x ?y ?id  WHERE { ?point rdf:type my:point . ?point my:Y_value ?y . ?point my:represent ?mod . ?mod my:time_frame ?x . ?mod my:model_id ?id .}', initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
-        qres= g.query(q)
-        
-        logging.info("Number of queried entities: %d " % len(qres))
+
+        # Parse main RDF database
+        self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/pdb_rmsd_energy_temperature.ntriples")
+        # Query RMSD points to draw first plot
+        qres = self.query_rdf("RMSD")
 
         for row in qres:
             self.all_models.add(int(row[2]))
@@ -793,7 +825,7 @@ ARGUMENTS
 
     name = string: name of callback object which is responsible for setting
     angles when canvas points are dragged, or 'none' to not create a callback
-    object {default: DynoRamaObject}
+    object {default: Handler}
 
     symbols = string: aa for amino acid or ss for secondary structure {default: aa}
 
@@ -804,7 +836,7 @@ ARGUMENTS
     t = threading.Thread(target=check_selections, args=(queue,))
     t.start()
     logging.info("Checking changes in selections... (infinite loop)")
-    dyno = DynoRamaObject(queue, sel, name, symbols, int(state))
+    dyno = Handler(queue, sel, name, symbols, int(state))
     if filename is not None:
         dyno.canvas.postscript(file=filename)
 
@@ -823,6 +855,6 @@ def __init_plugin__(self):
     logging.info("Checking changes in selections... (infinite loop)")
     self.menuBar.addcascademenu('Plugin', 'PlotTools', 'Plot Tools', label='Analyses Plot Tools')
     self.menuBar.addmenuitem('PlotTools', 'command', 'Launch Rama Plot', label='RMSD Plot',
-                             command=lambda: DynoRamaObject(queue, '(enabled)'))
+                             command=lambda: Handler(queue, '(enabled)'))
 
 # vi:expandtab:smarttab
