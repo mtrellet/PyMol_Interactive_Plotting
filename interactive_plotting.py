@@ -44,9 +44,10 @@ locked = False
 
 class PickWizard(Wizard):
 
-    def __init__(self):
+    def __init__(self, handler):
         self.sele_name = "lb" # must be set to "lb" for now...
         self.selected = []
+        self.handler = handler
         # self.__observers = []
 
     # def register_observer(self, observer):
@@ -265,7 +266,7 @@ class SimplePlot(Tkinter.Canvas):
         self.previous = 0   # Previous item selected
         self.picked = 0     # Item selected
 
-    def axis(self, xmin=40, xmax=300, ymin=10, ymax=290, xint=290, yint=40, xlabels=[], ylabels=[]):
+    def axis(self, xmin=40, xmax=400, ymin=10, ymax=390, xint=390, yint=40, xlabels=[], ylabels=[]):
 
         # Store variables in self object
         self.xlabels = xlabels
@@ -297,6 +298,7 @@ class SimplePlot(Tkinter.Canvas):
                 nextspot = ymin
             else:
                 nextspot -= (ymax - ymin) / (len(ylabels) - 1)
+
 
     # Plot a point
     def plot(self, xp, yp, meta):
@@ -528,14 +530,14 @@ def check_selections(queue):
 class Handler:
 
     def __init__(self, queue, selection=None, name=None, symbols='', state=-1):
-        from pymol import _ext_gui as pmgapp
-        if pmgapp is not None:
-            import Pmw
-            rootframe = Pmw.MegaToplevel(pmgapp.root)
-            parent = rootframe.interior()
-        else:
-            rootframe = Tkinter.Tk()
-            parent = rootframe
+        # from pymol import _ext_gui as pmgapp
+        # if pmgapp is not None:
+        #     import Pmw
+        #     rootframe = Pmw.MegaToplevel(pmgapp.root)
+        #     parent = rootframe.interior()
+        # else:
+        rootframe = Tkinter.Tk()
+        parent = rootframe
 
         rootframe.title(' Interactive Analyses ')
         rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
@@ -564,6 +566,28 @@ class Handler:
         self.models_to_display = set()
         self.all_models = set()
         self.models_shown = set()
+
+        # Create button to clear plot + viewer
+        # reset = Tkinter.Button(rootframe, text='RESET', command=self.update_plot(3), anchor='s')
+        # reset.pack()
+
+        reset = Tkinter.Button(self.rootframe, text = "Reset", command = lambda: self.update_plot(2), anchor = "e")
+        reset.configure(width = 10, activebackground = "#33B5E5", relief = "flat")
+        reset_window = self.current_canvas.create_window(10, 400, anchor="sw", window=reset)
+
+        select = Tkinter.Button(self.rootframe, text = "Select from Viewer", command = lambda: self.update_plot(3), anchor = "e")
+        select.configure(width = 20, activebackground = "#33B5E5", relief = "flat")
+        select_window = self.current_canvas.create_window(50, 400, anchor="se", window=select)
+
+        # self.buttonBox = Pmw.ButtonBox(parent,
+        #         labelpos = 'sw',
+        #         label_text = 'ButtonBox:',
+        #         frame_borderwidth = 2,
+        #         frame_relief = 'groove')
+        # self.buttonBox.pack(fill = 'both', expand = 1, padx = 10, pady = 10)
+        # # Add some buttons to the ButtonBox.
+        # self.buttonBox.add('Reset', command = self.update_plot(3))
+        # self.buttonBox.add('Exit', command = self.apply)
         
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
@@ -599,8 +623,8 @@ class Handler:
                         # cmd.show('line', '(sele)')
                         logging.debug(display)
                         self.show[self.current_canvas.shapes[x][5][1]-1] = True
-                        self.update_plot(1, display)
                         locked = False
+            self.update_plot(1, display)
             if len(display) == 0 and not locked:
                 self.update_plot(1, display)
                 locked = True
@@ -609,7 +633,7 @@ class Handler:
 
         #######################################################################
         # Call to wizard tool
-        wiz = PickWizard()
+        wiz = PickWizard(self)
 
         # make this the active wizard
 
@@ -685,12 +709,21 @@ class Handler:
             except Queue.Empty:
                 pass
         # Reset plot and viewer
-        elif source == 3:
+        elif source == 2:
+            print "RESET"
             for k,s in self.current_canvas.shapes.iteritems():
                 self.current_canvas.itemconfig(k, fill='grey')
-                cmd.hide('line', '%04d' % s[5][1])
+                self.models_to_display.clear()
+                self.models_shown.clear()
+            cmd.hide('line', 'all')
+                
         # "Selection mode"
-        elif source == 4:
+        elif source == 3:
+            print "SELECTION MODE"
+            for k,s in self.current_canvas.shapes.iteritems():
+                self.current_canvas.itemconfig(k, fill='grey')
+                self.models_to_display.add(s[5][1])
+                self.models_shown.add(s[5][1])
             cmd.show('line', 'all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
@@ -721,6 +754,7 @@ class Handler:
         ylabels = [float("{0:.2f}".format(min_y + i*y_gap)) for i in range(6)]
         canvas.axis(xlabels=xlabels,
                     ylabels=ylabels)
+
         canvas.update()
 
         if symbols == 'ss':
@@ -771,7 +805,7 @@ class Handler:
                      space={'idx2resn': self.current_canvas.idx2resn})
 
         # Parse main RDF database
-        self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/pdb_rmsd_energy_temperature.ntriples")
+        self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
         # Query RMSD points to draw first plot
         qres = self.query_rdf("RMSD")
 
