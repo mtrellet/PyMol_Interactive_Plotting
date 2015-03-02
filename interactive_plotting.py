@@ -31,7 +31,7 @@ import logging
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
+logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
@@ -424,16 +424,6 @@ class SimplePlot(Tkinter.Canvas):
         if spot[0] in self.shapes and distance < 10:
             # self.picked = self.shapes[spot[0]][5][1]
             self.picked = spot[0]
-            # cmd.select('sele', '%04d' % self.shapes[spot[0]][5][1])
-            # cmd.show('line','(sele)')
-            # self.itemconfig(spot[0], fill='blue')
-            # if self.previous != 0:
-            #     self.itemconfig(self.previous, fill='grey')
-            # self.previous = spot[0]
-            # cmd.select('sele', '(%s`%d)' % self.shapes[spot[0]][5])
-            # cmd.iterate('sele', 'print " You clicked /%s/%s/%s/%s`%s/%s (DynoPlot)" %' + \
-            #             ' (model, segi, chain, resn, resi, name)')
-            # cmd.center('byres sele', animate=1)
 
     # Mouse Down Event
     def down(self, event):
@@ -616,9 +606,9 @@ class Handler:
                         logging.debug(display)
                         self.show[self.canvas[0].shapes[x][5][1]-1] = True
                         locked = False
-            self.update_plot(1, display, self.canvas[0])
+            self.update_plot_multiple(1, display, self.canvas[0])
             if len(display) == 0 and not locked:
-                self.update_plot(1, display, self.canvas[0])
+                self.update_plot_multiple(1, display, self.canvas[0])
                 locked = True
         rect.autodraw(fill="", width=2, command=onDrag)
         #####
@@ -634,7 +624,7 @@ class Handler:
         # wiz.register_observer(self.notify)
         # wiz.notify_observers('test')
 
-        self.rootframe.after(1000, self.update_plot)
+        self.rootframe.after(500, self.update_plot_multiple)
         #####
 
 
@@ -671,9 +661,9 @@ class Handler:
                         logging.debug(display)
                         self.show[self.canvas[1].shapes[x][5][1]-1] = True
                         locked = False
-            self.update_plot(1, display, self.canvas[1])
+            self.update_plot_multiple(1, display, self.canvas[1])
             if len(display) == 0 and not locked:
-                self.update_plot(1, display, self.canvas[1])
+                self.update_plot_multiple(1, display, self.canvas[1])
                 locked = True
         rect2.autodraw(fill="", width=2, command=onDrag2)
         #####
@@ -707,6 +697,149 @@ class Handler:
         logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
         logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
 
+
+    def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
+        """ Check for updated selections data in all plots simultaneously"""
+        start_time = time.time()
+        if canvas == None:
+            canvas = self.current_canvas
+        if source == 1:
+            logging.info("Display models sent by OnDrag: ")
+            logging.info(to_display)
+            self.models_to_display = to_display.intersection(self.all_models)
+            logging.info(self.models_to_display)
+            for k,s in canvas.shapes.iteritems():
+                if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
+                    canvas.itemconfig(k, fill='blue')
+                    cpt = 0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        cpt+=1
+                    logging.debug("Color: %04d" % s[5][1])
+                    #cmd.select('sele', '%04d' % s[5][1])
+                    cmd.show('line', '%04d' % s[5][1])
+                    #cmd.disable('sele')
+                elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
+                    canvas.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    logging.debug("Hide: %04d" % s[5][1])
+                    #cmd.select('sele', '%04d' % s[5][1])
+                    cmd.hide('line', '%04d' % s[5][1])
+                    #cmd.disable('sele')
+            self.models_shown = self.models_to_display  
+
+        elif source == 0:
+            # Check single picking items
+            for canv in self.canvas:
+                if canv.picked != 0 and canv.picked != canv.previous:
+                    canv.itemconfig(canv.picked, fill='blue')
+                    cpt = 0
+                    for it in canv.ids_ext[canv.picked]:
+                        if self.canvas[cpt] != canv:
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        cpt+=1
+                    cmd.show('line', '%04d' % canv.shapes[canv.picked][5][1])
+                    if canv.previous != 0:
+                        canv.itemconfig(canv.previous, fill='grey')
+                        cpt=0
+                        for it in canv.ids_ext[canv.previous]:
+                            if self.canvas[cpt] != canv:
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            else:
+                                cpt+=1
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            cpt+=1
+                        cmd.hide('line', '%04d' % canv.shapes[canvas.previous][5][1])
+                    canv.previous = canv.picked
+                    break # We can pick only one item among all canvas
+            # Check selection from PyMol viewer
+            try:
+                models = self.queue.get_nowait()
+                logging.info("Models from user selection in the viewer: "+str(models))
+                self.models_to_display = models.intersection(self.all_models)
+                if len(self.models_to_display) > 0:
+                    for k,s in canvas.shapes.iteritems():
+                        if s[5][1] in self.models_to_display:
+                            logging.info("Color red -> %04d" % s[5][1]) 
+                            canvas.itemconfig(k, fill='blue')
+                            cpt=0
+                            for it in canvas.ids_ext[k]:
+                                if self.canvas[cpt] != canvas:
+                                    self.canvas[cpt].itemconfig(it, fill='blue')
+                                else:
+                                    cpt+=1
+                                    self.canvas[cpt].itemconfig(it, fill='blue')
+                                cpt+=1
+                            cmd.color('red', '%04d' % s[5][1])
+                        else:
+                            logging.info("Color default -> %04d" % s[5][1]) 
+                            canvas.itemconfig(k, fill='grey')
+                            cpt=0
+                            for it in canvas.ids_ext[k]:
+                                if self.canvas[cpt] != canvas:
+                                    self.canvas[cpt].itemconfig(it, fill='grey')
+                                else:
+                                    cpt+=1
+                                    self.canvas[cpt].itemconfig(it, fill='grey')
+                                cpt+=1
+                            util.cbag('%04d' % s[5][1])
+                            # cmd.select('sele', '%04d' % s[5][1])
+                            # cmd.hide('line', '(sele)')
+                            # cmd.disable('sele')
+            except Queue.Empty:
+                pass
+        # Reset plot and viewer
+        elif source == 2:
+            logging.info("RESET")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    self.models_to_display.clear()
+                    self.models_shown.clear()
+            cmd.hide('line', 'all')
+                
+        # "Selection mode"
+        elif source == 3:
+            logging.info("SELECTION MODE")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    self.models_to_display.add(s[5][1])
+                    self.models_shown.add(s[5][1])
+            cmd.show('line', 'all')
+
+        logging.debug("---- %s seconds ----" % str(time.time()-start_time))
+        self.rootframe.after(500, self.update_plot_multiple)
 
     def update_plot(self, source =0, to_display=set(), canvas=None):
         """ Check for updated selections data """
