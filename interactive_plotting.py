@@ -669,9 +669,51 @@ class Handler:
         #####
 
 
+        #################################
+        ##### NEW WINDOW FOR ENERGY #####
+        #################################
+
+        self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.BOTTOM)
+
+        #####
+        # Call to selection tool
+        rect3 = RectTracker(self.current_canvas)
+
+        ######
+        # Command to select by dragging
+        def onDrag3(start, end):
+            global x,y, locked
+            items = rect3.hit_test(start, end)
+            display=set()
+            for x in rect3.items:
+                # if x not in items:
+                #     if x in canvas.shapes:
+                #         canvas.itemconfig(x, fill='grey')
+                #         if self.show[canvas.shapes[x][5][1]-1]:
+                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                #             cmd.hide('line', '(sele)')
+                # else:
+                if x in items:
+                    #canvas.itemconfig(x, fill='blue')
+                    if x in self.canvas[2].shapes:
+                        display.add(self.canvas[2].shapes[x][5][1])
+                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                        # cmd.show('line', '(sele)')
+                        logging.debug(display)
+                        self.show[self.canvas[2].shapes[x][5][1]-1] = True
+                        locked = False
+            self.update_plot_multiple(1, display, self.canvas[2])
+            if len(display) == 0 and not locked:
+                self.update_plot_multiple(1, display, self.canvas[2])
+                locked = True
+        rect3.autodraw(fill="", width=2, command=onDrag3)
+        #####
+
+
         if selection is not None:
             self.start(selection, self.canvas[0], 'RMSD')
             self.start(selection, self.canvas[1], 'temperature')
+            self.start(selection, self.canvas[2], 'energy')
 
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
@@ -690,9 +732,14 @@ class Handler:
                 for k1,s1 in canv.shapes.iteritems():
                     if s1[5][1] == s[5][1]:
                         self.canvas[0].ids_ext[k].append(k1)
-                        canv.ids_ext[k1] = []
-                        canv.ids_ext[k1].append(k)
+                        # canv.ids_ext[k1] = []
+                        # canv.ids_ext[k1].append(k)
 
+        for i in range(1,len(self.canvas)):
+            self.canvas[i].ids_ext = {v[i-1]: [item for sublist in [[k], v[:i-1], v[i:]] for item in sublist] for k,v in self.canvas[0].ids_ext.items()}
+
+        print self.canvas[1].ids_ext
+        print self.canvas[2].ids_ext
         logging.debug(self.canvas[0].shapes[192])
         logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
         logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
@@ -799,7 +846,7 @@ class Handler:
                             util.cbag('%04d' % s[5][1])
                             # cmd.select('sele', '%04d' % s[5][1])
                             # cmd.hide('line', '(sele)')
-                            # cmd.disable('sele')
+                    cmd.disable('lb')
             except Queue.Empty:
                 pass
         # Reset plot and viewer
