@@ -561,6 +561,7 @@ class Handler:
         self.models_to_display = set()
         self.all_models = set()
         self.models_shown = set()
+        self.rdf_parsed = False
 
         reset = Tkinter.Button(self.rootframe, text = "Reset", command = lambda: self.update_plot(2), anchor = "e")
         reset.configure(width = 10, activebackground = "#33B5E5", relief = "flat")
@@ -732,14 +733,10 @@ class Handler:
                 for k1,s1 in canv.shapes.iteritems():
                     if s1[5][1] == s[5][1]:
                         self.canvas[0].ids_ext[k].append(k1)
-                        # canv.ids_ext[k1] = []
-                        # canv.ids_ext[k1].append(k)
 
         for i in range(1,len(self.canvas)):
             self.canvas[i].ids_ext = {v[i-1]: [item for sublist in [[k], v[:i-1], v[i:]] for item in sublist] for k,v in self.canvas[0].ids_ext.items()}
 
-        print self.canvas[1].ids_ext
-        print self.canvas[2].ids_ext
         logging.debug(self.canvas[0].shapes[192])
         logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
         logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
@@ -768,8 +765,7 @@ class Handler:
                         cpt+=1
                     logging.debug("Color: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.set('cartoon_transparency', '0.5')
-                    cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+                    #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
                     cmd.show('line', '%04d' % s[5][1])
                     #cmd.disable('sele')
                 elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
@@ -784,7 +780,7 @@ class Handler:
                         cpt+=1
                     logging.debug("Hide: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.hide('all', '%04d' % s[5][1])
+                    cmd.hide('everything', '%04d' % s[5][1])
                     #cmd.disable('sele')
             self.models_shown = self.models_to_display  
 
@@ -801,7 +797,8 @@ class Handler:
                             cpt+=1
                             self.canvas[cpt].itemconfig(it, fill='blue')
                         cpt+=1
-                    cmd.show('line', '%04d' % canv.shapes[canv.picked][5][1])
+                    #cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
+                    cmd.show('lines', '%04d' % canv.shapes[canv.picked][5][1])
                     if canv.previous != 0:
                         canv.itemconfig(canv.previous, fill='grey')
                         cpt=0
@@ -812,7 +809,7 @@ class Handler:
                                 cpt+=1
                                 self.canvas[cpt].itemconfig(it, fill='grey')
                             cpt+=1
-                        cmd.hide('line', '%04d' % canv.shapes[canvas.previous][5][1])
+                        cmd.hide('everything', '%04d' % canv.shapes[canv.previous][5][1])
                     canv.previous = canv.picked
                     break # We can pick only one item among all canvas
             # Check selection from PyMol viewer
@@ -867,7 +864,7 @@ class Handler:
                         cpt+=1
                     self.models_to_display.clear()
                     self.models_shown.clear()
-            cmd.hide('line', 'all')
+            cmd.hide('everything', 'all')
                 
         # "Selection mode"
         elif source == 3:
@@ -885,7 +882,7 @@ class Handler:
                         cpt+=1
                     self.models_to_display.add(s[5][1])
                     self.models_shown.add(s[5][1])
-            cmd.show('line', 'all')
+            cmd.show('cartoon', 'name CA and all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
         self.rootframe.after(500, self.update_plot_multiple)
@@ -1038,7 +1035,9 @@ class Handler:
                      space={'idx2resn': canvas.idx2resn})
 
         # Parse main RDF database
-        self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
+        if (not self.rdf_parsed):
+            self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
+            self.rdf_parsed = True
         # Query RMSD points to draw first plot
         qres = self.query_rdf(query_type)
 
