@@ -539,12 +539,16 @@ class Handler:
         rootframe = Tkinter.Tk()
         parent = rootframe
 
-        rootframe.title(' Interactive Analyses ')
+        rootframe.title(' Interactive Analyses')
         rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
 
         self.canvas = 4*[]
 
-        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols)
+        ###############################
+        ##### NEW WINDOW FOR RMSD #####
+        ###############################
+
+        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT)
 
 
         if name is None:
@@ -573,11 +577,11 @@ class Handler:
 
         reset = Tkinter.Button(self.rootframe, text = "Reset", command = lambda: self.update_plot(2), anchor = "e")
         reset.configure(width = 10, activebackground = "#33B5E5", relief = "flat")
-        reset_window = self.current_canvas.create_window(10, 400, anchor="sw", window=reset)
+        reset_window = self.current_canvas.create_window(10, 450, anchor="sw", window=reset)
 
         select = Tkinter.Button(self.rootframe, text = "Select from Viewer", command = lambda: self.update_plot(3), anchor = "e")
         select.configure(width = 20, activebackground = "#33B5E5", relief = "flat")
-        select_window = self.current_canvas.create_window(50, 400, anchor="se", window=select)
+        select_window = self.current_canvas.create_window(50, 450, anchor="se", window=select)
 
         # self.buttonBox = Pmw.ButtonBox(parent,
         #         labelpos = 'sw',
@@ -598,11 +602,12 @@ class Handler:
             # canvas.bind("<ButtonRelease-1>", canvas.up)
             # canvas.bind("<Motion>", canvas.drag)
 
-        #######################################################################
+        ######
         # Call to selection tool
         rect = RectTracker(self.current_canvas)
 
-        # command
+        ######
+        # Command to select by dragging
         def onDrag(start, end):
             global x,y, locked
             items = rect.hit_test(start, end)
@@ -617,21 +622,21 @@ class Handler:
                 # else:
                 if x in items:
                     #canvas.itemconfig(x, fill='blue')
-                    if x in self.current_canvas.shapes:
-                        display.add(self.current_canvas.shapes[x][5][1])
+                    if x in self.canvas[0].shapes:
+                        display.add(self.canvas[0].shapes[x][5][1])
                         # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
                         # cmd.show('line', '(sele)')
                         logging.debug(display)
-                        self.show[self.current_canvas.shapes[x][5][1]-1] = True
+                        self.show[self.canvas[0].shapes[x][5][1]-1] = True
                         locked = False
             self.update_plot(1, display)
             if len(display) == 0 and not locked:
                 self.update_plot(1, display)
                 locked = True
         rect.autodraw(fill="", width=2, command=onDrag)
-        #######################################################################
+        #####
 
-        #######################################################################
+        #####
         # Call to wizard tool
         wiz = PickWizard(self)
 
@@ -643,11 +648,52 @@ class Handler:
         # wiz.notify_observers('test')
 
         self.rootframe.after(1000, self.update_plot)
-        #######################################################################
+        #####
+
+
+        ######################################
+        ##### NEW WINDOW FOR TEMPERATURE #####
+        ######################################
+
+        self.create_window(parent, 500, 500, 0, 50, 250, 320, symbols, Tkinter.RIGHT)
+
+        #####
+        # Call to selection tool
+        rect2 = RectTracker(self.current_canvas)
+
+        ######
+        # Command to select by dragging
+        def onDrag2(start, end):
+            global x,y, locked
+            items = rect2.hit_test(start, end)
+            display=set()
+            for x in rect2.items:
+                # if x not in items:
+                #     if x in canvas.shapes:
+                #         canvas.itemconfig(x, fill='grey')
+                #         if self.show[canvas.shapes[x][5][1]-1]:
+                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                #             cmd.hide('line', '(sele)')
+                # else:
+                if x in items:
+                    #canvas.itemconfig(x, fill='blue')
+                    if x in self.canvas[1].shapes:
+                        display.add(self.canvas[1].shapes[x][5][1])
+                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                        # cmd.show('line', '(sele)')
+                        logging.debug(display)
+                        self.show[self.canvas[1].shapes[x][5][1]-1] = True
+                        locked = False
+            self.update_plot(1, display)
+            if len(display) == 0 and not locked:
+                self.update_plot(1, display)
+                locked = True
+        rect2.autodraw(fill="", width=2, command=onDrag2)
+        #####
 
 
         if selection is not None:
-            self.start(selection)
+            self.start(selection, self.canvas[0])
 
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
@@ -742,12 +788,12 @@ class Handler:
     #             if m == self.canvas.shapes[s][5][1]:
     #                 self.canvas.itemconfig(s, fill='blue')
 
-    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols):
+    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols, position):
         """ Create new plot window """
         canvas = SimplePlot(parent, width=width, height=height)
         #canvas.bind("<Button-2>", canvas.pickWhich)
         canvas.bind("<ButtonPress-3>", canvas.pickWhich)
-        canvas.pack(side=Tkinter.LEFT, fill="both", expand=1)
+        canvas.pack(side=position, fill="both", expand=1)
         x_gap = float(max_x-min_x) / 5
         y_gap = float(max_y - min_y) / 5
         xlabels = [float("{0:.2f}".format(min_x + i*x_gap)) for i in range(6)]
@@ -799,10 +845,10 @@ class Handler:
 
         return qres
 
-    def start(self, sel):
+    def start(self, sel, canvas):
         self.lock = 1
         cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
-                     space={'idx2resn': self.current_canvas.idx2resn})
+                     space={'idx2resn': canvas.idx2resn})
 
         # Parse main RDF database
         self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
@@ -812,7 +858,7 @@ class Handler:
         for row in qres:
             self.all_models.add(int(row[2]))
             model_index = ('all', int(row[2]))
-            self.current_canvas.plot(float(row[0]), float(row[1]), model_index)
+            canvas.plot(float(row[0]), float(row[1]), model_index)
         self.lock = 0
 
     # def start(self, sel):
