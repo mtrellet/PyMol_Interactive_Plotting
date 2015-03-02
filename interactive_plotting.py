@@ -768,6 +768,8 @@ class Handler:
                         cpt+=1
                     logging.debug("Color: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
+                    cmd.set('cartoon_transparency', '0.5')
+                    cmd.show('cartoon', 'name CA and %04d' % s[5][1])
                     cmd.show('line', '%04d' % s[5][1])
                     #cmd.disable('sele')
                 elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
@@ -782,7 +784,7 @@ class Handler:
                         cpt+=1
                     logging.debug("Hide: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.hide('line', '%04d' % s[5][1])
+                    cmd.hide('all', '%04d' % s[5][1])
                     #cmd.disable('sele')
             self.models_shown = self.models_to_display  
 
