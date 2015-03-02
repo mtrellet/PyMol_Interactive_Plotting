@@ -265,6 +265,7 @@ class SimplePlot(Tkinter.Canvas):
         self.symbols = 0    # 0: amino acids, 1: secondary structure
         self.previous = 0   # Previous item selected
         self.picked = 0     # Item selected
+        self.ids_ext = {}
 
     def axis(self, xmin=40, xmax=400, ymin=10, ymax=390, xint=390, yint=40, xlabels=[], ylabels=[]):
 
@@ -685,6 +686,28 @@ class Handler:
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
 
+        #############################################
+        ##### CREATE CANVAS ITEM IDs DICTIONARY #####
+        #############################################
+        self.create_ids_equivalent_dict()
+
+    
+    def create_ids_equivalent_dict(self):
+        """ Create a dictionary of equivalent ids for each canvas created """
+        for k,s in self.canvas[0].shapes.iteritems():
+            self.canvas[0].ids_ext[k] = []
+            for canv in self.canvas[1:]:
+                for k1,s1 in canv.shapes.iteritems():
+                    if s1[5][1] == s[5][1]:
+                        self.canvas[0].ids_ext[k].append(k1)
+                        canv.ids_ext[k1] = []
+                        canv.ids_ext[k1].append(k)
+
+        logging.debug(self.canvas[0].shapes[192])
+        logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
+        logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
+
+
     def update_plot(self, source =0, to_display=set(), canvas=None):
         """ Check for updated selections data """
         start_time = time.time()
@@ -745,7 +768,7 @@ class Handler:
                 pass
         # Reset plot and viewer
         elif source == 2:
-            print "RESET"
+            logging.info("RESET")
             for canv in self.canvas:
                 for k,s in canv.shapes.iteritems():
                     canv.itemconfig(k, fill='grey')
@@ -755,7 +778,7 @@ class Handler:
                 
         # "Selection mode"
         elif source == 3:
-            print "SELECTION MODE"
+            logging.info("SELECTION MODE")
             for canv in self.canvas:
                 for k,s in canv.shapes.iteritems():
                     canv.itemconfig(k, fill='grey')
@@ -842,7 +865,6 @@ class Handler:
                 self.all_models.add(int(row[2]))
             model_index = ('all', int(row[2]))
             canvas.plot(float(row[0]), float(row[1]), model_index)
-        print canvas.shapes
         self.lock = 0
 
     # def start(self, sel):
