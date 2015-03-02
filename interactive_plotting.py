@@ -31,7 +31,7 @@ import logging
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
+logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
@@ -265,6 +265,7 @@ class SimplePlot(Tkinter.Canvas):
         self.symbols = 0    # 0: amino acids, 1: secondary structure
         self.previous = 0   # Previous item selected
         self.picked = 0     # Item selected
+        self.ids_ext = {}
 
     def axis(self, xmin=40, xmax=400, ymin=10, ymax=390, xint=390, yint=40, xlabels=[], ylabels=[]):
 
@@ -423,16 +424,6 @@ class SimplePlot(Tkinter.Canvas):
         if spot[0] in self.shapes and distance < 10:
             # self.picked = self.shapes[spot[0]][5][1]
             self.picked = spot[0]
-            # cmd.select('sele', '%04d' % self.shapes[spot[0]][5][1])
-            # cmd.show('line','(sele)')
-            # self.itemconfig(spot[0], fill='blue')
-            # if self.previous != 0:
-            #     self.itemconfig(self.previous, fill='grey')
-            # self.previous = spot[0]
-            # cmd.select('sele', '(%s`%d)' % self.shapes[spot[0]][5])
-            # cmd.iterate('sele', 'print " You clicked /%s/%s/%s/%s`%s/%s (DynoPlot)" %' + \
-            #             ' (model, segi, chain, resn, resi, name)')
-            # cmd.center('byres sele', animate=1)
 
     # Mouse Down Event
     def down(self, event):
@@ -539,12 +530,16 @@ class Handler:
         rootframe = Tkinter.Tk()
         parent = rootframe
 
-        rootframe.title(' Interactive Analyses ')
+        rootframe.title(' Interactive Analyses')
         rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
 
         self.canvas = 4*[]
 
-        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols)
+        ###############################
+        ##### NEW WINDOW FOR RMSD #####
+        ###############################
+
+        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT)
 
 
         if name is None:
@@ -567,28 +562,14 @@ class Handler:
         self.all_models = set()
         self.models_shown = set()
 
-        # Create button to clear plot + viewer
-        # reset = Tkinter.Button(rootframe, text='RESET', command=self.update_plot(3), anchor='s')
-        # reset.pack()
-
         reset = Tkinter.Button(self.rootframe, text = "Reset", command = lambda: self.update_plot(2), anchor = "e")
         reset.configure(width = 10, activebackground = "#33B5E5", relief = "flat")
-        reset_window = self.current_canvas.create_window(10, 400, anchor="sw", window=reset)
+        reset_window = self.current_canvas.create_window(10, 450, anchor="sw", window=reset)
 
         select = Tkinter.Button(self.rootframe, text = "Select from Viewer", command = lambda: self.update_plot(3), anchor = "e")
         select.configure(width = 20, activebackground = "#33B5E5", relief = "flat")
-        select_window = self.current_canvas.create_window(50, 400, anchor="se", window=select)
+        select_window = self.current_canvas.create_window(50, 450, anchor="se", window=select)
 
-        # self.buttonBox = Pmw.ButtonBox(parent,
-        #         labelpos = 'sw',
-        #         label_text = 'ButtonBox:',
-        #         frame_borderwidth = 2,
-        #         frame_relief = 'groove')
-        # self.buttonBox.pack(fill = 'both', expand = 1, padx = 10, pady = 10)
-        # # Add some buttons to the ButtonBox.
-        # self.buttonBox.add('Reset', command = self.update_plot(3))
-        # self.buttonBox.add('Exit', command = self.apply)
-        
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
             cmd.set('auto_zoom', 0)
@@ -598,11 +579,12 @@ class Handler:
             # canvas.bind("<ButtonRelease-1>", canvas.up)
             # canvas.bind("<Motion>", canvas.drag)
 
-        #######################################################################
+        ######
         # Call to selection tool
         rect = RectTracker(self.current_canvas)
 
-        # command
+        ######
+        # Command to select by dragging
         def onDrag(start, end):
             global x,y, locked
             items = rect.hit_test(start, end)
@@ -617,21 +599,21 @@ class Handler:
                 # else:
                 if x in items:
                     #canvas.itemconfig(x, fill='blue')
-                    if x in self.current_canvas.shapes:
-                        display.add(self.current_canvas.shapes[x][5][1])
+                    if x in self.canvas[0].shapes:
+                        display.add(self.canvas[0].shapes[x][5][1])
                         # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
                         # cmd.show('line', '(sele)')
                         logging.debug(display)
-                        self.show[self.current_canvas.shapes[x][5][1]-1] = True
+                        self.show[self.canvas[0].shapes[x][5][1]-1] = True
                         locked = False
-            self.update_plot(1, display)
+            self.update_plot_multiple(1, display, self.canvas[0])
             if len(display) == 0 and not locked:
-                self.update_plot(1, display)
+                self.update_plot_multiple(1, display, self.canvas[0])
                 locked = True
         rect.autodraw(fill="", width=2, command=onDrag)
-        #######################################################################
+        #####
 
-        #######################################################################
+        #####
         # Call to wizard tool
         wiz = PickWizard(self)
 
@@ -642,34 +624,292 @@ class Handler:
         # wiz.register_observer(self.notify)
         # wiz.notify_observers('test')
 
-        self.rootframe.after(1000, self.update_plot)
-        #######################################################################
+        self.rootframe.after(500, self.update_plot_multiple)
+        #####
+
+
+        ######################################
+        ##### NEW WINDOW FOR TEMPERATURE #####
+        ######################################
+
+        self.create_window(parent, 500, 500, 0, 50, 250, 320, symbols, Tkinter.RIGHT)
+
+        #####
+        # Call to selection tool
+        rect2 = RectTracker(self.current_canvas)
+
+        ######
+        # Command to select by dragging
+        def onDrag2(start, end):
+            global x,y, locked
+            items = rect2.hit_test(start, end)
+            display=set()
+            for x in rect2.items:
+                # if x not in items:
+                #     if x in canvas.shapes:
+                #         canvas.itemconfig(x, fill='grey')
+                #         if self.show[canvas.shapes[x][5][1]-1]:
+                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                #             cmd.hide('line', '(sele)')
+                # else:
+                if x in items:
+                    #canvas.itemconfig(x, fill='blue')
+                    if x in self.canvas[1].shapes:
+                        display.add(self.canvas[1].shapes[x][5][1])
+                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                        # cmd.show('line', '(sele)')
+                        logging.debug(display)
+                        self.show[self.canvas[1].shapes[x][5][1]-1] = True
+                        locked = False
+            self.update_plot_multiple(1, display, self.canvas[1])
+            if len(display) == 0 and not locked:
+                self.update_plot_multiple(1, display, self.canvas[1])
+                locked = True
+        rect2.autodraw(fill="", width=2, command=onDrag2)
+        #####
+
+
+        #################################
+        ##### NEW WINDOW FOR ENERGY #####
+        #################################
+
+        self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.BOTTOM)
+
+        #####
+        # Call to selection tool
+        rect3 = RectTracker(self.current_canvas)
+
+        ######
+        # Command to select by dragging
+        def onDrag3(start, end):
+            global x,y, locked
+            items = rect3.hit_test(start, end)
+            display=set()
+            for x in rect3.items:
+                # if x not in items:
+                #     if x in canvas.shapes:
+                #         canvas.itemconfig(x, fill='grey')
+                #         if self.show[canvas.shapes[x][5][1]-1]:
+                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                #             cmd.hide('line', '(sele)')
+                # else:
+                if x in items:
+                    #canvas.itemconfig(x, fill='blue')
+                    if x in self.canvas[2].shapes:
+                        display.add(self.canvas[2].shapes[x][5][1])
+                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                        # cmd.show('line', '(sele)')
+                        logging.debug(display)
+                        self.show[self.canvas[2].shapes[x][5][1]-1] = True
+                        locked = False
+            self.update_plot_multiple(1, display, self.canvas[2])
+            if len(display) == 0 and not locked:
+                self.update_plot_multiple(1, display, self.canvas[2])
+                locked = True
+        rect3.autodraw(fill="", width=2, command=onDrag3)
+        #####
 
 
         if selection is not None:
-            self.start(selection)
+            self.start(selection, self.canvas[0], 'RMSD')
+            self.start(selection, self.canvas[1], 'temperature')
+            self.start(selection, self.canvas[2], 'energy')
 
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
 
-    def update_plot(self, source =0, to_display=set()):
-        """ Check for updated selections data """
+        #############################################
+        ##### CREATE CANVAS ITEM IDs DICTIONARY #####
+        #############################################
+        self.create_ids_equivalent_dict()
+
+    
+    def create_ids_equivalent_dict(self):
+        """ Create a dictionary of equivalent ids for each canvas created """
+        for k,s in self.canvas[0].shapes.iteritems():
+            self.canvas[0].ids_ext[k] = []
+            for canv in self.canvas[1:]:
+                for k1,s1 in canv.shapes.iteritems():
+                    if s1[5][1] == s[5][1]:
+                        self.canvas[0].ids_ext[k].append(k1)
+                        # canv.ids_ext[k1] = []
+                        # canv.ids_ext[k1].append(k)
+
+        for i in range(1,len(self.canvas)):
+            self.canvas[i].ids_ext = {v[i-1]: [item for sublist in [[k], v[:i-1], v[i:]] for item in sublist] for k,v in self.canvas[0].ids_ext.items()}
+
+        print self.canvas[1].ids_ext
+        print self.canvas[2].ids_ext
+        logging.debug(self.canvas[0].shapes[192])
+        logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
+        logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
+
+
+    def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
+        """ Check for updated selections data in all plots simultaneously"""
         start_time = time.time()
-        
+        if canvas == None:
+            canvas = self.current_canvas
         if source == 1:
             logging.info("Display models sent by OnDrag: ")
             logging.info(to_display)
             self.models_to_display = to_display.intersection(self.all_models)
             logging.info(self.models_to_display)
-            for k,s in self.current_canvas.shapes.iteritems():
+            for k,s in canvas.shapes.iteritems():
                 if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
-                    self.current_canvas.itemconfig(k, fill='blue')
+                    canvas.itemconfig(k, fill='blue')
+                    cpt = 0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        cpt+=1
+                    logging.debug("Color: %04d" % s[5][1])
+                    #cmd.select('sele', '%04d' % s[5][1])
+                    cmd.set('cartoon_transparency', '0.5')
+                    cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+                    cmd.show('line', '%04d' % s[5][1])
+                    #cmd.disable('sele')
+                elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
+                    canvas.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    logging.debug("Hide: %04d" % s[5][1])
+                    #cmd.select('sele', '%04d' % s[5][1])
+                    cmd.hide('all', '%04d' % s[5][1])
+                    #cmd.disable('sele')
+            self.models_shown = self.models_to_display  
+
+        elif source == 0:
+            # Check single picking items
+            for canv in self.canvas:
+                if canv.picked != 0 and canv.picked != canv.previous:
+                    canv.itemconfig(canv.picked, fill='blue')
+                    cpt = 0
+                    for it in canv.ids_ext[canv.picked]:
+                        if self.canvas[cpt] != canv:
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        cpt+=1
+                    cmd.show('line', '%04d' % canv.shapes[canv.picked][5][1])
+                    if canv.previous != 0:
+                        canv.itemconfig(canv.previous, fill='grey')
+                        cpt=0
+                        for it in canv.ids_ext[canv.previous]:
+                            if self.canvas[cpt] != canv:
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            else:
+                                cpt+=1
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            cpt+=1
+                        cmd.hide('line', '%04d' % canv.shapes[canvas.previous][5][1])
+                    canv.previous = canv.picked
+                    break # We can pick only one item among all canvas
+            # Check selection from PyMol viewer
+            try:
+                models = self.queue.get_nowait()
+                logging.info("Models from user selection in the viewer: "+str(models))
+                self.models_to_display = models.intersection(self.all_models)
+                if len(self.models_to_display) > 0:
+                    for k,s in canvas.shapes.iteritems():
+                        if s[5][1] in self.models_to_display:
+                            logging.info("Color red -> %04d" % s[5][1]) 
+                            canvas.itemconfig(k, fill='blue')
+                            cpt=0
+                            for it in canvas.ids_ext[k]:
+                                if self.canvas[cpt] != canvas:
+                                    self.canvas[cpt].itemconfig(it, fill='blue')
+                                else:
+                                    cpt+=1
+                                    self.canvas[cpt].itemconfig(it, fill='blue')
+                                cpt+=1
+                            cmd.color('red', '%04d' % s[5][1])
+                        else:
+                            logging.info("Color default -> %04d" % s[5][1]) 
+                            canvas.itemconfig(k, fill='grey')
+                            cpt=0
+                            for it in canvas.ids_ext[k]:
+                                if self.canvas[cpt] != canvas:
+                                    self.canvas[cpt].itemconfig(it, fill='grey')
+                                else:
+                                    cpt+=1
+                                    self.canvas[cpt].itemconfig(it, fill='grey')
+                                cpt+=1
+                            util.cbag('%04d' % s[5][1])
+                            # cmd.select('sele', '%04d' % s[5][1])
+                            # cmd.hide('line', '(sele)')
+                    cmd.disable('lb')
+            except Queue.Empty:
+                pass
+        # Reset plot and viewer
+        elif source == 2:
+            logging.info("RESET")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    self.models_to_display.clear()
+                    self.models_shown.clear()
+            cmd.hide('line', 'all')
+                
+        # "Selection mode"
+        elif source == 3:
+            logging.info("SELECTION MODE")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    self.models_to_display.add(s[5][1])
+                    self.models_shown.add(s[5][1])
+            cmd.show('line', 'all')
+
+        logging.debug("---- %s seconds ----" % str(time.time()-start_time))
+        self.rootframe.after(500, self.update_plot_multiple)
+
+    def update_plot(self, source =0, to_display=set(), canvas=None):
+        """ Check for updated selections data """
+        start_time = time.time()
+        if canvas == None:
+            canvas = self.current_canvas
+
+        if source == 1:
+            logging.info("Display models sent by OnDrag: ")
+            logging.info(to_display)
+            self.models_to_display = to_display.intersection(self.all_models)
+            logging.info(self.models_to_display)
+            for k,s in canvas.shapes.iteritems():
+                if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
+                    canvas.itemconfig(k, fill='blue')
                     logging.debug("Color: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
                     cmd.show('line', '%04d' % s[5][1])
                     #cmd.disable('sele')
                 elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
-                    self.current_canvas.itemconfig(k, fill='grey')
+                    canvas.itemconfig(k, fill='grey')
                     logging.debug("Hide: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
                     cmd.hide('line', '%04d' % s[5][1])
@@ -678,30 +918,30 @@ class Handler:
 
         elif source == 0:
             # Check single picking items
-            if self.current_canvas.picked != 0 and self.current_canvas.picked != self.current_canvas.previous:
-                self.current_canvas.itemconfig(self.current_canvas.picked, fill='blue')
-                cmd.select('sele', '%04d' % self.current_canvas.shapes[self.current_canvas.picked][5][1])
+            if canvas.picked != 0 and canvas.picked != canvas.previous:
+                canvas.itemconfig(canvas.picked, fill='blue')
+                cmd.select('sele', '%04d' % canvas.shapes[canvas.picked][5][1])
                 cmd.show('line', '(sele)')
-                if self.current_canvas.previous != 0:
-                    self.current_canvas.itemconfig(self.current_canvas.previous, fill='grey')
-                    cmd.select('sele', '%04d' % self.current_canvas.shapes[self.current_canvas.previous][5][1])
+                if canvas.previous != 0:
+                    canvas.itemconfig(canvas.previous, fill='grey')
+                    cmd.select('sele', '%04d' % canvas.shapes[canvas.previous][5][1])
                     cmd.hide('line', '(sele)')
                 cmd.disable('sele')
-                self.current_canvas.previous = self.current_canvas.picked
+                canvas.previous = canvas.picked
             # Check selection from PyMol viewer
             try:
                 models = self.queue.get_nowait()
                 logging.info("Models from user selection in the viewer: "+str(models))
                 self.models_to_display = models.intersection(self.all_models)
                 if len(self.models_to_display) > 0:
-                    for k,s in self.current_canvas.shapes.iteritems():
+                    for k,s in canvas.shapes.iteritems():
                         if s[5][1] in self.models_to_display:
                             logging.info("Color red -> %04d" % s[5][1]) 
-                            self.current_canvas.itemconfig(k, fill='blue')
+                            canvas.itemconfig(k, fill='blue')
                             cmd.color('red', '%04d' % s[5][1])
                         else:
                             logging.info("Color default -> %04d" % s[5][1]) 
-                            self.current_canvas.itemconfig(k, fill='grey')
+                            canvas.itemconfig(k, fill='grey')
                             util.cbag('%04d' % s[5][1])
                             # cmd.select('sele', '%04d' % s[5][1])
                             # cmd.hide('line', '(sele)')
@@ -710,20 +950,22 @@ class Handler:
                 pass
         # Reset plot and viewer
         elif source == 2:
-            print "RESET"
-            for k,s in self.current_canvas.shapes.iteritems():
-                self.current_canvas.itemconfig(k, fill='grey')
-                self.models_to_display.clear()
-                self.models_shown.clear()
+            logging.info("RESET")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    self.models_to_display.clear()
+                    self.models_shown.clear()
             cmd.hide('line', 'all')
                 
         # "Selection mode"
         elif source == 3:
-            print "SELECTION MODE"
-            for k,s in self.current_canvas.shapes.iteritems():
-                self.current_canvas.itemconfig(k, fill='grey')
-                self.models_to_display.add(s[5][1])
-                self.models_shown.add(s[5][1])
+            logging.info("SELECTION MODE")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    self.models_to_display.add(s[5][1])
+                    self.models_shown.add(s[5][1])
             cmd.show('line', 'all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
@@ -742,12 +984,12 @@ class Handler:
     #             if m == self.canvas.shapes[s][5][1]:
     #                 self.canvas.itemconfig(s, fill='blue')
 
-    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols):
+    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols, position):
         """ Create new plot window """
         canvas = SimplePlot(parent, width=width, height=height)
         #canvas.bind("<Button-2>", canvas.pickWhich)
         canvas.bind("<ButtonPress-3>", canvas.pickWhich)
-        canvas.pack(side=Tkinter.LEFT, fill="both", expand=1)
+        canvas.pack(side=position, fill="both", expand=1)
         x_gap = float(max_x-min_x) / 5
         y_gap = float(max_y - min_y) / 5
         xlabels = [float("{0:.2f}".format(min_x + i*x_gap)) for i in range(6)]
@@ -769,15 +1011,6 @@ class Handler:
         cmd.delete(self.name)
         self.rootframe.destroy()
 
-    # def start(self, sel):
-    #     self.lock = 1
-    #     cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
-    #                 space={'idx2resn': self.canvas.idx2resn})
-    #     for model_index, (phi, psi) in cmd.get_phipsi(sel, self.state).iteritems():
-    #         #print " Plotting Phi,Psi: %8.2f,%8.2f" % (phi, psi)
-    #         self.canvas.plot(phi, psi, model_index)
-    #     self.lock = 0
-
     def parse_rdf(self,filename):
         """ Parse the RDF database """
         start_time = time.time()
@@ -787,32 +1020,33 @@ class Handler:
         logging.info ("---- %s seconds ----" % str(time.time()-start_time))
         logging.info("Number of triples: %d" % len(self.rdf_graph))
 
-    def query_rdf(self, type):
+    def query_rdf(self, query_type):
         """ Query the RDF graph for specific values """
         from rdflib.plugins.sparql import prepareQuery
-        
-        q = prepareQuery(
-        'SELECT ?x ?y ?id  WHERE { ?point rdf:type my:point . ?point my:value_type "RMSD" . ?point my:Y_value ?y . ?point my:represent ?mod . ?mod my:time_frame ?x . ?mod my:model_id ?id .}', initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        query = 'SELECT ?x ?y ?id  WHERE { ?point rdf:type my:point . ?point my:value_type "'+query_type+'" . ?point my:Y_value ?y . ?point my:represent ?mod . ?mod my:time_frame ?x . ?mod my:model_id ?id .}'
+        logging.info("QUERY: \n%s" % query)
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres= self.rdf_graph.query(q)
         
         logging.info("Number of queried entities: %d " % len(qres))
 
         return qres
 
-    def start(self, sel):
+    def start(self, sel, canvas, query_type):
         self.lock = 1
         cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
-                     space={'idx2resn': self.current_canvas.idx2resn})
+                     space={'idx2resn': canvas.idx2resn})
 
         # Parse main RDF database
         self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
         # Query RMSD points to draw first plot
-        qres = self.query_rdf("RMSD")
+        qres = self.query_rdf(query_type)
 
         for row in qres:
-            self.all_models.add(int(row[2]))
+            if int(row[2] not in self.all_models):
+                self.all_models.add(int(row[2]))
             model_index = ('all', int(row[2]))
-            self.current_canvas.plot(float(row[0]), float(row[1]), model_index)
+            canvas.plot(float(row[0]), float(row[1]), model_index)
         self.lock = 0
 
     # def start(self, sel):
