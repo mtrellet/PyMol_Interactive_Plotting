@@ -31,7 +31,7 @@ import logging
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
+logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
@@ -139,6 +139,8 @@ class RectTracker:
         self.canvas.bind("<Button-1>", self.__update, '+')
         self.canvas.bind("<B1-Motion>", self.__update, '+')
         self.canvas.bind("<ButtonRelease-1>", self.__stop, '+')
+        self.canvas.bind("<Button-2>", self.__update, '+')
+        self.canvas.bind("<ButtonRelease-2", self.__stop, '+')
         
         self._command = opts.pop('command', lambda *args: None)
         self.rectopts = opts
@@ -200,48 +202,6 @@ class RectTracker:
     
         return items
 
-# def main():
-#     from random import shuffle
-    
-#     canv = Canvas(width=500, height=500)
-#     canv.create_rectangle(50, 50, 250, 150, fill='red')
-#     canv.pack(fill=BOTH, expand=YES)
-    
-#     rect = RectTracker(canv)
-#     # draw some base rectangles
-#     rect.draw([50,50], [250, 150], fill='red', tags=('red', 'box'))
-#     rect.draw([300,300], [400, 450], fill='green', tags=('gre', 'box'))
-    
-#     # just for fun
-#     x, y = None, None
-#     def cool_design(event):
-#         global x, y
-#         kill_xy()
-        
-#         dashes = [3, 2]
-#         x = canv.create_line(event.x, 0, event.x, 1000, dash=dashes, tags='no')
-#         y = canv.create_line(0, event.y, 1000, event.y, dash=dashes, tags='no')
-        
-#     def kill_xy(event=None):
-#         canv.delete('no')
-    
-#     canv.bind('<Motion>', cool_design, '+')
-    
-#     # command
-#     def onDrag(start, end):
-#         global x,y
-#         items = rect.hit_test(start, end)
-#         for x in rect.items:
-#             if x not in items:
-#                 canv.itemconfig(x, fill='grey')
-#                 print x
-#             else:
-#                 canv.itemconfig(x, fill='blue')
-    
-#     rect.autodraw(fill="", width=2, command=onDrag)
-    
-#     mainloop()
-
 
 class SimplePlot(Tkinter.Canvas):
 
@@ -256,6 +216,8 @@ class SimplePlot(Tkinter.Canvas):
         self.spacingy = 0
         self.xmin = 0       # min value from each axis
         self.ymin = 0
+        self.xmax = 0
+        self.ymax = 0
         self.lastx = 0      # previous x,y pos of mouse
         self.lasty = 0
         self.isdown = 0    # flag for mouse pressed
@@ -267,7 +229,7 @@ class SimplePlot(Tkinter.Canvas):
         self.picked = 0     # Item selected
         self.ids_ext = {}
 
-    def axis(self, xmin=40, xmax=400, ymin=10, ymax=390, xint=390, yint=40, xlabels=[], ylabels=[]):
+    def axis(self, xmin=80, xmax=450, ymin=10, ymax=390, xint=390, yint=80, xlabels=[], ylabels=[], xtitle='X coordinates', ytitle='Y coordinates'):
 
         # Store variables in self object
         self.xlabels = xlabels
@@ -276,12 +238,15 @@ class SimplePlot(Tkinter.Canvas):
         self.spacingy = (ymax - ymin) / (len(ylabels) - 1)
         self.xmin = xmin
         self.ymin = ymin
+        self.xmax = xmax
+        self.ymax = ymax
 
         # Create axis lines
         self.create_line((xmin, xint, xmax, xint), fill="black", width=3)
         self.create_line((yint, ymin, yint, ymax), fill="black", width=3)
 
         # Create tick marks and labels
+        self.create_text(3*xmax/4, ymax + 20,  text=(xtitle), anchor="nw")
         nextspot = xmin
         for label in xlabels:
             self.create_line((nextspot, xint + 5, nextspot, xint - 5), fill="black", width=2)
@@ -291,10 +256,11 @@ class SimplePlot(Tkinter.Canvas):
             else:
                 nextspot += (xmax - xmin) / (len(xlabels) - 1)
 
+        self.create_text(20, ymin + 30, text="\n".join(ytitle), anchor="nw")
         nextspot = ymax
         for label in ylabels:
             self.create_line((yint + 5, nextspot, yint - 5, nextspot), fill="black", width=2)
-            self.create_text(yint - 20, nextspot, text=label)
+            self.create_text(yint - 25, nextspot, text=label)
             if len(ylabels) == 1:
                 nextspot = ymin
             else:
@@ -406,6 +372,9 @@ class SimplePlot(Tkinter.Canvas):
 
         # Add min edge pixels
         pixel = pixel + min
+
+        if axis == "Y" and pixel > self.ymax:
+            pixel = self.ymax
 
         return pixel
 
@@ -539,7 +508,7 @@ class Handler:
         ##### NEW WINDOW FOR RMSD #####
         ###############################
 
-        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT)
+        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT, "Time Frame", "RMSD")
 
 
         if name is None:
@@ -563,13 +532,15 @@ class Handler:
         self.models_shown = set()
         self.rdf_parsed = False
 
-        reset = Tkinter.Button(self.rootframe, text = "Reset", command = lambda: self.update_plot(2), anchor = "e")
-        reset.configure(width = 10, activebackground = "#33B5E5", relief = "flat")
-        reset_window = self.current_canvas.create_window(10, 450, anchor="sw", window=reset)
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        reset_window = self.current_canvas.create_window(40, 480, anchor="sw", window=reset)
 
-        select = Tkinter.Button(self.rootframe, text = "Select from Viewer", command = lambda: self.update_plot(3), anchor = "e")
-        select.configure(width = 20, activebackground = "#33B5E5", relief = "flat")
-        select_window = self.current_canvas.create_window(50, 450, anchor="se", window=select)
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
+        select_window = self.current_canvas.create_window(270, 480, anchor="se", window=select)
+
+        self.current_canvas.create_line(40, 445, 300, 445, fill='black', width=1)
 
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
@@ -614,6 +585,10 @@ class Handler:
         rect.autodraw(fill="", width=2, command=onDrag)
         #####
 
+        delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[0]), anchor = "w")
+        delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        delete_window = self.current_canvas.create_window(40, 430, anchor="sw", window=delete)
+
         #####
         # Call to wizard tool
         wiz = PickWizard(self)
@@ -633,7 +608,7 @@ class Handler:
         ##### NEW WINDOW FOR TEMPERATURE #####
         ######################################
 
-        self.create_window(parent, 500, 500, 0, 50, 250, 320, symbols, Tkinter.RIGHT)
+        self.create_window(parent, 500, 500, 0, 50, 250, 320, symbols, Tkinter.LEFT, "Time Frame", "Temperature")
 
         #####
         # Call to selection tool
@@ -669,12 +644,16 @@ class Handler:
         rect2.autodraw(fill="", width=2, command=onDrag2)
         #####
 
+        delete2 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[1]), anchor = "w")
+        delete2.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        delete_window2 = self.current_canvas.create_window(40, 430, anchor="sw", window=delete2)
+
 
         #################################
         ##### NEW WINDOW FOR ENERGY #####
         #################################
 
-        self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.BOTTOM)
+        self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
 
         #####
         # Call to selection tool
@@ -710,6 +689,10 @@ class Handler:
         rect3.autodraw(fill="", width=2, command=onDrag3)
         #####
 
+        delete3 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[2]), anchor = "w")
+        delete3.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        delete_window3 = self.current_canvas.create_window(40, 430, anchor="sw", window=delete3)
+
 
         if selection is not None:
             self.start(selection, self.canvas[0], 'RMSD')
@@ -725,6 +708,12 @@ class Handler:
         self.create_ids_equivalent_dict()
 
     
+    def delete(self, canvas):
+        print "Closed"
+        self.canvas.remove(canvas)
+        canvas.delete("all")
+        canvas.pack()
+
     def create_ids_equivalent_dict(self):
         """ Create a dictionary of equivalent ids for each canvas created """
         for k,s in self.canvas[0].shapes.iteritems():
@@ -797,8 +786,9 @@ class Handler:
                             cpt+=1
                             self.canvas[cpt].itemconfig(it, fill='blue')
                         cpt+=1
-                    #cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
+                    cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
                     cmd.show('lines', '%04d' % canv.shapes[canv.picked][5][1])
+                    logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
                     if canv.previous != 0:
                         canv.itemconfig(canv.previous, fill='grey')
                         cpt=0
@@ -864,6 +854,8 @@ class Handler:
                         cpt+=1
                     self.models_to_display.clear()
                     self.models_shown.clear()
+                canv.previous = 0
+                canv.picked = 0
             cmd.hide('everything', 'all')
                 
         # "Selection mode"
@@ -919,6 +911,7 @@ class Handler:
                 canvas.itemconfig(canvas.picked, fill='blue')
                 cmd.select('sele', '%04d' % canvas.shapes[canvas.picked][5][1])
                 cmd.show('line', '(sele)')
+                logging.info("You selected item %d corresponding to model %d" % (k, s[5][1]))
                 if canvas.previous != 0:
                     canvas.itemconfig(canvas.previous, fill='grey')
                     cmd.select('sele', '%04d' % canvas.shapes[canvas.previous][5][1])
@@ -969,19 +962,18 @@ class Handler:
         self.rootframe.after(1000, self.update_plot)
 
 
-    # def notify(self, observable, *args, **kwargs):
-    #     print('Got', args, kwargs, 'From', observable)
-    #     myspace = {'models':[]}
-    #     cmd.iterate('(lb)', 'models.append(model)', space=myspace)
-    #     for i in set(myspace['models']):
-    #         if int(i) not in self.models_to_display:
-    #             self.models_to_display.add(int(i))
-    #     for m in self.models_to_display:
-    #         for s in self.canvas.shapes:
-    #             if m == self.canvas.shapes[s][5][1]:
-    #                 self.canvas.itemconfig(s, fill='blue')
+    def try_convert_to_int(self, array):
+        result = []
+        for a in array:
+            f = float(a)
+            i = int(f)
+            if f != i:
+                return array
+            result.append(i)
+        return result
 
-    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols, position):
+
+    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols, position, xtitle, ytitle):
         """ Create new plot window """
         canvas = SimplePlot(parent, width=width, height=height)
         #canvas.bind("<Button-2>", canvas.pickWhich)
@@ -989,10 +981,9 @@ class Handler:
         canvas.pack(side=position, fill="both", expand=1)
         x_gap = float(max_x-min_x) / 5
         y_gap = float(max_y - min_y) / 5
-        xlabels = [float("{0:.2f}".format(min_x + i*x_gap)) for i in range(6)]
-        ylabels = [float("{0:.2f}".format(min_y + i*y_gap)) for i in range(6)]
-        canvas.axis(xlabels=xlabels,
-                    ylabels=ylabels)
+        xlabels = self.try_convert_to_int([float("{0:.2f}".format(min_x + i*x_gap)) for i in range(6)])
+        ylabels = self.try_convert_to_int([float("{0:.2f}".format(min_y + i*y_gap)) for i in range(6)])
+        canvas.axis(xlabels=xlabels, ylabels=ylabels, xtitle=xtitle, ytitle=ytitle)
 
         canvas.update()
 
