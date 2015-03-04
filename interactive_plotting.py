@@ -139,12 +139,38 @@ class RectTracker:
         self.canvas.bind("<Button-1>", self.__update, '+')
         self.canvas.bind("<B1-Motion>", self.__update, '+')
         self.canvas.bind("<ButtonRelease-1>", self.__stop, '+')
-        self.canvas.bind("<Button-2>", self.__update, '+')
-        self.canvas.bind("<ButtonRelease-2", self.__stop, '+')
+        self.canvas.bind("<Button-2>", self.__accumulate, '+')
+        self.canvas.bind("<B2-Motion>", self.__accumulate, '+')
+        self.canvas.bind("<ButtonRelease-2>", self.__release, '+')
         
         self._command = opts.pop('command', lambda *args: None)
         self.rectopts = opts
-        
+
+    # def select_and_send(self, **opts):
+    #     self.start = None
+    #     self.canvas.bind("<Button-2>", self.__accumulate, '+')
+    #     self.canvas.bind("<B2-Motion>", self.__accumulate, '+')
+    #     self.canvas.bind("<ButtonRelease-2>", self.__release, '+')
+
+    #     self._command = opts.pop('command', lambda *args: None)
+    #     self.rectopts = opts
+
+    def __accumulate(self, event):
+        if not self.start:
+            self.start = [event.x, event.y]
+            return
+
+        if self.item is not None:
+            self.canvas.delete(self.item)
+        self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
+        #self._command(self.start, (event.x, event.y))
+
+    def __release(self,event):
+        self.canvas.delete(self.item)
+        self._command(self.start, (event.x, event.y), "all_in_one")
+        self.start = None
+        self.item = None
+
     def __update(self, event):
         if not self.start:
             self.start = [event.x, event.y]
@@ -153,7 +179,7 @@ class RectTracker:
         if self.item is not None:
             self.canvas.delete(self.item)
         self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
-        self._command(self.start, (event.x, event.y))
+        self._command(self.start, (event.x, event.y), "update")
         
     def __stop(self, event):
         self.start = None
@@ -227,7 +253,9 @@ class SimplePlot(Tkinter.Canvas):
         self.symbols = 0    # 0: amino acids, 1: secondary structure
         self.previous = 0   # Previous item selected
         self.picked = 0     # Item selected
-        self.ids_ext = {}
+        self.ids_ext = {}   # Dictionary of other canvas equivalent ids
+        self.x_query_type = None
+        self.y_query_type = None
 
     def axis(self, xmin=80, xmax=450, ymin=10, ymax=390, xint=390, yint=80, xlabels=[], ylabels=[], xtitle='X coordinates', ytitle='Y coordinates'):
 
@@ -304,6 +332,41 @@ class SimplePlot(Tkinter.Canvas):
         #                                      for i in cmd.get_color_tuple(color)])
         oval = create_shape(width=1, outline="black", fill="grey", *coords)
         self.shapes[oval] = [x, y, 0, xp, yp, meta]
+
+    # Convet from pixel space to values
+    def convertToValues(self, start, end):
+        unit_per_pixel_x = float(abs(self.xlabels[-1]-self.xlabels[0])/abs(self.xmax-self.xmin))
+        unit_per_pixel_y = float(abs(self.ylabels[-1]-self.ylabels[0])/abs(self.ymax-self.ymin))
+
+        logging.info("Px/unit X: %f / Y: %f" % (unit_per_pixel_x, unit_per_pixel_y))
+
+        x_low = (start[0]-self.xmin) * unit_per_pixel_x
+        x_high = (end[0]-self.xmin) * unit_per_pixel_x
+        y_low = (self.ymax-start[1]) * unit_per_pixel_y
+        y_high = (self.ymax-end[1]) * unit_per_pixel_y
+
+        if x_low > x_high:
+            tmp = x_low
+            x_low = x_high
+            x_high = tmp
+
+        if y_low > y_high:
+            tmp = y_low
+            y_low = y_high
+            y_high = tmp
+
+        return x_low, x_high, y_low, y_high
+
+    def convertToPixel(self, axis, value):
+        pixel_per_unit_x = float(abs(self.xmax-self.xmin)/abs(self.xlabels[-1]-self.xlabels[0]))
+        pixel_per_unit_y = float(abs(self.ymax-self.ymin)/abs(self.ylabels[-1]-self.ylabels[0]))
+
+        if axis == "Y":
+            pixel = self.ymax - ((value-self.ylabels[0]) * pixel_per_unit_y)
+        else:
+            pixel = self.xmin + ((value-self.xlabels[0]) * pixel_per_unit_x)
+
+        return pixel
         
     # Convert from pixel space to label space
     def convertToLabel(self, axis, value):
@@ -331,52 +394,52 @@ class SimplePlot(Tkinter.Canvas):
         return label
 
     # Converts value from 'label' space to 'pixel' space
-    def convertToPixel(self, axis, value):
+    # def convertToPixel(self, axis, value):
 
-        # Defaultly use X-axis info
-        label0 = self.xlabels[0]
-        label1 = self.xlabels[1]
-        spacing = self.spacingx
-        min = self.xmin
+    #     # Defaultly use X-axis info
+    #     label0 = self.xlabels[0]
+    #     label1 = self.xlabels[1]
+    #     spacing = self.spacingx
+    #     min = self.xmin
 
-        # Set info for Y-axis use
-        if axis == "Y":
-            label0 = self.ylabels[0]
-            label1 = self.ylabels[1]
-            spacing = self.spacingy
-            min = self.ymin
+    #     # Set info for Y-axis use
+    #     if axis == "Y":
+    #         label0 = self.ylabels[0]
+    #         label1 = self.ylabels[1]
+    #         spacing = self.spacingy
+    #         min = self.ymin
 
-        # Get axis increment in 'label' space
-        inc = abs(label1 - label0)
+    #     # Get axis increment in 'label' space
+    #     inc = abs(label1 - label0)
 
-        # 'Label' difference from value and smallest label (label0)
-        diff = float(value - label0)
+    #     # 'Label' difference from value and smallest label (label0)
+    #     diff = float(value - label0)
 
-        # Get whole number in 'label' space
-        whole = int(diff / inc)
+    #     # Get whole number in 'label' space
+    #     whole = int(diff / inc)
 
-        # Get fraction number in 'label' space
-        part = float(float(diff / inc) - whole)
+    #     # Get fraction number in 'label' space
+    #     part = float(float(diff / inc) - whole)
 
-        # Return 'pixel' position value
-        pixel = whole * spacing + part * spacing
+    #     # Return 'pixel' position value
+    #     pixel = whole * spacing + part * spacing
 
-        # Reverse number by subtracting total number of pixels - value pixels
-        if axis == "Y":
-            tot_label_diff = float(self.ylabels[-1] - label0)
-            tot_label_whole = int(tot_label_diff / inc)
-            tot_label_part = float(float(tot_label_diff / inc) - tot_label_whole)
-            tot_label_pix = tot_label_whole * spacing + tot_label_part * spacing
+    #     # Reverse number by subtracting total number of pixels - value pixels
+    #     if axis == "Y":
+    #         tot_label_diff = float(self.ylabels[-1] - label0)
+    #         tot_label_whole = int(tot_label_diff / inc)
+    #         tot_label_part = float(float(tot_label_diff / inc) - tot_label_whole)
+    #         tot_label_pix = tot_label_whole * spacing + tot_label_part * spacing
 
-            pixel = tot_label_pix - pixel
+    #         pixel = tot_label_pix - pixel
 
-        # Add min edge pixels
-        pixel = pixel + min
+    #     # Add min edge pixels
+    #     pixel = pixel + min
 
-        if axis == "Y" and pixel > self.ymax:
-            pixel = self.ymax
+    #     if axis == "Y" and pixel > self.ymax:
+    #         pixel = self.ymax
 
-        return pixel
+    #     return pixel
 
     # Print out which data point you just clicked on..
     def pickWhich(self, event):
@@ -557,33 +620,47 @@ class Handler:
 
         ######
         # Command to select by dragging
-        def onDrag(start, end):
+        def onDrag(start, end, mode):
             global x,y, locked
-            items = rect.hit_test(start, end)
-            display=set()
-            for x in rect.items:
-                # if x not in items:
-                #     if x in canvas.shapes:
-                #         canvas.itemconfig(x, fill='grey')
-                #         if self.show[canvas.shapes[x][5][1]-1]:
-                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                #             cmd.hide('line', '(sele)')
-                # else:
-                if x in items:
-                    #canvas.itemconfig(x, fill='blue')
-                    if x in self.canvas[0].shapes:
-                        display.add(self.canvas[0].shapes[x][5][1])
-                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                        # cmd.show('line', '(sele)')
-                        logging.debug(display)
-                        self.show[self.canvas[0].shapes[x][5][1]-1] = True
-                        locked = False
-            self.update_plot_multiple(1, display, self.canvas[0])
-            if len(display) == 0 and not locked:
+            if mode == "update":
+                items = rect.hit_test(start, end)
+                display=set()
+                for x in rect.items:
+                    # if x not in items:
+                    #     if x in canvas.shapes:
+                    #         canvas.itemconfig(x, fill='grey')
+                    #         if self.show[canvas.shapes[x][5][1]-1]:
+                    #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                    #             cmd.hide('line', '(sele)')
+                    # else:
+                    if x in items:
+                        #canvas.itemconfig(x, fill='blue')
+                        if x in self.canvas[0].shapes:
+                            display.add(self.canvas[0].shapes[x][5][1])
+                            # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                            # cmd.show('line', '(sele)')
+                            logging.debug(display)
+                            self.show[self.canvas[0].shapes[x][5][1]-1] = True
+                            locked = False
                 self.update_plot_multiple(1, display, self.canvas[0])
-                locked = True
-        rect.autodraw(fill="", width=2, command=onDrag)
+                if len(display) == 0 and not locked:
+                    self.update_plot_multiple(1, display, self.canvas[0])
+                    locked = True
+            elif mode == "all_in_one":
+                logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
+                x_low, x_high, y_low, y_high = self.canvas[0].convertToValues(start, end)
+                logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
+                models_selected = self.query_sub_rdf(self.canvas[0], x_low, x_high, y_low, y_high)
+                logging.info(models_selected)
+                for model in models_selected:
+                    self.show[model-1] = True
+                self.update_plot_multiple(1, models_selected, self.canvas[0])
         #####
+
+        def OnSelect(start, end):
+            global x,y, locked
+            
+        rect.autodraw(fill="", width=1, command=onDrag)
 
         delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[0]), anchor = "w")
         delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
@@ -695,9 +772,9 @@ class Handler:
 
 
         if selection is not None:
-            self.start(selection, self.canvas[0], 'RMSD')
-            self.start(selection, self.canvas[1], 'temperature')
-            self.start(selection, self.canvas[2], 'energy')
+            self.start(selection, self.canvas[0], 'time_frame', 'RMSD')
+            self.start(selection, self.canvas[1], 'time_frame', 'temperature')
+            self.start(selection, self.canvas[2], 'time_frame', 'energy')
 
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
@@ -1008,10 +1085,26 @@ class Handler:
         logging.info ("---- %s seconds ----" % str(time.time()-start_time))
         logging.info("Number of triples: %d" % len(self.rdf_graph))
 
-    def query_rdf(self, query_type):
-        """ Query the RDF graph for specific values """
+    def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh):
+        """ Query the RDF graph for specific range of values made by user selection """
         from rdflib.plugins.sparql import prepareQuery
-        query = 'SELECT ?x ?y ?id  WHERE { ?point rdf:type my:point . ?point my:value_type "'+query_type+'" . ?point my:Y_value ?y . ?point my:represent ?mod . ?mod my:time_frame ?x . ?mod my:model_id ?id .}'
+        query = 'SELECT ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:model_id ?id .}'
+        logging.info("QUERY: \n%s" % query)
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        logging.info("Number of queried entities: %d " % len(qres))
+
+        models = set()
+        for row in qres:
+            models.add(int(row[0]))
+
+        return models
+
+    def query_rdf(self, x_query_type, y_query_type):
+        """ Query the RDF graph to build complete plot """
+        from rdflib.plugins.sparql import prepareQuery
+        query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:model_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres= self.rdf_graph.query(q)
@@ -1020,17 +1113,20 @@ class Handler:
 
         return qres
 
-    def start(self, sel, canvas, query_type):
+    def start(self, sel, canvas, x_query_type, y_query_type):
         self.lock = 1
         cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
                      space={'idx2resn': canvas.idx2resn})
+
+        canvas.x_query_type = x_query_type
+        canvas.y_query_type = y_query_type
 
         # Parse main RDF database
         if (not self.rdf_parsed):
             self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
             self.rdf_parsed = True
         # Query RMSD points to draw first plot
-        qres = self.query_rdf(query_type)
+        qres = self.query_rdf(x_query_type, y_query_type)
 
         for row in qres:
             if int(row[2] not in self.all_models):
