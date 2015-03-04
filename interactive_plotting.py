@@ -278,7 +278,7 @@ class SimplePlot(Tkinter.Canvas):
         nextspot = xmin
         for label in xlabels:
             self.create_line((nextspot, xint + 5, nextspot, xint - 5), fill="black", width=2)
-            self.create_text(nextspot, xint - 15, text=label)
+            self.create_text(nextspot, xint + 12, text=label)
             if len(xlabels) == 1:
                 nextspot = xmax
             else:
@@ -597,13 +597,13 @@ class Handler:
 
         reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-        reset_window = self.current_canvas.create_window(40, 480, anchor="sw", window=reset)
+        reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
 
         select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
-        select_window = self.current_canvas.create_window(270, 480, anchor="se", window=select)
+        select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
 
-        self.current_canvas.create_line(40, 445, 300, 445, fill='black', width=1)
+        self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
 
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
@@ -656,15 +656,11 @@ class Handler:
                     self.show[model-1] = True
                 self.update_plot_multiple(1, models_selected, self.canvas[0])
         #####
-
-        def OnSelect(start, end):
-            global x,y, locked
-            
         rect.autodraw(fill="", width=1, command=onDrag)
 
         delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[0]), anchor = "w")
         delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-        delete_window = self.current_canvas.create_window(40, 430, anchor="sw", window=delete)
+        delete_window = self.current_canvas.create_window(210, 445, anchor="sw", window=delete)
 
         #####
         # Call to wizard tool
@@ -693,37 +689,48 @@ class Handler:
 
         ######
         # Command to select by dragging
-        def onDrag2(start, end):
+        def onDrag2(start, end, mode):
             global x,y, locked
-            items = rect2.hit_test(start, end)
-            display=set()
-            for x in rect2.items:
-                # if x not in items:
-                #     if x in canvas.shapes:
-                #         canvas.itemconfig(x, fill='grey')
-                #         if self.show[canvas.shapes[x][5][1]-1]:
-                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                #             cmd.hide('line', '(sele)')
-                # else:
-                if x in items:
-                    #canvas.itemconfig(x, fill='blue')
-                    if x in self.canvas[1].shapes:
-                        display.add(self.canvas[1].shapes[x][5][1])
-                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                        # cmd.show('line', '(sele)')
-                        logging.debug(display)
-                        self.show[self.canvas[1].shapes[x][5][1]-1] = True
-                        locked = False
-            self.update_plot_multiple(1, display, self.canvas[1])
-            if len(display) == 0 and not locked:
+            if mode == "update":
+                items = rect2.hit_test(start, end)
+                display=set()
+                for x in rect2.items:
+                    # if x not in items:
+                    #     if x in canvas.shapes:
+                    #         canvas.itemconfig(x, fill='grey')
+                    #         if self.show[canvas.shapes[x][5][1]-1]:
+                    #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                    #             cmd.hide('line', '(sele)')
+                    # else:
+                    if x in items:
+                        #canvas.itemconfig(x, fill='blue')
+                        if x in self.canvas[1].shapes:
+                            display.add(self.canvas[1].shapes[x][5][1])
+                            # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                            # cmd.show('line', '(sele)')
+                            logging.debug(display)
+                            self.show[self.canvas[1].shapes[x][5][1]-1] = True
+                            locked = False
                 self.update_plot_multiple(1, display, self.canvas[1])
-                locked = True
-        rect2.autodraw(fill="", width=2, command=onDrag2)
+                if len(display) == 0 and not locked:
+                    self.update_plot_multiple(1, display, self.canvas[1])
+                    locked = True
+            elif mode == "all_in_one":
+                logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
+                x_low, x_high, y_low, y_high = self.canvas[1].convertToValues(start, end)
+                logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
+                models_selected = self.query_sub_rdf(self.canvas[1], x_low, x_high, y_low, y_high)
+                logging.info(models_selected)
+                for model in models_selected:
+                    self.show[model-1] = True
+                self.update_plot_multiple(1, models_selected, self.canvas[1])
         #####
+        rect2.autodraw(fill="", width=1, command=onDrag2)
+        
 
         delete2 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[1]), anchor = "w")
         delete2.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-        delete_window2 = self.current_canvas.create_window(40, 430, anchor="sw", window=delete2)
+        delete_window2 = self.current_canvas.create_window(210, 445, anchor="sw", window=delete2)
 
 
         #################################
@@ -738,37 +745,47 @@ class Handler:
 
         ######
         # Command to select by dragging
-        def onDrag3(start, end):
+        def onDrag3(start, end, mode):
             global x,y, locked
-            items = rect3.hit_test(start, end)
-            display=set()
-            for x in rect3.items:
-                # if x not in items:
-                #     if x in canvas.shapes:
-                #         canvas.itemconfig(x, fill='grey')
-                #         if self.show[canvas.shapes[x][5][1]-1]:
-                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                #             cmd.hide('line', '(sele)')
-                # else:
-                if x in items:
-                    #canvas.itemconfig(x, fill='blue')
-                    if x in self.canvas[2].shapes:
-                        display.add(self.canvas[2].shapes[x][5][1])
-                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                        # cmd.show('line', '(sele)')
-                        logging.debug(display)
-                        self.show[self.canvas[2].shapes[x][5][1]-1] = True
-                        locked = False
-            self.update_plot_multiple(1, display, self.canvas[2])
-            if len(display) == 0 and not locked:
+            if mode == "update":
+                items = rect3.hit_test(start, end)
+                display=set()
+                for x in rect3.items:
+                    # if x not in items:
+                    #     if x in canvas.shapes:
+                    #         canvas.itemconfig(x, fill='grey')
+                    #         if self.show[canvas.shapes[x][5][1]-1]:
+                    #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                    #             cmd.hide('line', '(sele)')
+                    # else:
+                    if x in items:
+                        #canvas.itemconfig(x, fill='blue')
+                        if x in self.canvas[2].shapes:
+                            display.add(self.canvas[2].shapes[x][5][1])
+                            # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                            # cmd.show('line', '(sele)')
+                            logging.debug(display)
+                            self.show[self.canvas[2].shapes[x][5][1]-1] = True
+                            locked = False
                 self.update_plot_multiple(1, display, self.canvas[2])
-                locked = True
-        rect3.autodraw(fill="", width=2, command=onDrag3)
+                if len(display) == 0 and not locked:
+                    self.update_plot_multiple(1, display, self.canvas[2])
+                    locked = True
+            elif mode == "all_in_one":
+                logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
+                x_low, x_high, y_low, y_high = self.canvas[2].convertToValues(start, end)
+                logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
+                models_selected = self.query_sub_rdf(self.canvas[2], x_low, x_high, y_low, y_high)
+                logging.info(models_selected)
+                for model in models_selected:
+                    self.show[model-1] = True
+                self.update_plot_multiple(1, models_selected, self.canvas[2])
+        rect3.autodraw(fill="", width=1, command=onDrag3)
         #####
 
         delete3 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[2]), anchor = "w")
         delete3.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-        delete_window3 = self.current_canvas.create_window(40, 430, anchor="sw", window=delete3)
+        delete_window3 = self.current_canvas.create_window(210, 445, anchor="sw", window=delete3)
 
 
         if selection is not None:
@@ -784,7 +801,14 @@ class Handler:
         #############################################
         self.create_ids_equivalent_dict()
 
-    
+        options = Canvas(parent, width=100, height=200)
+        options.pack()
+
+        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'), anchor="w")
+        model.configure(width=8, activebackground = "#FF0000", relief='raised')
+        model_window = options.create_window(20, 20, anchor="n", window=model)
+
+
     def delete(self, canvas):
         print "Closed"
         self.canvas.remove(canvas)
