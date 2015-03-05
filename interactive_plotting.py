@@ -565,7 +565,7 @@ class Handler:
         rootframe.title(' Interactive Analyses')
         rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
 
-        self.canvas = 4*[]
+        self.canvas = []
 
         ###############################
         ##### NEW WINDOW FOR RMSD #####
@@ -594,6 +594,10 @@ class Handler:
         self.all_models = set()
         self.models_shown = set()
         self.rdf_parsed = False
+        self.choices = [] # Array of IntVar to store CHeckbuttons for user choices
+        self.checkbuttons = []
+        self.button_dict = {}
+        self.var = False
 
         reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
@@ -793,6 +797,25 @@ class Handler:
             self.start(selection, self.canvas[1], 'time_frame', 'temperature')
             self.start(selection, self.canvas[2], 'time_frame', 'energy')
 
+
+        options = Tkinter.Canvas(parent, width=200, height=500)
+        options.pack()
+
+        options.create_line(2,10,2,490, fill='black', width=1)
+
+        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'))
+        model.configure(width=8, activebackground = "#FF0000", relief='raised')
+        model_window = options.create_window(100, 40, window=model)
+        
+        chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('CHAIN'))
+        chain.configure(width=8, activebackground = "#FF0000", relief='raised')
+        chain_window = options.create_window(100, 70, window=chain)
+        
+        residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('RESIDUE'))
+        residue.configure(width=8, activebackground = "#FF0000", relief='raised')
+        residue_window = options.create_window(100, 100, window=residue)
+
+
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
 
@@ -801,13 +824,53 @@ class Handler:
         #############################################
         self.create_ids_equivalent_dict()
 
-        options = Canvas(parent, width=100, height=200)
-        options.pack()
 
-        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'), anchor="w")
-        model.configure(width=8, activebackground = "#FF0000", relief='raised')
-        model_window = options.create_window(20, 20, anchor="n", window=model)
+    def propose_analyses(self, scale):
+        from rdflib.plugins.sparql import prepareQuery
+        query = 'SELECT DISTINCT ?x_type ?y_type WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale.lower()+' .}'
+        logging.info("QUERY: \n%s" % query)
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
 
+        logging.info("Number of queried entities: %d " % len(qres))
+
+
+        if len(qres) > 0:
+            new_window = Tkinter.Tk()
+            new_window.title(' Display plots ')
+            #f = Tkinter.Frame(new_window)
+            #new_window.protocol("WM_DELETE_WINDOW", self.close_window)
+            # c = Tkinter.Canvas(new_window, width=100, height=len(qres) * 40)
+            # c.pack(fill="both", expand=1)
+            text_id = Tkinter.Label(new_window, text="We have found the following plots:" )
+            text_id.pack(side=Tkinter.TOP)
+            self.checkbuttons = []
+            self.choices = []
+            self.button_dict = {}
+            cpt = 0
+            for i in qres:
+                from Tkinter import BooleanVar
+                print i[0]+" / "+i[1]
+                var = BooleanVar(new_window)
+                checkbutton = Tkinter.Checkbutton(new_window, text=i[0]+" / "+i[1], variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
+                checkbutton.pack(side=Tkinter.TOP)
+                self.choices.append(var)
+                #self.checkbuttons.append(checkbutton)
+                self.button_dict[cpt] = [i[0], i[1], self.choices[-1]]
+                cpt+=1
+            send_button = Tkinter.Button(new_window, text="Send", command= self.display_plots)
+            send_button.pack(side=Tkinter.TOP)
+        else:
+            new_window = Tkinter.Tk()
+            c = Tkinter.Canvas(new_window, width=100, height=100)
+            c.create_text(20, 20, text="We did not found any preprocessed plots\nThese are the possible analyses to be performed: ")
+
+        new_window.mainloop()
+
+    def display_plots(self):
+        print "Status of checkbuttons: "
+        for k,s in self.button_dict.iteritems():
+            print ("button %s / %s : %d" % (s[0], s[1], s[2].get()))
 
     def delete(self, canvas):
         print "Closed"
@@ -1094,7 +1157,8 @@ class Handler:
         self.current_canvas = canvas
         self.canvas.append(canvas)
 
-
+    def close_window(self):
+        logging.info("WINDOW CLOSED")
 
     def close_callback(self):
         cmd.delete(self.name)
