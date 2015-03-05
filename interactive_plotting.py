@@ -677,9 +677,9 @@ class Handler:
 
 
         if selection is not None:
-            self.start(selection, self.canvas[0], 'time_frame', 'RMSD')
-            self.start(selection, self.canvas[1], 'time_frame', 'temperature')
-            self.start(selection, self.canvas[2], 'time_frame', 'energy')
+            self.start(self.canvas[0], 'time_frame', 'RMSD')
+            self.start(self.canvas[1], 'time_frame', 'temperature')
+            self.start(self.canvas[2], 'time_frame', 'energy')
 
 
         options = Tkinter.Canvas(parent, width=200, height=500)
@@ -793,6 +793,8 @@ class Handler:
         logging.info("Status of checkbuttons:")
         for k,s in self.button_dict.iteritems():
             logging.info("%s / %s : %d" % (s[0], s[1], s[2].get()))
+            if s[2].get():
+                self.create_window(self.rootframe, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
 
     def delete(self, canvas):
         print "Closed"
@@ -1123,10 +1125,8 @@ class Handler:
 
         return qres
 
-    def start(self, sel, canvas, x_query_type, y_query_type):
+    def start(self, canvas, x_query_type, y_query_type):
         self.lock = 1
-        cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
-                     space={'idx2resn': canvas.idx2resn})
 
         canvas.x_query_type = x_query_type
         canvas.y_query_type = y_query_type
