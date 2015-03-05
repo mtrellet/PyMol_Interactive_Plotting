@@ -868,9 +868,9 @@ class Handler:
         new_window.mainloop()
 
     def display_plots(self):
-        print "Status of checkbuttons: "
+        logging.info("Status of checkbuttons:")
         for k,s in self.button_dict.iteritems():
-            print ("button %s / %s : %d" % (s[0], s[1], s[2].get()))
+            logging.info("%s / %s : %d" % (s[0], s[1], s[2].get()))
 
     def delete(self, canvas):
         print "Closed"
