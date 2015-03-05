@@ -167,7 +167,7 @@ class RectTracker:
 
     def __release(self,event):
         self.canvas.delete(self.item)
-        self._command(self.start, (event.x, event.y), "all_in_one")
+        self._command(self, self.canvas, self.start, (event.x, event.y), "all_in_one")
         self.start = None
         self.item = None
 
@@ -179,7 +179,7 @@ class RectTracker:
         if self.item is not None:
             self.canvas.delete(self.item)
         self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
-        self._command(self.start, (event.x, event.y), "update")
+        self._command(self, self.canvas, self.start, (event.x, event.y), "update")
         
     def __stop(self, event):
         self.start = None
@@ -621,46 +621,7 @@ class Handler:
         ######
         # Call to selection tool
         rect = RectTracker(self.current_canvas)
-
-        ######
-        # Command to select by dragging
-        def onDrag(start, end, mode):
-            global x,y, locked
-            if mode == "update":
-                items = rect.hit_test(start, end)
-                display=set()
-                for x in rect.items:
-                    # if x not in items:
-                    #     if x in canvas.shapes:
-                    #         canvas.itemconfig(x, fill='grey')
-                    #         if self.show[canvas.shapes[x][5][1]-1]:
-                    #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                    #             cmd.hide('line', '(sele)')
-                    # else:
-                    if x in items:
-                        #canvas.itemconfig(x, fill='blue')
-                        if x in self.canvas[0].shapes:
-                            display.add(self.canvas[0].shapes[x][5][1])
-                            # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                            # cmd.show('line', '(sele)')
-                            logging.debug(display)
-                            self.show[self.canvas[0].shapes[x][5][1]-1] = True
-                            locked = False
-                self.update_plot_multiple(1, display, self.canvas[0])
-                if len(display) == 0 and not locked:
-                    self.update_plot_multiple(1, display, self.canvas[0])
-                    locked = True
-            elif mode == "all_in_one":
-                logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
-                x_low, x_high, y_low, y_high = self.canvas[0].convertToValues(start, end)
-                logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
-                models_selected = self.query_sub_rdf(self.canvas[0], x_low, x_high, y_low, y_high)
-                logging.info(models_selected)
-                for model in models_selected:
-                    self.show[model-1] = True
-                self.update_plot_multiple(1, models_selected, self.canvas[0])
-        #####
-        rect.autodraw(fill="", width=1, command=onDrag)
+        rect.autodraw(fill="", width=1, command=self.onDrag)
 
         delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[0]), anchor = "w")
         delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
@@ -690,46 +651,7 @@ class Handler:
         #####
         # Call to selection tool
         rect2 = RectTracker(self.current_canvas)
-
-        ######
-        # Command to select by dragging
-        def onDrag2(start, end, mode):
-            global x,y, locked
-            if mode == "update":
-                items = rect2.hit_test(start, end)
-                display=set()
-                for x in rect2.items:
-                    # if x not in items:
-                    #     if x in canvas.shapes:
-                    #         canvas.itemconfig(x, fill='grey')
-                    #         if self.show[canvas.shapes[x][5][1]-1]:
-                    #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                    #             cmd.hide('line', '(sele)')
-                    # else:
-                    if x in items:
-                        #canvas.itemconfig(x, fill='blue')
-                        if x in self.canvas[1].shapes:
-                            display.add(self.canvas[1].shapes[x][5][1])
-                            # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                            # cmd.show('line', '(sele)')
-                            logging.debug(display)
-                            self.show[self.canvas[1].shapes[x][5][1]-1] = True
-                            locked = False
-                self.update_plot_multiple(1, display, self.canvas[1])
-                if len(display) == 0 and not locked:
-                    self.update_plot_multiple(1, display, self.canvas[1])
-                    locked = True
-            elif mode == "all_in_one":
-                logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
-                x_low, x_high, y_low, y_high = self.canvas[1].convertToValues(start, end)
-                logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
-                models_selected = self.query_sub_rdf(self.canvas[1], x_low, x_high, y_low, y_high)
-                logging.info(models_selected)
-                for model in models_selected:
-                    self.show[model-1] = True
-                self.update_plot_multiple(1, models_selected, self.canvas[1])
-        #####
-        rect2.autodraw(fill="", width=1, command=onDrag2)
+        rect2.autodraw(fill="", width=1, command=self.onDrag)
         
 
         delete2 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[1]), anchor = "w")
@@ -746,45 +668,7 @@ class Handler:
         #####
         # Call to selection tool
         rect3 = RectTracker(self.current_canvas)
-
-        ######
-        # Command to select by dragging
-        def onDrag3(start, end, mode):
-            global x,y, locked
-            if mode == "update":
-                items = rect3.hit_test(start, end)
-                display=set()
-                for x in rect3.items:
-                    # if x not in items:
-                    #     if x in canvas.shapes:
-                    #         canvas.itemconfig(x, fill='grey')
-                    #         if self.show[canvas.shapes[x][5][1]-1]:
-                    #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                    #             cmd.hide('line', '(sele)')
-                    # else:
-                    if x in items:
-                        #canvas.itemconfig(x, fill='blue')
-                        if x in self.canvas[2].shapes:
-                            display.add(self.canvas[2].shapes[x][5][1])
-                            # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                            # cmd.show('line', '(sele)')
-                            logging.debug(display)
-                            self.show[self.canvas[2].shapes[x][5][1]-1] = True
-                            locked = False
-                self.update_plot_multiple(1, display, self.canvas[2])
-                if len(display) == 0 and not locked:
-                    self.update_plot_multiple(1, display, self.canvas[2])
-                    locked = True
-            elif mode == "all_in_one":
-                logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
-                x_low, x_high, y_low, y_high = self.canvas[2].convertToValues(start, end)
-                logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
-                models_selected = self.query_sub_rdf(self.canvas[2], x_low, x_high, y_low, y_high)
-                logging.info(models_selected)
-                for model in models_selected:
-                    self.show[model-1] = True
-                self.update_plot_multiple(1, models_selected, self.canvas[2])
-        rect3.autodraw(fill="", width=1, command=onDrag3)
+        rect3.autodraw(fill="", width=1, command=self.onDrag)
         #####
 
         delete3 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[2]), anchor = "w")
@@ -824,6 +708,44 @@ class Handler:
         #############################################
         self.create_ids_equivalent_dict()
 
+    ######
+    # Command to select by dragging
+    def onDrag(self, rect, canvas, start, end, mode):
+        global x,y, locked
+        if mode == "update":
+            items = rect.hit_test(start, end)
+            display=set()
+            for x in rect.items:
+                # if x not in items:
+                #     if x in canvas.shapes:
+                #         canvas.itemconfig(x, fill='grey')
+                #         if self.show[canvas.shapes[x][5][1]-1]:
+                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                #             cmd.hide('line', '(sele)')
+                # else:
+                if x in items:
+                    #canvas.itemconfig(x, fill='blue')
+                    if x in canvas.shapes:
+                        display.add(canvas.shapes[x][5][1])
+                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                        # cmd.show('line', '(sele)')
+                        logging.debug(display)
+                        self.show[canvas.shapes[x][5][1]-1] = True
+                        locked = False
+            self.update_plot_multiple(1, display, canvas)
+            if len(display) == 0 and not locked:
+                self.update_plot_multiple(1, display, canvas)
+                locked = True
+        elif mode == "all_in_one":
+            logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
+            x_low, x_high, y_low, y_high = canvas.convertToValues(start, end)
+            logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
+            models_selected = self.query_sub_rdf(self.canvas[0], x_low, x_high, y_low, y_high)
+            logging.info(models_selected)
+            for model in models_selected:
+                self.show[model-1] = True
+            self.update_plot_multiple(1, models_selected, canvas)
+        #####
 
     def propose_analyses(self, scale):
         from rdflib.plugins.sparql import prepareQuery
