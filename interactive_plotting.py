@@ -598,7 +598,8 @@ class Handler:
         self.choices = [] # Array of IntVar to store CHeckbuttons for user choices
         self.checkbuttons = []
         self.button_dict = {}
-        self.var = False
+        self.rect_trackers = []
+        self.delete_buttons = []
 
         reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
@@ -793,31 +794,63 @@ class Handler:
     def display_plots(self):
         """ Display new plots according to user choice(s) """
         # Delete former canvas
-        #for canv in self.canvas[]
+        self.rootframe.destroy()
+        rootframe = Tkinter.Tk()
+        rootframe.title(' Interactive Analyses')
+        rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
+        self.rootframe = rootframe
+        self.canvas = []
+        self.current_canvas = None
         logging.info("Status of checkbuttons:")
         for k,s in self.button_dict.iteritems():
             logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), s[3]))
             if s[2].get():
                 xmin, xmax, ymin, ymax = self.get_mini_maxi_values(s[0], s[1], s[3])
-                print xmin, xmax, ymin, ymax
-                #self.create_window(self.rootframe, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
+                logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
+                self.create_window(self.rootframe, 500, 500, xmin*0.90, xmax*1.10, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
+
+                rect = RectTracker(self.current_canvas)
+                rect.autodraw(fill="", width=1, command=self.onDrag)
+                self.rect_trackers.append(rect)
+
+                delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[-1]), anchor = "w")
+                delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+                delete_window = self.current_canvas.create_window(210, 445, anchor="sw", window=delete)
+                self.delete_buttons.append(delete)
+
+                if len(self.canvas) == 1:
+                    self.create_main_buttons()
+
+        rootframe.mainloop()
+                    
+
+    def create_main_buttons(self):
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
+
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
+        select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
+
+        self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
 
     def get_mini_maxi_values(self, xtype, ytype, scale):
         """ Get minimum and maximum for x and y values from POINT individuals """
 
         query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale+' .}'
-        logging.info("QUERY: \n%s" % query)
+        logging.debug("QUERY: \n%s" % query)
 
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres = self.rdf_graph.query(q)
 
-        logging.info("Number of queried entities: %d " % len(qres))
+        logging.info("Number of queried entities (min/max): %d " % len(qres))
 
         for row in qres:
-            xmin = row[0]
-            xmax = row[1]
-            ymin = row[2]
-            ymax = row[3]
+            xmin = float(row[0])
+            xmax = float(row[1])
+            ymin = float(row[2])
+            ymax = float(row[3])
             return xmin, xmax, ymin, ymax
 
     def delete(self, canvas):
