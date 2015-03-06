@@ -32,7 +32,7 @@ from rdflib.plugins.sparql import prepareQuery
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
+logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
@@ -807,7 +807,7 @@ class Handler:
             if s[2].get():
                 xmin, xmax, ymin, ymax = self.get_mini_maxi_values(s[0], s[1], s[3])
                 logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
-                self.create_window(self.rootframe, 500, 500, xmin*0.90, xmax*1.10, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
+                self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
 
                 rect = RectTracker(self.current_canvas)
                 rect.autodraw(fill="", width=1, command=self.onDrag)
@@ -821,7 +821,31 @@ class Handler:
                 if len(self.canvas) == 1:
                     self.create_main_buttons()
 
+                self.start(self.canvas[-1], s[0], s[1])
+
+        self.create_option_buttons()
+
+        self.create_ids_equivalent_dict()
+
         rootframe.mainloop()
+
+    def create_option_buttons(self):
+        options = Tkinter.Canvas(self.rootframe, width=200, height=500)
+        options.pack()
+
+        options.create_line(2,10,2,490, fill='black', width=1)
+
+        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'))
+        model.configure(width=8, activebackground = "#FF0000", relief='raised')
+        model_window = options.create_window(100, 40, window=model)
+        
+        chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('CHAIN'))
+        chain.configure(width=8, activebackground = "#FF0000", relief='raised')
+        chain_window = options.create_window(100, 70, window=chain)
+        
+        residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('RESIDUE'))
+        residue.configure(width=8, activebackground = "#FF0000", relief='raised')
+        residue_window = options.create_window(100, 100, window=residue)
                     
 
     def create_main_buttons(self):
@@ -861,6 +885,8 @@ class Handler:
 
     def create_ids_equivalent_dict(self):
         """ Create a dictionary of equivalent ids for each canvas created """
+        for canv in self.canvas:
+            canv.ids_ext = {}
         for k,s in self.canvas[0].shapes.iteritems():
             self.canvas[0].ids_ext[k] = []
             for canv in self.canvas[1:]:
@@ -871,6 +897,7 @@ class Handler:
         for i in range(1,len(self.canvas)):
             self.canvas[i].ids_ext = {v[i-1]: [item for sublist in [[k], v[:i-1], v[i:]] for item in sublist] for k,v in self.canvas[0].ids_ext.items()}
 
+        logging.info("Dictionaries of equivalent ids created...")
         logging.debug(self.canvas[0].shapes[192])
         logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
         logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
