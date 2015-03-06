@@ -28,6 +28,7 @@ import time
 import Queue
 import threading
 import logging
+from rdflib.plugins.sparql import prepareQuery
 
 # Parameters of logging output
 import logging
@@ -748,7 +749,7 @@ class Handler:
         #####
 
     def propose_analyses(self, scale):
-        from rdflib.plugins.sparql import prepareQuery
+        
         query = 'SELECT DISTINCT ?x_type ?y_type WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale.lower()+' .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
@@ -778,7 +779,7 @@ class Handler:
                 checkbutton.pack(side=Tkinter.TOP)
                 self.choices.append(var)
                 #self.checkbuttons.append(checkbutton)
-                self.button_dict[cpt] = [i[0], i[1], self.choices[-1]]
+                self.button_dict[cpt] = [i[0], i[1], self.choices[-1], scale.lower()]
                 cpt+=1
             send_button = Tkinter.Button(new_window, text="Send", command= self.display_plots)
             send_button.pack(side=Tkinter.TOP)
@@ -790,11 +791,34 @@ class Handler:
         new_window.mainloop()
 
     def display_plots(self):
+        """ Display new plots according to user choice(s) """
+        # Delete former canvas
+        #for canv in self.canvas[]
         logging.info("Status of checkbuttons:")
         for k,s in self.button_dict.iteritems():
-            logging.info("%s / %s : %d" % (s[0], s[1], s[2].get()))
+            logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), s[3]))
             if s[2].get():
-                self.create_window(self.rootframe, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
+                xmin, xmax, ymin, ymax = self.get_mini_maxi_values(s[0], s[1], s[3])
+                print xmin, xmax, ymin, ymax
+                #self.create_window(self.rootframe, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
+
+    def get_mini_maxi_values(self, xtype, ytype, scale):
+        """ Get minimum and maximum for x and y values from POINT individuals """
+
+        query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale+' .}'
+        logging.info("QUERY: \n%s" % query)
+
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        logging.info("Number of queried entities: %d " % len(qres))
+
+        for row in qres:
+            xmin = row[0]
+            xmax = row[1]
+            ymin = row[2]
+            ymax = row[3]
+            return xmin, xmax, ymin, ymax
 
     def delete(self, canvas):
         print "Closed"
@@ -1099,7 +1123,7 @@ class Handler:
 
     def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh):
         """ Query the RDF graph for specific range of values made by user selection """
-        from rdflib.plugins.sparql import prepareQuery
+        
         query = 'SELECT ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:model_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
@@ -1115,7 +1139,7 @@ class Handler:
 
     def query_rdf(self, x_query_type, y_query_type):
         """ Query the RDF graph to build complete plot """
-        from rdflib.plugins.sparql import prepareQuery
+        
         query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:model_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
