@@ -21,6 +21,7 @@ from __future__ import division
 from __future__ import generators
 
 import Tkinter
+from Tkinter import BooleanVar
 from pymol import cmd, util
 from pymol.wizard import Wizard
 import math
@@ -600,6 +601,10 @@ class Handler:
         self.button_dict = {}
         self.rect_trackers = []
         self.delete_buttons = []
+        self.proposed_analyses = ["distance", "x_position", "y_position", "z_position"]
+        self.scale = ''
+        self.models_selected = 0
+        self.item_selected = 0
 
         reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
@@ -665,23 +670,23 @@ class Handler:
         ##### NEW WINDOW FOR ENERGY #####
         #################################
 
-        self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
+        # self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
 
-        #####
-        # Call to selection tool
-        rect3 = RectTracker(self.current_canvas)
-        rect3.autodraw(fill="", width=1, command=self.onDrag)
-        #####
+        # #####
+        # # Call to selection tool
+        # rect3 = RectTracker(self.current_canvas)
+        # rect3.autodraw(fill="", width=1, command=self.onDrag)
+        # #####
 
-        delete3 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[2]), anchor = "w")
-        delete3.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-        delete_window3 = self.current_canvas.create_window(210, 445, anchor="sw", window=delete3)
+        # delete3 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[2]), anchor = "w")
+        # delete3.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        # delete_window3 = self.current_canvas.create_window(210, 445, anchor="sw", window=delete3)
 
 
         if selection is not None:
             self.start(self.canvas[0], 'time_frame', 'RMSD')
             self.start(self.canvas[1], 'time_frame', 'temperature')
-            self.start(self.canvas[2], 'time_frame', 'energy')
+            #self.start(self.canvas[2], 'time_frame', 'energy')
 
 
         options = Tkinter.Canvas(parent, width=200, height=500)
@@ -750,8 +755,9 @@ class Handler:
         #####
 
     def propose_analyses(self, scale):
-        
-        query = 'SELECT DISTINCT ?x_type ?y_type WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale.lower()+' .}'
+        from Tkinter import BooleanVar
+        self.scale = scale.lower()
+        query = 'SELECT DISTINCT ?x_type ?y_type WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+self.scale+' .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres = self.rdf_graph.query(q)
@@ -773,23 +779,102 @@ class Handler:
             self.button_dict = {}
             cpt = 0
             for i in qres:
-                from Tkinter import BooleanVar
                 print i[0]+" / "+i[1]
                 var = BooleanVar(new_window)
                 checkbutton = Tkinter.Checkbutton(new_window, text=i[0]+" / "+i[1], variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
                 checkbutton.pack(side=Tkinter.TOP)
                 self.choices.append(var)
                 #self.checkbuttons.append(checkbutton)
-                self.button_dict[cpt] = [i[0], i[1], self.choices[-1], scale.lower()]
+                self.button_dict[cpt] = [i[0], i[1], self.choices[-1], self.scale]
                 cpt+=1
             send_button = Tkinter.Button(new_window, text="Send", command= self.display_plots)
             send_button.pack(side=Tkinter.TOP)
         else:
             new_window = Tkinter.Tk()
-            c = Tkinter.Canvas(new_window, width=100, height=100)
-            c.create_text(20, 20, text="We did not found any preprocessed plots\nThese are the possible analyses to be performed: ")
+            text_id = Tkinter.Label(new_window, text="We did not found any preprocessed plots\nThese are the possible analyses to be performed: ")
+            self.current_window = new_window
+            self.choices = []
+            self.button_dict = {}
+            if self.scale == "residue" or self.scale == "atom":
+                for ana in self.proposed_analyses:
+                    var = BooleanVar(self.current_window)
+                    checkbutton = Tkinter.Checkbutton(self.current_window, text=self.scale+"_id / "+ana, variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
+                    checkbutton.pack(side=Tkinter.TOP)
+                    self.choices.append(var)
+                    self.button_dict[ana] = self.choices[-1]
+                send_button = Tkinter.Button(self.current_window, text="Send", command=self.calc_plots)
+                send_button.pack(side=Tkinter.TOP)
+
 
         new_window.mainloop()
+
+    def calc_plots(self):
+        # Delete former canvas
+        self.current_window.destroy()
+        new_window = Tkinter.Tk()
+        self.current_window = new_window
+        self.current_window.title("Reference")
+        if len(self.models_shown) > 0:
+            models = [model for model in self.models_shown]
+        else:
+            myspace["models"] = set()
+            cmd.iterate('(all)', 'models.add(model)', space=myspace)
+            models = [int(model) for model in myspace["models"]]
+        if not models:
+            text_id = Tkinter.Label(self.current_window, text="No model found..!")
+        else:
+            text_id = Tkinter.Label(self.current_window, text="On what model do you want to perform your analyses?")
+            scrollbar = Tkinter.Scrollbar(self.current_window, orient=Tkinter.VERTICAL)
+            models_listbox = Tkinter.Listbox(self.current_window,yscrollcommand=scrollbar.set)
+            scrollbar.config(command=models_listbox.yview)
+            scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+            models_listbox.pack(side=Tkinter.TOP)
+            for m in models:
+                models_listbox.insert(Tkinter.END, m)
+            models_listbox.bind('<<ListboxSelect>>', self.on_model_selected)          
+
+
+    def on_model_selected(self, evt):
+        w = evt.widget
+        index = int(w.curselection()[0])
+        self.model_selected = w.get(index)
+        logging.info('Model selected: %d' % (self.model_selected))
+        self.canvas = []
+        self.current_canvas = None
+        for k,s in self.button_dict.iteritems():
+            logging.info("%s : %d" % (k, s.get()))
+            if s:
+                if k == "distance":
+                    # Get list of items for the specified scale
+                    item_list = self.get_list_from_RDF()
+                    self.rootframe.destroy()
+                    rootframe = Tkinter.Tk()
+                    rootframe.title(' Interactive Analyses')
+                    rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
+                    self.rootframe = rootframe
+                    self.current_window = rootframe
+                    text_id = Tkinter.Label(self.current_window, text="Choose your "+self.scale+" of reference:")
+                    scrollbar = Tkinter.Scrollbar(self.current_window, orient=Tkinter.VERTICAL)
+                    items_listbox = Tkinter.Listbox(self.current_window,yscrollcommand=scrollbar.set)
+                    scrollbar.config(command=items_listbox.yview)
+                    scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+                    items_listbox.pack(side=Tkinter.TOP)
+                    for i in item_list:
+                        items_listbox.insert(Tkinter.END, i)
+                    items_listbox.bind('<<ListboxSelect>>', self.on_reference_selected_for_distance)
+
+    def on_reference_selected_for_distance(self, evt):
+        w = evt.widget
+        ref = int(w.curselection()[0])
+        self.item_selected = w.get(index)
+        ref_x, ref_y, ref_z = center_of_mass.get_com("resid "+self.item_selected)
+        resid_list = []
+        cmd.iterate("(name ca)","resid_list.append(resi)")
+        for res in resid_list:
+            if res != self.item_selected:
+                x,y,z = center_of_mass.get_com("resid "+res)
+                dist += math.sqrt(math.pow((ref_x-x),2)+math.pow((ref_y-y),2)+math.pow((ref_z-z),2))
+
 
     def display_plots(self):
         """ Display new plots according to user choice(s) """
@@ -859,10 +944,23 @@ class Handler:
 
         self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
 
-    def get_mini_maxi_values(self, xtype, ytype, scale):
+    def get_list_from_RDF(self):
+        query = 'SELECT ?resid WHERE{ ?res my:residue_id ?resid . ?res my:belongs_to+ my:MODEL_"+self.model_selected+" .}'
+        logging.debug("QUERY: \n%s" % query)
+
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        logging.info("Number of residues in specified model: %d " % len(qres))
+
+        return [resid for int(resid) in qres]
+
+
+
+    def get_mini_maxi_values(self, xtype, ytype):
         """ Get minimum and maximum for x and y values from POINT individuals """
 
-        query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale+' .}'
+        query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+self.scale+' .}'
         logging.debug("QUERY: \n%s" % query)
 
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
@@ -1217,7 +1315,7 @@ class Handler:
 
         # Parse main RDF database
         if (not self.rdf_parsed):
-            self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
+            self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/pdb_rmsd_enery_temperature.ntriples")
             self.rdf_parsed = True
         # Query RMSD points to draw first plot
         qres = self.query_rdf(x_query_type, y_query_type)
