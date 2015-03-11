@@ -604,7 +604,7 @@ class Handler:
         self.rect_trackers = []
         self.delete_buttons = []
         self.proposed_analyses = ["distance", "x_position", "y_position", "z_position"]
-        self.scale = ''
+        self.scale = 'model'
         self.models_selected = 0
         self.item_selected = 0
 
