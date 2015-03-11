@@ -30,7 +30,7 @@ import Queue
 import threading
 import logging
 from rdflib.plugins.sparql import prepareQuery
-from rdflib import Graph, Namespace, URIRef
+from rdflib import Graph, Namespace, URIRef, Literal
 from rdflib.namespace import RDF
 import trace
 
@@ -708,6 +708,10 @@ class Handler:
         residue.configure(width=8, activebackground = "#FF0000", relief='raised')
         residue_window = options.create_window(100, 100, window=residue)
 
+        atom = Tkinter.Button(self.rootframe, text='ATOM', command = lambda: self.propose_analyses('ATOM'))
+        atom.configure(width=8, activebackground = "#FF0000", relief='raised')
+        atom_window = options.create_window(100, 130, window=atom)
+
 
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
@@ -766,7 +770,6 @@ class Handler:
 
         logging.info("Number of queried entities: %d " % len(qres))
 
-
         if len(qres) > 0:
             new_window = Tkinter.Tk()
             new_window.title(' Display plots ')
@@ -787,7 +790,7 @@ class Handler:
                 checkbutton.pack(side=Tkinter.TOP)
                 self.choices.append(var)
                 #self.checkbuttons.append(checkbutton)
-                self.button_dict[cpt] = [i[0], i[1], self.choices[-1], self.scale]
+                self.button_dict[cpt] = [i[0], i[1], self.choices[-1]]
                 cpt+=1
             send_button = Tkinter.Button(new_window, text="Send", command= self.display_plots)
             send_button.pack(side=Tkinter.TOP)
@@ -811,12 +814,16 @@ class Handler:
 
         new_window.mainloop()
 
+####### NEW ANALYSES ###########################################################################
+#
+#
+#
     def calc_plots(self):
         # Delete former canvas
         self.current_window.destroy()
         new_window = Tkinter.Tk()
         self.current_window = new_window
-        self.current_window.title("Reference")
+        self.current_window.title("Model of reference?")
         if len(self.models_shown) > 0:
             models = [model for model in self.models_shown]
         else:
@@ -834,10 +841,12 @@ class Handler:
             scrollbar.config(command=models_listbox.yview)
             scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
             models_listbox.pack(side=Tkinter.TOP)
+            models.sort()
             for m in models:
                 models_listbox.insert(Tkinter.END, m)
             models_listbox.bind('<<ListboxSelect>>', self.on_model_selected)
-
+#
+#
     def on_model_selected(self, evt):
         w = evt.widget
         index = int(w.curselection()[0])
@@ -845,15 +854,18 @@ class Handler:
         logging.info('Model selected: %d' % (self.model_selected))
         self.canvas = []
         self.current_canvas = None
+        dic = {}
         for k,s in self.button_dict.iteritems():
             logging.info("%s : %d" % (k, s.get()))
+            x_type = ""
+            y_type = ""
             if s:
                 if k == "distance":
                     # Get list of items for the specified scale
                     item_list, indiv_list = self.get_id_indiv_from_RDF()
                     self.rootframe.destroy()
                     rootframe = Tkinter.Tk()
-                    rootframe.title(' Interactive Analyses')
+                    rootframe.title(' Item of reference? ')
                     rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
                     self.rootframe = rootframe
                     self.current_window = rootframe
@@ -867,7 +879,16 @@ class Handler:
                     for i in item_list:
                         items_listbox.insert(Tkinter.END, i)
                     items_listbox.bind('<<ListboxSelect>>', lambda event, arg=item_list, arg2=indiv_list: self.on_reference_selected_for_distance(event, arg, arg2))
-
+                    if self.scale == "residue":
+                        x_type = "resid"
+                    else:
+                        x_type = "atomid"
+                    y_type = "distance"
+            # Formatting new dictionary to be used in display_plots()
+            dic[k] = [x_type, y_type, s]
+        self.button_dict = dic
+#
+#
     def on_reference_selected_for_distance(self, evt, item_list, indiv_list):
         import center_of_mass
         w = evt.widget
@@ -889,20 +910,26 @@ class Handler:
                 elif self.scale == "atom":
                     x,y,z = center_of_mass.get_com("id "+str(item))
                 dist = math.sqrt(math.pow((ref_x-x),2)+math.pow((ref_y-y),2)+math.pow((ref_z-z),2))
-                point = URIRef(my+"POINT_"+last_point_id+nb_pt)
+                point = URIRef(my+"POINT_"+str(last_point_id+nb_pt))
                 self.rdf_graph.add( (point, RDF.type, my.point) )
-                self.rdf_graph.add( (point, my.X_value, Literal(res)) )
+                self.rdf_graph.add( (point, my.X_value, Literal(item)) )
                 self.rdf_graph.add( (point, my.Y_value, Literal(dist)))
                 if self.scale == "residue":
                     self.rdf_graph.add( (point, my.X_type, Literal('resid')))
-                    self.rdf_graph.add( (point, my.represent, my['RES_'+indiv_list[nb_pt]]))
+                    res = URIRef(str(indiv_list[nb_pt]))
+                    self.rdf_graph.add( (point, my.represent, res))
                 elif self.scale == "atom":
                     self.rdf_graph.add( (point, my.X_type, Literal('atomid')))
+                    at = URIRef(str(indiv_list[nb_pt]))
+                    self.rdf_graph.add( (point, my.represent, at))
                 self.rdf_graph.add( (point, my.Y_type, Literal('distance')))
                 
-                nb_pt += 1
-
-
+            nb_pt += 1
+        self.rdf_graph.serialize("test.ntriples", format="nt")
+        self.display_plots()
+#
+#
+###################################################################################################
 
     def display_plots(self):
         """ Display new plots according to user choice(s) """
@@ -914,11 +941,13 @@ class Handler:
         self.rootframe = rootframe
         self.canvas = []
         self.current_canvas = None
+        # 1st case: We come from known analyses and just redraw
+        # 2nd case: We come from new analyses we just calculated
         logging.info("Status of checkbuttons:")
         for k,s in self.button_dict.iteritems():
-            logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), s[3]))
+            logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), self.scale))
             if s[2].get():
-                xmin, xmax, ymin, ymax = self.get_mini_maxi_values(s[0], s[1], s[3])
+                xmin, xmax, ymin, ymax = self.get_mini_maxi_values(s[0], s[1])
                 logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
                 self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
 
@@ -973,7 +1002,7 @@ class Handler:
         self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
 
     def get_id_indiv_from_RDF(self):
-        query = 'SELECT ?res ?resid WHERE{ ?res my:residue_id ?resid . ?res my:belongs_to+ my:MODEL_'+str(self.model_selected)+' .}'
+        query = 'SELECT ?res ?resid WHERE{ ?res my:residue_id ?resid . ?res my:belongs_to+ my:MODEL_'+str(self.model_selected)+' .} ORDER BY ?resid'
         logging.debug("QUERY: \n%s" % query)
 
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
@@ -1012,7 +1041,7 @@ class Handler:
         """ Get minimum and maximum for x and y values from POINT individuals """
 
         query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+self.scale+' .}'
-        logging.debug("QUERY: \n%s" % query)
+        logging.info("QUERY: \n%s" % query)
 
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres = self.rdf_graph.query(q)
@@ -1020,6 +1049,7 @@ class Handler:
         logging.info("Number of queried entities (min/max): %d " % len(qres))
 
         for row in qres:
+            print row
             xmin = float(row[0])
             xmax = float(row[1])
             ymin = float(row[2])
@@ -1047,9 +1077,9 @@ class Handler:
             self.canvas[i].ids_ext = {v[i-1]: [item for sublist in [[k], v[:i-1], v[i:]] for item in sublist] for k,v in self.canvas[0].ids_ext.items()}
 
         logging.info("Dictionaries of equivalent ids created...")
-        logging.debug(self.canvas[0].shapes[192])
-        logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
-        logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
+        # logging.debug(self.canvas[0].shapes[192])
+        # logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
+        # logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
 
 
     def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
@@ -1349,7 +1379,7 @@ class Handler:
     def query_rdf(self, x_query_type, y_query_type):
         """ Query the RDF graph to build complete plot """
         
-        query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:model_id ?id .}'
+        query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:'+self.scale+'_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres= self.rdf_graph.query(q)
@@ -1366,7 +1396,7 @@ class Handler:
 
         # Parse main RDF database
         if (not self.rdf_parsed):
-            self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/pdb_rmsd_energy_temperature.ntriples")
+            self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/mod_res_pt_parsed.ntriples")
             self.rdf_parsed = True
         # Query RMSD points to draw first plot
         qres = self.query_rdf(x_query_type, y_query_type)
