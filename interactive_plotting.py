@@ -31,8 +31,9 @@ import threading
 import logging
 from rdflib.plugins.sparql import prepareQuery
 from rdflib import Graph, Namespace, URIRef, Literal
-from rdflib.namespace import RDF
+from rdflib.namespace import RDF, XSD
 import trace
+import color_by_residue
 
 # Parameters of logging output
 import logging
@@ -42,14 +43,14 @@ logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
 with_mainloop = False
 # Global variables for pymol event checking
-myspace = {'previous':set(), 'models':set()}
+myspace = {'previous':set(), 'models':set(), 'residues':set()}
 previous_mouse_mode = cmd.get("mouse_selection_mode")
 locked = False
 
 class PickWizard(Wizard):
 
     def __init__(self, handler):
-        self.sele_name = "lb" # must be set to "lb" for now...
+        self.sele_name = "sele" # must be set to "lb" for now...
         self.selected = []
         self.handler = handler
         # self.__observers = []
@@ -65,7 +66,7 @@ class PickWizard(Wizard):
 
         # just use selections (disable atom and bond picking)
 
-        cmd.button('m','ctrl','+lb')
+        cmd.button('m','ctrl','+sele')
         cmd.button('r','ctrl','none')
         cmd.button('r','ctsh','none')
 
@@ -74,11 +75,11 @@ class PickWizard(Wizard):
         # returns prompt for the viewer window (optional)
 
         if self.sele_name in cmd.get_names('selections'):
-            n_atom = cmd.count_atoms(self.sele_name)
+            n_atom = cmd.count_atoms("sele")
         else:
             n_atom = 0
         if n_atom:
-            list = cmd.identify(self.sele_name)
+            list = cmd.identify("sele")
             return ["%d atoms selected..."%n_atom,str(list)]
         else:
             return ["Please select some atoms..."]
@@ -87,9 +88,9 @@ class PickWizard(Wizard):
 
         # handle mouse selection callback
 
-        if not self.sele_name in cmd.get_names('selections'):
-            cmd.select(self.sele_name,'none')
-        cmd.enable(self.sele_name)
+        # if not "sele" in cmd.get_names('selections'):
+        #     cmd.select("sele",'none')
+        # cmd.enable("sele")
         cmd.refresh_wizard()
 
     def get_panel(self):
@@ -531,11 +532,14 @@ def check_selections(queue):
         # Check if the user changed the selection mode (atom/residue/chain/molecule)
         logging.debug("Current mouse selection mode : %d" % int(cmd.get("mouse_selection_mode")))
         logging.debug("Number of selections: %d" % len(cmd.get_names("selections")))
-        if int(cmd.get("mouse_selection_mode")) == 5 and previous_mouse_mode == cmd.get("mouse_selection_mode") and len(cmd.get_names("selections")) >= 2:
-            logging.info("--- Selection made by the user ---")
-            logging.debug(cmd.get_names("selections")[1])
-            if(cmd.get_names("selections")[1] == 'lb'):
-                cmd.iterate('(lb)', 'models.add(model)', space=myspace)
+        if int(cmd.get("mouse_selection_mode")) == 5 and len(cmd.get_names("selections")) > 0:
+            #logging.debug(cmd.get_names("selections")[1])
+            nb_selected_objects = cmd.count_atoms('sele')
+            if(nb_selected_objects > 0):
+                logging.info("--- Selection made by the user ---")
+                logging.info(nb_selected_objects)
+                cmd.iterate('(sele)', 'models.add(model)', space=myspace)
+                logging.info(myspace['models'])
                 tmp = set()
                 # Make the list with unique items
                 for i in myspace['models']:
@@ -547,10 +551,33 @@ def check_selections(queue):
                     queue.put(tmp)
                 else:
                     time.sleep(1)
+                cmd.select('none')
+        elif int(cmd.get("mouse_selection_mode")) == 1 and len(cmd.get_names("selections")) > 0:
+            #logging.debug(cmd.get_names("selections")[0])
+
+            nb_selected_objects = cmd.count_atoms('sele')
+            if(nb_selected_objects > 0):
+                logging.info("--- Selection made by the user ---")
+                cmd.iterate('(sele)', 'residues.add(resv)', space=myspace)
+                logging.info(myspace['residues'])
+                tmp = set()
+                # Make the list with unique items
+                for i in myspace['residues']:
+                    if int(i) not in tmp:
+                        tmp.add(int(i))
+                # Check if the selection has changed
+                if tmp != myspace['previous']:
+                    myspace['previous'] = tmp
+                    queue.put(tmp)
+                    #cmd.delete('lb')
+                else:
+                    time.sleep(1)
+                cmd.select('none')
+
         else:
             # if len(cmd.get_names("selections", enabled_only=1)) == 0:
             #     queue.put(set())
-            previous_mouse_mode = cmd.get("mouse_selection_mode")
+            #previous_mouse_mode = cmd.get("mouse_selection_mode")
             time.sleep(1)
 
 
@@ -607,6 +634,7 @@ class Handler:
         self.scale = 'model'
         self.models_selected = 0
         self.item_selected = 0
+        self.current_state = "default"
 
         reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
@@ -753,7 +781,7 @@ class Handler:
             logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
             x_low, x_high, y_low, y_high = canvas.convertToValues(start, end)
             logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
-            models_selected = self.query_sub_rdf(self.canvas[0], x_low, x_high, y_low, y_high)
+            models_selected = self.query_sub_rdf(canvas, x_low, x_high, y_low, y_high)
             logging.info(models_selected)
             for model in models_selected:
                 self.show[model-1] = True
@@ -827,14 +855,22 @@ class Handler:
         if len(self.models_shown) > 0:
             models = [model for model in self.models_shown]
         else:
-            myspace["models"] = set()
-            cmd.iterate('(all)', 'models.add(model)', space=myspace)
-            models = [int(model) for model in myspace["models"]]
+            iterat = {'tmp' : set()}
+            cmd.iterate('(all)', 'tmp.add(model)', space=iterat)
+            models = [int(model) for model in iterat['tmp']]
         if not models:
             text_id = Tkinter.Label(self.current_window, text="No model found..!")
             text_id.pack(side=Tkinter.TOP)
         else:
-            text_id = Tkinter.Label(self.current_window, text="On what model do you want to perform your analyses?")
+            # 1st solution -> The user selects a model in the viewer
+            text_manual = Tkinter.Label(self.current_window, text="Select the model you want as a reference.\n\n OR\n\n")
+            text_manual.pack(side=Tkinter.TOP)
+            cmd.set("mouse_selection_mode", 5)
+            if len(self.models_shown) == 0:
+                self.update_plot_multiple(source=3)
+            self.current_state = "selection"
+            # 2nd solution -> The user chooses a model in a list
+            text_id = Tkinter.Label(self.current_window, text="Choose the model you want in the list:")
             text_id.pack(side=Tkinter.TOP)
             scrollbar = Tkinter.Scrollbar(self.current_window, orient=Tkinter.VERTICAL)
             models_listbox = Tkinter.Listbox(self.current_window,yscrollcommand=scrollbar.set)
@@ -848,12 +884,11 @@ class Handler:
 #
 #
     def on_model_selected(self, evt):
-        w = evt.widget
-        index = int(w.curselection()[0])
-        self.model_selected = w.get(index)
+        if evt is not None:
+            w = evt.widget
+            index = int(w.curselection()[0])
+            self.model_selected = w.get(index)
         logging.info('Model selected: %d' % (self.model_selected))
-        self.canvas = []
-        self.current_canvas = None
         dic = {}
         for k,s in self.button_dict.iteritems():
             logging.info("%s : %d" % (k, s.get()))
@@ -869,7 +904,12 @@ class Handler:
                     rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
                     self.rootframe = rootframe
                     self.current_window = rootframe
-                    text_id = Tkinter.Label(self.current_window, text="Choose your "+self.scale+" of reference:")
+                    # 1st solution -> The user selects a model in the viewer
+                    text_manual = Tkinter.Label(self.current_window, text="Select the "+str(self.scale)+" you want as a reference.\n\n OR\n\n")
+                    text_manual.pack(side=Tkinter.TOP)
+                    cmd.set("mouse_selection_mode", 1)
+                    self.current_state = "selection"
+                    text_id = Tkinter.Label(self.current_window, text="Choose your "+self.scale+" of reference in the list:")
                     text_id.pack(side=Tkinter.TOP)
                     scrollbar = Tkinter.Scrollbar(self.current_window, orient=Tkinter.VERTICAL)
                     items_listbox = Tkinter.Listbox(self.current_window,yscrollcommand=scrollbar.set)
@@ -878,7 +918,7 @@ class Handler:
                     items_listbox.pack(side=Tkinter.TOP)
                     for i in item_list:
                         items_listbox.insert(Tkinter.END, i)
-                    items_listbox.bind('<<ListboxSelect>>', lambda event, arg=item_list, arg2=indiv_list: self.on_reference_selected_for_distance(event, arg, arg2))
+                    items_listbox.bind('<<ListboxSelect>>', self.on_reference_selected_for_distance)
                     if self.scale == "residue":
                         x_type = "resid"
                     else:
@@ -889,27 +929,34 @@ class Handler:
         self.button_dict = dic
 #
 #
-    def on_reference_selected_for_distance(self, evt, item_list, indiv_list):
+    def on_reference_selected_for_distance(self, evt):
         import center_of_mass
-        w = evt.widget
-        ref = int(w.curselection()[0])
-        self.item_selected = w.get(ref)
+        item_list, indiv_list = self.get_id_indiv_from_RDF()
+        if evt is not None:
+            w = evt.widget
+            ref = int(w.curselection()[0])
+            self.item_selected = w.get(ref)
+        logging.info("Item selected: %d" % self.item_selected)
         if self.scale == "residue":
-            ref_x, ref_y, ref_z = center_of_mass.get_com("resid "+str(self.item_selected))
+            ref_x, ref_y, ref_z = center_of_mass.get_com("resid %s and model %04d" % (str(self.item_selected), self.model_selected))
         elif self.scale == "atom":
-            ref_x, ref_y, ref_z = center_of_mass.get_com("id "+str(self.item_selected))
+            ref_x, ref_y, ref_z = center_of_mass.get_com("id %s and model %04d" % (str(self.item_selected), self.model_selected))
+        logging.info("Coordinates of reference item: %f %f %f" % (ref_x, ref_y, ref_z))
         # resid_list = []
         # cmd.iterate("(name ca)","resid_list.append(resi)")
         my = Namespace("http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
         last_point_id = self.get_last_id("point")
-        nb_pt = 0
+        nb_pt = 1
+        start_time = time.time()
         for item in item_list:
             if item != self.item_selected:
                 if self.scale == "residue":
-                    x,y,z = center_of_mass.get_com("resid "+str(item))
+                    x,y,z = center_of_mass.get_com("resid %s and model %04d" % (str(item), self.model_selected))
                 elif self.scale == "atom":
-                    x,y,z = center_of_mass.get_com("id "+str(item))
+                    x,y,z = center_of_mass.get_com("id %s and model %04d" % (str(item), self.model_selected))
+                logging.info("Coordinates x y z : %f %f %f " % (x,y,z))
                 dist = math.sqrt(math.pow((ref_x-x),2)+math.pow((ref_y-y),2)+math.pow((ref_z-z),2))
+                logging.info("Distance: %f" % dist)
                 point = URIRef(my+"POINT_"+str(last_point_id+nb_pt))
                 self.rdf_graph.add( (point, RDF.type, my.point) )
                 self.rdf_graph.add( (point, my.X_value, Literal(item)) )
@@ -924,8 +971,9 @@ class Handler:
                     self.rdf_graph.add( (point, my.represent, at))
                 self.rdf_graph.add( (point, my.Y_type, Literal('distance')))
                 
-            nb_pt += 1
-        self.rdf_graph.serialize("test.ntriples", format="nt")
+                nb_pt += 1
+        logging.info("---- %s seconds ----" % str(time.time()-start_time))
+        #self.rdf_graph.serialize("test.ntriples", format="nt")
         self.display_plots()
 #
 #
@@ -1048,13 +1096,19 @@ class Handler:
 
         logging.info("Number of queried entities (min/max): %d " % len(qres))
 
+        res = []
         for row in qres:
-            print row
-            xmin = float(row[0])
-            xmax = float(row[1])
-            ymin = float(row[2])
-            ymax = float(row[3])
-            return xmin, xmax, ymin, ymax
+            for r in row:
+                if r.datatype == XSD.integer:
+                    res.append(int(r))
+                else:
+                    res.append(float(r))
+        xmin = res[0]        
+        xmax = res[1]
+        ymin = res[2]
+        ymax = res[3]
+        print type(xmin), type(xmax), type(ymin), type(ymax)
+        return xmin, xmax, ymin, ymax
 
     def delete(self, canvas):
         print "Closed"
@@ -1155,38 +1209,97 @@ class Handler:
                     break # We can pick only one item among all canvas
             # Check selection from PyMol viewer
             try:
-                models = self.queue.get_nowait()
-                logging.info("Models from user selection in the viewer: "+str(models))
-                self.models_to_display = models.intersection(self.all_models)
-                if len(self.models_to_display) > 0:
-                    for k,s in canvas.shapes.iteritems():
-                        if s[5][1] in self.models_to_display:
-                            logging.info("Color red -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='blue')
-                            cpt=0
-                            for it in canvas.ids_ext[k]:
-                                if self.canvas[cpt] != canvas:
-                                    self.canvas[cpt].itemconfig(it, fill='blue')
-                                else:
+                items = self.queue.get_nowait()
+                logging.info("Items from user selection in the viewer: "+str(items))
+                logging.info("Current state: %s / Scale: %s" % (self.current_state, self.scale))
+                
+                # Automatic checking of model selection by the user
+                if self.current_state == "default" and self.scale == "model":
+                    self.models_to_display = items.intersection(self.all_models)
+                    if len(self.models_to_display) > 0:
+                        for k,s in canvas.shapes.iteritems():
+                            if s[5][1] in self.models_to_display:
+                                logging.info("Color red -> %04d" % s[5][1]) 
+                                canvas.itemconfig(k, fill='blue')
+                                cpt=0
+                                for it in canvas.ids_ext[k]:
+                                    if self.canvas[cpt] != canvas:
+                                        self.canvas[cpt].itemconfig(it, fill='blue')
+                                    else:
+                                        cpt+=1
+                                        self.canvas[cpt].itemconfig(it, fill='blue')
                                     cpt+=1
-                                    self.canvas[cpt].itemconfig(it, fill='blue')
-                                cpt+=1
-                            cmd.color('red', '%04d' % s[5][1])
-                        else:
-                            logging.info("Color default -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='grey')
-                            cpt=0
-                            for it in canvas.ids_ext[k]:
-                                if self.canvas[cpt] != canvas:
-                                    self.canvas[cpt].itemconfig(it, fill='grey')
-                                else:
+                                cmd.color('red', '%04d' % s[5][1])
+                            else:
+                                logging.info("Color default -> %04d" % s[5][1]) 
+                                canvas.itemconfig(k, fill='grey')
+                                cpt=0
+                                for it in canvas.ids_ext[k]:
+                                    if self.canvas[cpt] != canvas:
+                                        self.canvas[cpt].itemconfig(it, fill='grey')
+                                    else:
+                                        cpt+=1
+                                        self.canvas[cpt].itemconfig(it, fill='grey')
                                     cpt+=1
-                                    self.canvas[cpt].itemconfig(it, fill='grey')
-                                cpt+=1
-                            util.cbag('%04d' % s[5][1])
-                            # cmd.select('sele', '%04d' % s[5][1])
-                            # cmd.hide('line', '(sele)')
-                    cmd.disable('lb')
+                                util.cbag('%04d' % s[5][1])
+                                # cmd.select('sele', '%04d' % s[5][1])
+                                # cmd.hide('line', '(sele)')
+                        cmd.disable('lb')
+                # We wait for user selection to trigger next steps
+                elif self.current_state == "selection":
+                    print cmd.get("mouse_selection_mode")
+                    # Model selection
+                    if int(cmd.get("mouse_selection_mode")) == 5:
+                        try:
+                            logging.info("Model selected for analyses: %d " % list(items)[0])
+                            self.model_selected = list(items)[0]
+                            cmd.hide('everything', 'all')
+                            cmd.show('cartoon', '%04d' % self.model_selected)
+                            cmd.show('lines', '%04d' % self.model_selected)
+                            color_by_residue.color_by_restype()
+                            for k,s in canvas.shapes.iteritems():
+                                if s[5][1] == self.model_selected:
+                                    canvas.itemconfig(k, fill='blue')
+                                    cpt=0
+                                    for it in canvas.ids_ext[k]:
+                                        if self.canvas[cpt] != canvas:
+                                            self.canvas[cpt].itemconfig(it, fill='blue')
+                                        else:
+                                            cpt+=1
+                                            self.canvas[cpt].itemconfig(it, fill='blue')
+                                        cpt+=1
+                                else:
+                                    logging.info("Color default -> %04d" % s[5][1]) 
+                                    canvas.itemconfig(k, fill='grey')
+                                    cpt=0
+                                    for it in canvas.ids_ext[k]:
+                                        if self.canvas[cpt] != canvas:
+                                            self.canvas[cpt].itemconfig(it, fill='grey')
+                                        else:
+                                            cpt+=1
+                                            self.canvas[cpt].itemconfig(it, fill='grey')
+                                        cpt+=1
+                                    # cmd.select('sele', '%04d' % s[5][1])
+                            
+                            #cmd.disable('lb')
+                            self.current_state = "default"
+                            self.on_model_selected(evt=None)
+                            items = set()
+                        except IndexError:
+                            logging.info("No model selected in the viewer")
+                            pass
+                    # Residue selection
+                    elif int(cmd.get("mouse_selection_mode")) == 1:
+                        try:
+                            logging.info("Residue selection for analyses: %d " % list(items)[0])
+                            self.item_selected = list(items)[0]
+                            items = set()
+                            self.current_state = "default"
+                            self.on_reference_selected_for_distance(evt=None)
+                        except IndexError:
+                            logging.info("No residue selected in the viewer")
+                            pass
+
             except Queue.Empty:
                 pass
         # Reset plot and viewer
@@ -1216,8 +1329,8 @@ class Handler:
                 for k,s in canv.shapes.iteritems():
                     canv.itemconfig(k, fill='grey')
                     cpt=0
-                    for it in canvas.ids_ext[k]:
-                        if self.canvas[cpt] != canvas:
+                    for it in canv.ids_ext[k]:
+                        if self.canvas[cpt] != canv:
                             self.canvas[cpt].itemconfig(it, fill='grey')
                         else:
                             cpt+=1
@@ -1225,7 +1338,8 @@ class Handler:
                         cpt+=1
                     self.models_to_display.add(s[5][1])
                     self.models_shown.add(s[5][1])
-            cmd.show('cartoon', 'name CA and all')
+            cmd.show('cartoon', 'name CA')
+            cmd.show('lines', 'all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
         self.rootframe.after(500, self.update_plot_multiple)
@@ -1260,13 +1374,11 @@ class Handler:
             # Check single picking items
             if canvas.picked != 0 and canvas.picked != canvas.previous:
                 canvas.itemconfig(canvas.picked, fill='blue')
-                cmd.select('sele', '%04d' % canvas.shapes[canvas.picked][5][1])
-                cmd.show('line', '(sele)')
+                cmd.show('line', '%04d' % canvas.shapes[canvas.picked][5][1])
                 logging.info("You selected item %d corresponding to model %d" % (k, s[5][1]))
                 if canvas.previous != 0:
                     canvas.itemconfig(canvas.previous, fill='grey')
-                    cmd.select('sele', '%04d' % canvas.shapes[canvas.previous][5][1])
-                    cmd.hide('line', '(sele)')
+                    cmd.hide('line', '%04d' % canvas.shapes[canvas.previous][5][1])
                 cmd.disable('sele')
                 canvas.previous = canvas.picked
             # Check selection from PyMol viewer
