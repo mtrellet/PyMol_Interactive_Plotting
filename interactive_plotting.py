@@ -22,6 +22,7 @@ from __future__ import generators
 
 import Tkinter
 from Tkinter import BooleanVar
+from tkinter_plot import SimplePlot
 from pymol import cmd, util
 from pymol.wizard import Wizard
 import math
@@ -29,11 +30,10 @@ import time
 import Queue
 import threading
 import logging
-from rdflib.plugins.sparql import prepareQuery
-from rdflib import Graph, Namespace, URIRef, Literal
-from rdflib.namespace import RDF, XSD
+from RDF_handling import RDF_Handler
 import trace
 import color_by_residue
+from guppy import hpy
 
 # Parameters of logging output
 import logging
@@ -151,14 +151,6 @@ class RectTracker:
         self._command = opts.pop('command', lambda *args: None)
         self.rectopts = opts
 
-    # def select_and_send(self, **opts):
-    #     self.start = None
-    #     self.canvas.bind("<Button-2>", self.__accumulate, '+')
-    #     self.canvas.bind("<B2-Motion>", self.__accumulate, '+')
-    #     self.canvas.bind("<ButtonRelease-2>", self.__release, '+')
-
-    #     self._command = opts.pop('command', lambda *args: None)
-    #     self.rectopts = opts
 
     def __accumulate(self, event):
         if not self.start:
@@ -234,296 +226,6 @@ class RectTracker:
         return items
 
 
-class SimplePlot(Tkinter.Canvas):
-
-    # Class variables
-    mark_size = 4
-
-    def __init__(self, *args, **kwargs):
-        Tkinter.Canvas.__init__(self, *args, **kwargs)
-        self.xlabels = []   # axis labels
-        self.ylabels = []
-        self.spacingx = 0   # spacing in x direction
-        self.spacingy = 0
-        self.xmin = 0       # min value from each axis
-        self.ymin = 0
-        self.xmax = 0
-        self.ymax = 0
-        self.lastx = 0      # previous x,y pos of mouse
-        self.lasty = 0
-        self.isdown = 0    # flag for mouse pressed
-        self.item = (0,)    # items array used for clickable events
-        self.shapes = {}    # store plot data, x,y etc..
-        self.idx2resn = {}  # residue name mapping
-        self.symbols = 0    # 0: amino acids, 1: secondary structure
-        self.previous = 0   # Previous item selected
-        self.picked = 0     # Item selected
-        self.ids_ext = {}   # Dictionary of other canvas equivalent ids
-        self.x_query_type = None
-        self.y_query_type = None
-
-    def axis(self, xmin=80, xmax=450, ymin=10, ymax=390, xint=390, yint=80, xlabels=[], ylabels=[], xtitle='X coordinates', ytitle='Y coordinates'):
-
-        # Store variables in self object
-        self.xlabels = xlabels
-        self.ylabels = ylabels
-        self.spacingx = (xmax - xmin) / (len(xlabels) - 1)
-        self.spacingy = (ymax - ymin) / (len(ylabels) - 1)
-        self.xmin = xmin
-        self.ymin = ymin
-        self.xmax = xmax
-        self.ymax = ymax
-
-        # Create axis lines
-        self.create_line((xmin, xint, xmax, xint), fill="black", width=3)
-        self.create_line((yint, ymin, yint, ymax), fill="black", width=3)
-
-        # Create tick marks and labels
-        self.create_text(3*xmax/4, ymax + 20,  text=(xtitle), anchor="nw")
-        nextspot = xmin
-        for label in xlabels:
-            self.create_line((nextspot, xint + 5, nextspot, xint - 5), fill="black", width=2)
-            self.create_text(nextspot, xint + 12, text=label)
-            if len(xlabels) == 1:
-                nextspot = xmax
-            else:
-                nextspot += (xmax - xmin) / (len(xlabels) - 1)
-
-        self.create_text(20, ymin + 30, text="\n".join(ytitle), anchor="nw")
-        nextspot = ymax
-        for label in ylabels:
-            self.create_line((yint + 5, nextspot, yint - 5, nextspot), fill="black", width=2)
-            self.create_text(yint - 25, nextspot, text=label)
-            if len(ylabels) == 1:
-                nextspot = ymin
-            else:
-                nextspot -= (ymax - ymin) / (len(ylabels) - 1)
-
-
-    # Plot a point
-    def plot(self, xp, yp, meta):
-
-        # Convert from 'label' space to 'pixel' space
-        x = self.convertToPixel("X", xp)
-        y = self.convertToPixel("Y", yp)
-
-        #resn, color, ss = self.idx2resn.get(meta)
-
-        # if self.symbols == 0:
-        #     # symbols by amino acid (G/P/other)
-        #     mark = {'GLY': 'Tri', 'PRO': 'Rect'}.get(resn, 'Oval')
-        # else:
-        #     # symbols by secondary structure
-        #     mark = {'H': 'Oval', 'S': 'Rect'}.get(ss, 'Tri')
-
-        # if mark == 'Oval':
-        create_shape = self.create_oval
-        coords = [x - self.mark_size, y - self.mark_size,
-                  x + self.mark_size, y + self.mark_size]
-        # elif mark == 'Tri':
-        #     create_shape = self.create_polygon
-        #     coords = [x, y - self.mark_size,
-        #               x + self.mark_size, y + self.mark_size,
-        #               x - self.mark_size, y + self.mark_size]
-        # else:
-        #     create_shape = self.create_rectangle
-        #     coords = [x - self.mark_size, y - self.mark_size,
-        #               x + self.mark_size, y + self.mark_size]
-
-        # if color >= 0x40000000:
-        #color = '#%06x' % (26 & 0xffffff)
-        # else:
-        #     color = '#%02x%02x%02x' % tuple([255 * i
-        #                                      for i in cmd.get_color_tuple(color)])
-        oval = create_shape(width=1, outline="black", fill="grey", *coords)
-        self.shapes[oval] = [x, y, 0, xp, yp, meta]
-
-    # Convet from pixel space to values
-    def convertToValues(self, start, end):
-        unit_per_pixel_x = float(abs(self.xlabels[-1]-self.xlabels[0])/abs(self.xmax-self.xmin))
-        unit_per_pixel_y = float(abs(self.ylabels[-1]-self.ylabels[0])/abs(self.ymax-self.ymin))
-
-        logging.info("Px/unit X: %f / Y: %f" % (unit_per_pixel_x, unit_per_pixel_y))
-
-        x_low = (start[0]-self.xmin) * unit_per_pixel_x
-        x_high = (end[0]-self.xmin) * unit_per_pixel_x
-        y_low = (self.ymax-start[1]) * unit_per_pixel_y
-        y_high = (self.ymax-end[1]) * unit_per_pixel_y
-
-        if x_low > x_high:
-            tmp = x_low
-            x_low = x_high
-            x_high = tmp
-
-        if y_low > y_high:
-            tmp = y_low
-            y_low = y_high
-            y_high = tmp
-
-        return x_low, x_high, y_low, y_high
-
-    def convertToPixel(self, axis, value):
-        pixel_per_unit_x = float(abs(self.xmax-self.xmin)/abs(self.xlabels[-1]-self.xlabels[0]))
-        pixel_per_unit_y = float(abs(self.ymax-self.ymin)/abs(self.ylabels[-1]-self.ylabels[0]))
-
-        if axis == "Y":
-            pixel = self.ymax - ((value-self.ylabels[0]) * pixel_per_unit_y)
-        else:
-            pixel = self.xmin + ((value-self.xlabels[0]) * pixel_per_unit_x)
-
-        return pixel
-        
-    # Convert from pixel space to label space
-    def convertToLabel(self, axis, value):
-
-        # Defaultly use X-axis info
-        label0 = self.xlabels[0]
-        label1 = self.xlabels[1]
-        spacing = self.spacingx
-        min = self.xmin
-
-        # Set info for Y-axis use
-        if axis == "Y":
-            label0 = self.ylabels[0]
-            label1 = self.ylabels[1]
-            spacing = self.spacingy
-            min = self.ymin
-
-        pixel = value - min
-        label = pixel / spacing
-        label = label0 + label * abs(label1 - label0)
-
-        if axis == "Y":
-            label = - label
-
-        return label
-
-    # Converts value from 'label' space to 'pixel' space
-    # def convertToPixel(self, axis, value):
-
-    #     # Defaultly use X-axis info
-    #     label0 = self.xlabels[0]
-    #     label1 = self.xlabels[1]
-    #     spacing = self.spacingx
-    #     min = self.xmin
-
-    #     # Set info for Y-axis use
-    #     if axis == "Y":
-    #         label0 = self.ylabels[0]
-    #         label1 = self.ylabels[1]
-    #         spacing = self.spacingy
-    #         min = self.ymin
-
-    #     # Get axis increment in 'label' space
-    #     inc = abs(label1 - label0)
-
-    #     # 'Label' difference from value and smallest label (label0)
-    #     diff = float(value - label0)
-
-    #     # Get whole number in 'label' space
-    #     whole = int(diff / inc)
-
-    #     # Get fraction number in 'label' space
-    #     part = float(float(diff / inc) - whole)
-
-    #     # Return 'pixel' position value
-    #     pixel = whole * spacing + part * spacing
-
-    #     # Reverse number by subtracting total number of pixels - value pixels
-    #     if axis == "Y":
-    #         tot_label_diff = float(self.ylabels[-1] - label0)
-    #         tot_label_whole = int(tot_label_diff / inc)
-    #         tot_label_part = float(float(tot_label_diff / inc) - tot_label_whole)
-    #         tot_label_pix = tot_label_whole * spacing + tot_label_part * spacing
-
-    #         pixel = tot_label_pix - pixel
-
-    #     # Add min edge pixels
-    #     pixel = pixel + min
-
-    #     if axis == "Y" and pixel > self.ymax:
-    #         pixel = self.ymax
-
-    #     return pixel
-
-    # Print out which data point you just clicked on..
-    def pickWhich(self, event):
-
-        # Find closest data point
-        x = event.widget.canvasx(event.x)
-        y = event.widget.canvasx(event.y)
-        spot = event.widget.find_closest(x, y)
-
-        distance = math.sqrt( (self.coords(spot[0])[0] - x)*(self.coords(spot[0])[0] - x) + (self.coords(spot[0])[1] -y)*(self.coords(spot[0])[1] - y) ) 
-        logging.debug("Distance of "+str(distance))
-
-        # Print the shape's meta information corresponding with the shape that was picked
-        if spot[0] in self.shapes and distance < 10:
-            # self.picked = self.shapes[spot[0]][5][1]
-            self.picked = spot[0]
-
-    # Mouse Down Event
-    def down(self, event):
-
-        # Store x,y position
-        self.lastx = event.x
-        self.lasty = event.y
-
-        # Find the currently selected item
-        x = event.widget.canvasx(event.x)
-        y = event.widget.canvasx(event.y)
-        self.item = event.widget.find_closest(x, y)
-
-        # Identify that the mouse is down
-        self.isdown = 1
-
-    # Mouse Up Event
-    def up(self, event):
-
-        # Get label space version of x,y
-        labelx = self.convertToLabel("X", event.x)
-        labely = self.convertToLabel("Y", event.y)
-
-        # Convert new position into label space..
-        if self.item[0] in self.shapes:
-            self.shapes[self.item[0]][0] = event.x
-            self.shapes[self.item[0]][1] = event.y
-            self.shapes[self.item[0]][2] = 1
-            self.shapes[self.item[0]][3] = labelx
-            self.shapes[self.item[0]][4] = labely
-
-        # Reset Flags
-        self.item = (0,)
-        self.isdown = 0
-
-    # Mouse Drag(Move) Event
-    def drag(self, event):
-
-        # Check that mouse is down and item clicked is a valid data point
-        if self.isdown and self.item[0] in self.shapes:
-
-            self.move(self.item, event.x - self.lastx, event.y - self.lasty)
-
-            self.lastx = event.x
-            self.lasty = event.y
-
-
-# def set_phipsi(model, index, phi, psi, state=-1):
-#     atsele = [
-#         'first ((%s`%d) extend 2 and name C)' % (model, index),  # prev C
-#         'first ((%s`%d) extend 1 and name N)' % (model, index),  # this N
-#         '(%s`%d)' % (model, index),                             # this CA
-#         'last ((%s`%d) extend 1 and name C)' % (model, index),  # this C
-#         'last ((%s`%d) extend 2 and name N)' % (model, index),  # next N
-#     ]
-#     try:
-#         cmd.set_dihedral(atsele[0], atsele[1], atsele[2], atsele[3], phi, state)
-#         cmd.set_dihedral(atsele[1], atsele[2], atsele[3], atsele[4], psi, state)
-#     except:
-#         print ' DynoPlot Error: cmd.set_dihedral failed'
-
-# New Callback object, so that we can update the structure when phi,psi points are moved.
-
 def check_selections(queue):
     """ Check if the selection made by the user changed """
     global previous_mouse_mode
@@ -578,7 +280,7 @@ def check_selections(queue):
             # if len(cmd.get_names("selections", enabled_only=1)) == 0:
             #     queue.put(set())
             #previous_mouse_mode = cmd.get("mouse_selection_mode")
-            time.sleep(1)
+            time.sleep(0.5)
 
 
 class Handler:
@@ -613,7 +315,7 @@ class Handler:
 
         from rdflib import Graph
 
-        self.rdf_graph = Graph()
+        self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/mod_res_pt_parsed.ntriples")
         self.queue = queue
         self.rootframe = rootframe
         self.current_canvas = self.canvas[-1]
@@ -636,11 +338,11 @@ class Handler:
         self.item_selected = 0
         self.current_state = "default"
 
-        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot_multiple(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
         reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
 
-        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
         select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
 
@@ -749,6 +451,7 @@ class Handler:
         #############################################
         self.create_ids_equivalent_dict()
 
+
     ######
     # Command to select by dragging
     def onDrag(self, rect, canvas, start, end, mode):
@@ -781,7 +484,7 @@ class Handler:
             logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
             x_low, x_high, y_low, y_high = canvas.convertToValues(start, end)
             logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
-            models_selected = self.query_sub_rdf(canvas, x_low, x_high, y_low, y_high)
+            models_selected = self.rdf_handler.query_sub_rdf(canvas, x_low, x_high, y_low, y_high)
             logging.info(models_selected)
             for model in models_selected:
                 self.show[model-1] = True
@@ -791,12 +494,8 @@ class Handler:
     def propose_analyses(self, scale):
         from Tkinter import BooleanVar
         self.scale = scale.lower()
-        query = 'SELECT DISTINCT ?x_type ?y_type WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+self.scale+' .}'
-        logging.info("QUERY: \n%s" % query)
-        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
-        qres = self.rdf_graph.query(q)
 
-        logging.info("Number of queried entities: %d " % len(qres))
+        qres = self.rdf_handler.get_analyses(self.scale)
 
         if len(qres) > 0:
             new_window = Tkinter.Tk()
@@ -896,13 +595,13 @@ class Handler:
             if s:
                 if k == "distance":
                     # Get list of items for the specified scale
-                    item_list, indiv_list = self.get_id_indiv_from_RDF()
-                    self.rootframe.destroy()
-                    rootframe = Tkinter.Tk()
-                    rootframe.title(' Item of reference? ')
-                    rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
-                    self.rootframe = rootframe
-                    self.current_window = rootframe
+                    item_list, indiv_list = self.rdf_handler.get_id_indiv_from_RDF(self.model_selected)
+                    self.current_window.destroy()
+                    current_window = Tkinter.Tk()
+                    current_window.title(' Item of reference? ')
+                    current_window.protocol("WM_DELETE_WINDOW", self.close_callback)
+                    #self.rootframe = rootframe
+                    self.current_window = current_window
                     # 1st solution -> The user selects a model in the viewer
                     text_manual = Tkinter.Label(self.current_window, text="Select the "+str(self.scale)+" you want as a reference.\n\n OR\n\n")
                     text_manual.pack(side=Tkinter.TOP)
@@ -929,49 +628,14 @@ class Handler:
 #
 #
     def on_reference_selected_for_distance(self, evt):
-        import center_of_mass
-        item_list, indiv_list = self.get_id_indiv_from_RDF()
+        # Close previous window when selection done
         if evt is not None:
             w = evt.widget
             ref = int(w.curselection()[0])
             self.item_selected = w.get(ref)
         logging.info("Item selected: %d" % self.item_selected)
-        if self.scale == "residue":
-            ref_x, ref_y, ref_z = center_of_mass.get_com("resid %s and model %04d" % (str(self.item_selected), self.model_selected))
-        elif self.scale == "atom":
-            ref_x, ref_y, ref_z = center_of_mass.get_com("id %s and model %04d" % (str(self.item_selected), self.model_selected))
-        logging.info("Coordinates of reference item: %f %f %f" % (ref_x, ref_y, ref_z))
-        # resid_list = []
-        # cmd.iterate("(name ca)","resid_list.append(resi)")
-        my = Namespace("http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
-        last_point_id = self.get_last_id("point")
-        nb_pt = 1
-        start_time = time.time()
-        for item in item_list:
-            if item != self.item_selected:
-                if self.scale == "residue":
-                    x,y,z = center_of_mass.get_com("resid %s and model %04d" % (str(item), self.model_selected))
-                elif self.scale == "atom":
-                    x,y,z = center_of_mass.get_com("id %s and model %04d" % (str(item), self.model_selected))
-                logging.info("Coordinates x y z : %f %f %f " % (x,y,z))
-                dist = math.sqrt(math.pow((ref_x-x),2)+math.pow((ref_y-y),2)+math.pow((ref_z-z),2))
-                logging.info("Distance: %f" % dist)
-                point = URIRef(my+"POINT_"+str(last_point_id+nb_pt))
-                self.rdf_graph.add( (point, RDF.type, my.point) )
-                self.rdf_graph.add( (point, my.X_value, Literal(item)) )
-                self.rdf_graph.add( (point, my.Y_value, Literal(dist)))
-                if self.scale == "residue":
-                    self.rdf_graph.add( (point, my.X_type, Literal('resid')))
-                    res = URIRef(str(indiv_list[nb_pt]))
-                    self.rdf_graph.add( (point, my.represent, res))
-                elif self.scale == "atom":
-                    self.rdf_graph.add( (point, my.X_type, Literal('atomid')))
-                    at = URIRef(str(indiv_list[nb_pt]))
-                    self.rdf_graph.add( (point, my.represent, at))
-                self.rdf_graph.add( (point, my.Y_type, Literal('distance')))
-                
-                nb_pt += 1
-        logging.info("---- %s seconds ----" % str(time.time()-start_time))
+        
+        self.rdf_handler.add_distance_points(self.item_selected, self.model_selected, self.scale)
         #self.rdf_graph.serialize("test.ntriples", format="nt")
         self.display_plots()
 #
@@ -980,7 +644,8 @@ class Handler:
 
     def display_plots(self):
         """ Display new plots according to user choice(s) """
-        # Delete former canvas
+        # Delete former canvas and former windows
+        self.current_window.destroy()
         self.rootframe.destroy()
         rootframe = Tkinter.Tk()
         rootframe.title(' Interactive Analyses')
@@ -994,7 +659,7 @@ class Handler:
         for k,s in self.button_dict.iteritems():
             logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), self.scale))
             if s[2].get():
-                xmin, xmax, ymin, ymax = self.get_mini_maxi_values(s[0], s[1])
+                xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(s[0], s[1], self.scale)
                 logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
                 self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
 
@@ -1038,75 +703,16 @@ class Handler:
                     
 
     def create_main_buttons(self):
-        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot_multiple(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
         reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
 
-        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
         select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
 
         self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
 
-    def get_id_indiv_from_RDF(self):
-        query = 'SELECT ?res ?resid WHERE{ ?res my:residue_id ?resid . ?res my:belongs_to+ my:MODEL_'+str(self.model_selected)+' .} ORDER BY ?resid'
-        logging.debug("QUERY: \n%s" % query)
-
-        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
-        qres = self.rdf_graph.query(q)
-
-        logging.info("Number of residues in specified model: %d " % len(qres))
-
-        id_list = []
-        indiv_list = []
-
-        for row in qres:
-            id_list.append(int(row[1]))
-            indiv_list.append(row[0])
-            logging.info("indiv: %s / id: %d" % (indiv_list[-1], id_list[-1]))
-
-        return id_list, indiv_list
-
-    def get_last_id(self, type):
-        query = 'SELECT ?id WHERE {?id rdf:type my:'+type+' .}'
-        logging.debug("QUERY: \n%s" % query)
-
-        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
-        qres = self.rdf_graph.query(q)
-
-        list_id = []
-        import re
-        p = re.compile("POINT_(.*)")
-        for row in qres:
-            tmp = p.search(row[0])
-            list_id.append(int(tmp.groups()[0]))
-
-        list_id.sort()
-        return list_id[-1]
-
-    def get_mini_maxi_values(self, xtype, ytype):
-        """ Get minimum and maximum for x and y values from POINT individuals """
-
-        query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+self.scale+' .}'
-        logging.info("QUERY: \n%s" % query)
-
-        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
-        qres = self.rdf_graph.query(q)
-
-        logging.info("Number of queried entities (min/max): %d " % len(qres))
-
-        res = []
-        for row in qres:
-            for r in row:
-                if r.datatype == XSD.integer:
-                    res.append(int(r))
-                else:
-                    res.append(float(r))
-        xmin = res[0]        
-        xmax = res[1]
-        ymin = res[2]
-        ymax = res[3]
-        return xmin, xmax, ymin, ymax
 
     def create_ids_equivalent_dict(self):
         """ Create a dictionary of equivalent ids for each canvas created """
@@ -1335,86 +941,6 @@ class Handler:
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
         self.rootframe.after(500, self.update_plot_multiple)
 
-    def update_plot(self, source =0, to_display=set(), canvas=None):
-        """ Check for updated selections data """
-        start_time = time.time()
-        if canvas == None:
-            canvas = self.current_canvas
-
-        if source == 1:
-            logging.info("Display models sent by OnDrag: ")
-            logging.info(to_display)
-            self.models_to_display = to_display.intersection(self.all_models)
-            logging.info(self.models_to_display)
-            for k,s in canvas.shapes.iteritems():
-                if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
-                    canvas.itemconfig(k, fill='blue')
-                    logging.debug("Color: %04d" % s[5][1])
-                    #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.show('line', '%04d' % s[5][1])
-                    #cmd.disable('sele')
-                elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
-                    canvas.itemconfig(k, fill='grey')
-                    logging.debug("Hide: %04d" % s[5][1])
-                    #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.hide('line', '%04d' % s[5][1])
-                    #cmd.disable('sele')
-            self.models_shown = self.models_to_display  
-
-        elif source == 0:
-            # Check single picking items
-            if canvas.picked != 0 and canvas.picked != canvas.previous:
-                canvas.itemconfig(canvas.picked, fill='blue')
-                cmd.show('line', '%04d' % canvas.shapes[canvas.picked][5][1])
-                logging.info("You selected item %d corresponding to model %d" % (k, s[5][1]))
-                if canvas.previous != 0:
-                    canvas.itemconfig(canvas.previous, fill='grey')
-                    cmd.hide('line', '%04d' % canvas.shapes[canvas.previous][5][1])
-                cmd.disable('sele')
-                canvas.previous = canvas.picked
-            # Check selection from PyMol viewer
-            try:
-                models = self.queue.get_nowait()
-                logging.info("Models from user selection in the viewer: "+str(models))
-                self.models_to_display = models.intersection(self.all_models)
-                if len(self.models_to_display) > 0:
-                    for k,s in canvas.shapes.iteritems():
-                        if s[5][1] in self.models_to_display:
-                            logging.info("Color red -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='blue')
-                            cmd.color('red', '%04d' % s[5][1])
-                        else:
-                            logging.info("Color default -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='grey')
-                            util.cbag('%04d' % s[5][1])
-                            # cmd.select('sele', '%04d' % s[5][1])
-                            # cmd.hide('line', '(sele)')
-                            # cmd.disable('sele')
-            except Queue.Empty:
-                pass
-        # Reset plot and viewer
-        elif source == 2:
-            logging.info("RESET")
-            for canv in self.canvas:
-                for k,s in canv.shapes.iteritems():
-                    canv.itemconfig(k, fill='grey')
-                    self.models_to_display.clear()
-                    self.models_shown.clear()
-            cmd.hide('line', 'all')
-                
-        # "Selection mode"
-        elif source == 3:
-            logging.info("SELECTION MODE")
-            for canv in self.canvas:
-                for k,s in canv.shapes.iteritems():
-                    canv.itemconfig(k, fill='grey')
-                    self.models_to_display.add(s[5][1])
-                    self.models_shown.add(s[5][1])
-            cmd.show('line', 'all')
-
-        logging.debug("---- %s seconds ----" % str(time.time()-start_time))
-        self.rootframe.after(1000, self.update_plot)
-
 
     def try_convert_to_int(self, array):
         result = []
@@ -1454,55 +980,14 @@ class Handler:
         cmd.delete(self.name)
         self.rootframe.destroy()
 
-    def parse_rdf(self,filename):
-        """ Parse the RDF database """
-        start_time = time.time()
-
-        logging.info("Parsing of %s..." % filename)
-        self.rdf_graph.parse(filename, format="nt")
-        logging.info ("---- %s seconds ----" % str(time.time()-start_time))
-        logging.info("Number of triples: %d" % len(self.rdf_graph))
-
-    def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh):
-        """ Query the RDF graph for specific range of values made by user selection """
-        
-        query = 'SELECT ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:model_id ?id .}'
-        logging.info("QUERY: \n%s" % query)
-        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
-        qres = self.rdf_graph.query(q)
-
-        logging.info("Number of queried entities: %d " % len(qres))
-
-        models = set()
-        for row in qres:
-            models.add(int(row[0]))
-
-        return models
-
-    def query_rdf(self, x_query_type, y_query_type):
-        """ Query the RDF graph to build complete plot """
-        
-        query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:'+self.scale+'_id ?id .}'
-        logging.info("QUERY: \n%s" % query)
-        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
-        qres= self.rdf_graph.query(q)
-        
-        logging.info("Number of queried entities: %d " % len(qres))
-
-        return qres
-
     def start(self, canvas, x_query_type, y_query_type):
         self.lock = 1
 
         canvas.x_query_type = x_query_type
         canvas.y_query_type = y_query_type
 
-        # Parse main RDF database
-        if (not self.rdf_parsed):
-            self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/mod_res_pt_parsed.ntriples")
-            self.rdf_parsed = True
         # Query RMSD points to draw first plot
-        qres = self.query_rdf(x_query_type, y_query_type)
+        qres = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
 
         for row in qres:
             if int(row[2] not in self.all_models):
@@ -1510,22 +995,6 @@ class Handler:
             model_index = ('all', int(row[2]))
             canvas.plot(float(row[0]), float(row[1]), model_index)
         self.lock = 0
-
-    # def start(self, sel):
-    #     self.lock = 1
-    #     cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
-    #                  space={'idx2resn': self.canvas.idx2resn})
-    #     import RDF
-    #     import time
-
-    #     parser=RDF.Parser(name="ntriples")
-    #     model = RDF.Model()
-    #     start_time = time.time()
-    #     print start_time
-    #     stream=parser.parse_into_model(model,"file://Users/trellet/Dev/Protege_OWL/data/pdb_rmsd.ntriples","http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
-    #     print ("----%s seconds ----" % str(time.time()-start_time))
-
-    #     self.lock = 0;
 
     def __call__(self):
         if self.lock:
