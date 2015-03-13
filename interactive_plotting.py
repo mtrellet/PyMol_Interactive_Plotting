@@ -34,6 +34,7 @@ from RDF_handling import RDF_Handler
 import trace
 import color_by_residue
 from guppy import hpy
+from memory_profiler import profile
 
 # Parameters of logging output
 import logging
@@ -306,14 +307,11 @@ class Handler:
 
         self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT, "Time Frame", "RMSD")
 
-
         if name is None:
             try:
                 name = cmd.get_unused_name('Handler')
             except AttributeError:
                 name = 'Handler'
-
-        from rdflib import Graph
 
         self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/mod_res_pt_parsed.ntriples")
         self.queue = queue
@@ -324,9 +322,11 @@ class Handler:
         self.state = state
         self.show = [False]*251
         self.models_to_display = set()
+        self.residues_to_display = set()
         self.all_models = set()
+        self.all_residues = set()
         self.models_shown = set()
-        self.rdf_parsed = False
+        self.residues_shown = set()
         self.choices = [] # Array of IntVar to store CHeckbuttons for user choices
         self.checkbuttons = []
         self.button_dict = {}
@@ -377,7 +377,8 @@ class Handler:
         # wiz.register_observer(self.notify)
         # wiz.notify_observers('test')
 
-        self.rootframe.after(500, self.update_plot_multiple)
+        #self.rootframe.after(500, self.update_plot_multiple)
+        self.update_plot_multiple()
         #####
 
 
@@ -625,8 +626,7 @@ class Handler:
             # Formatting new dictionary to be used in display_plots()
             dic[k] = [x_type, y_type, s]
         self.button_dict = dic
-#
-#
+
     def on_reference_selected_for_distance(self, evt):
         # Close previous window when selection done
         if evt is not None:
@@ -638,6 +638,7 @@ class Handler:
         self.rdf_handler.add_distance_points(self.item_selected, self.model_selected, self.scale)
         #self.rdf_graph.serialize("test.ntriples", format="nt")
         self.display_plots()
+        self.update_plot_multiple()
 #
 #
 ###################################################################################################
@@ -740,41 +741,78 @@ class Handler:
         if canvas == None:
             canvas = self.current_canvas
         if source == 1:
-            logging.info("Display models sent by OnDrag: ")
-            logging.info(to_display)
-            self.models_to_display = to_display.intersection(self.all_models)
-            logging.info(self.models_to_display)
-            for k,s in canvas.shapes.iteritems():
-                if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
-                    canvas.itemconfig(k, fill='blue')
-                    cpt = 0
-                    for it in canvas.ids_ext[k]:
-                        if self.canvas[cpt] != canvas:
-                            self.canvas[cpt].itemconfig(it, fill='blue')
-                        else:
+            if self.scale == "model":
+                logging.info("Display models sent by OnDrag: ")
+                logging.info(to_display)
+                self.models_to_display = to_display.intersection(self.all_models)
+                logging.info(self.models_to_display)
+                for k,s in canvas.shapes.iteritems():
+                    if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
+                        canvas.itemconfig(k, fill='blue')
+                        cpt = 0
+                        for it in canvas.ids_ext[k]:
+                            if self.canvas[cpt] != canvas:
+                                self.canvas[cpt].itemconfig(it, fill='blue')
+                            else:
+                                cpt+=1
+                                self.canvas[cpt].itemconfig(it, fill='blue')
                             cpt+=1
-                            self.canvas[cpt].itemconfig(it, fill='blue')
-                        cpt+=1
-                    logging.debug("Color: %04d" % s[5][1])
-                    #cmd.select('sele', '%04d' % s[5][1])
-                    #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
-                    cmd.show('line', '%04d' % s[5][1])
-                    #cmd.disable('sele')
-                elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
-                    canvas.itemconfig(k, fill='grey')
-                    cpt=0
-                    for it in canvas.ids_ext[k]:
-                        if self.canvas[cpt] != canvas:
-                            self.canvas[cpt].itemconfig(it, fill='grey')
-                        else:
+                        logging.debug("Color: %04d" % s[5][1])
+                        #cmd.select('sele', '%04d' % s[5][1])
+                        #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+                        cmd.show('line', '%04d' % s[5][1])
+                        #cmd.disable('sele')
+                    elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
+                        canvas.itemconfig(k, fill='grey')
+                        cpt=0
+                        for it in canvas.ids_ext[k]:
+                            if self.canvas[cpt] != canvas:
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            else:
+                                cpt+=1
+                                self.canvas[cpt].itemconfig(it, fill='grey')
                             cpt+=1
-                            self.canvas[cpt].itemconfig(it, fill='grey')
-                        cpt+=1
-                    logging.debug("Hide: %04d" % s[5][1])
-                    #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.hide('everything', '%04d' % s[5][1])
-                    #cmd.disable('sele')
-            self.models_shown = self.models_to_display  
+                        logging.debug("Hide: %04d" % s[5][1])
+                        #cmd.select('sele', '%04d' % s[5][1])
+                        cmd.hide('everything', '%04d' % s[5][1])
+                        #cmd.disable('sele')
+                self.models_shown = self.models_to_display 
+            elif self.scale == "residue":
+                logging.info("Display residues sent by OnDrag: ")
+                logging.info(to_display)
+                self.residues_to_display = to_display.intersection(self.all_residues)
+                logging.info(self.residues_to_display)
+                for k,s in canvas.shapes.iteritems():
+                    if s[5][1] in self.residues_to_display and s[5][1] not in self.residues_shown:
+                        canvas.itemconfig(k, fill='blue')
+                        cpt = 0
+                        for it in canvas.ids_ext[k]:
+                            if self.canvas[cpt] != canvas:
+                                self.canvas[cpt].itemconfig(it, fill='blue')
+                            else:
+                                cpt+=1
+                                self.canvas[cpt].itemconfig(it, fill='blue')
+                            cpt+=1
+                        logging.debug("Stick: %04d" % s[5][1])
+                        #cmd.select('sele', '%04d' % s[5][1])
+                        #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+                        cmd.show('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+                        #cmd.disable('sele')
+                    elif s[5][1] not in self.residues_to_display and s[5][1] in self.residues_shown:
+                        canvas.itemconfig(k, fill='grey')
+                        cpt=0
+                        for it in canvas.ids_ext[k]:
+                            if self.canvas[cpt] != canvas:
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            else:
+                                cpt+=1
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            cpt+=1
+                        logging.debug("Line: %04d" % s[5][1])
+                        #cmd.select('sele', '%04d' % s[5][1])
+                        cmd.show('line', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+                        #cmd.disable('sele')
+                self.residues_shown = self.residues_to_display
 
         elif source == 0:
             # Check single picking items
@@ -939,8 +977,10 @@ class Handler:
             cmd.show('lines', 'all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
-        self.rootframe.after(500, self.update_plot_multiple)
-
+        try:
+            self.rootframe.after(500, self.update_plot_multiple)
+        except:
+            pass
 
     def try_convert_to_int(self, array):
         result = []
@@ -986,14 +1026,21 @@ class Handler:
         canvas.x_query_type = x_query_type
         canvas.y_query_type = y_query_type
 
-        # Query RMSD points to draw first plot
+        # Query points to draw first plot
         qres = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
 
-        for row in qres:
-            if int(row[2] not in self.all_models):
-                self.all_models.add(int(row[2]))
-            model_index = ('all', int(row[2]))
-            canvas.plot(float(row[0]), float(row[1]), model_index)
+        if self.scale == "model":
+            for row in qres:
+                if int(row[2] not in self.all_models):
+                    self.all_models.add(int(row[2]))
+                model_index = ('all', int(row[2]))
+                canvas.plot(float(row[0]), float(row[1]), model_index)
+        elif self.scale == "residue":
+            for row in qres:
+                if int(row[2] not in self.all_residues):
+                    self.all_residues.add(int(row[2]))
+                residue_index = ('all', int(row[2]))
+                canvas.plot(float(row[0]), float(row[1]), residue_index)
         self.lock = 0
 
     def __call__(self):
@@ -1044,8 +1091,6 @@ cmd.extend('ramachandran', rama)
 cmd.auto_arg[0]['ramachandran'] = cmd.auto_arg[0]['zoom']
 
 # Add to plugin menu
-
-
 def __init_plugin__(self):
     queue = Queue.Queue()
     # Start background thread to check selections
