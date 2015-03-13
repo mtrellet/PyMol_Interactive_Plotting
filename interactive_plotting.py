@@ -812,7 +812,6 @@ class Handler:
             self.button_dict = {}
             cpt = 0
             for i in qres:
-                print i[0]+" / "+i[1]
                 var = BooleanVar(new_window)
                 checkbutton = Tkinter.Checkbutton(new_window, text=i[0]+" / "+i[1], variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
                 checkbutton.pack(side=Tkinter.TOP)
@@ -1107,14 +1106,7 @@ class Handler:
         xmax = res[1]
         ymin = res[2]
         ymax = res[3]
-        print type(xmin), type(xmax), type(ymin), type(ymax)
         return xmin, xmax, ymin, ymax
-
-    def delete(self, canvas):
-        print "Closed"
-        self.canvas.remove(canvas)
-        canvas.delete("all")
-        canvas.pack()
 
     def create_ids_equivalent_dict(self):
         """ Create a dictionary of equivalent ids for each canvas created """
@@ -1247,7 +1239,6 @@ class Handler:
                         cmd.disable('lb')
                 # We wait for user selection to trigger next steps
                 elif self.current_state == "selection":
-                    print cmd.get("mouse_selection_mode")
                     # Model selection
                     if int(cmd.get("mouse_selection_mode")) == 5:
                         try:
