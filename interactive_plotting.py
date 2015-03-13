@@ -151,14 +151,6 @@ class RectTracker:
         self._command = opts.pop('command', lambda *args: None)
         self.rectopts = opts
 
-    # def select_and_send(self, **opts):
-    #     self.start = None
-    #     self.canvas.bind("<Button-2>", self.__accumulate, '+')
-    #     self.canvas.bind("<B2-Motion>", self.__accumulate, '+')
-    #     self.canvas.bind("<ButtonRelease-2>", self.__release, '+')
-
-    #     self._command = opts.pop('command', lambda *args: None)
-    #     self.rectopts = opts
 
     def __accumulate(self, event):
         if not self.start:
@@ -288,7 +280,7 @@ def check_selections(queue):
             # if len(cmd.get_names("selections", enabled_only=1)) == 0:
             #     queue.put(set())
             #previous_mouse_mode = cmd.get("mouse_selection_mode")
-            time.sleep(1)
+            time.sleep(0.5)
 
 
 class Handler:
@@ -346,11 +338,11 @@ class Handler:
         self.item_selected = 0
         self.current_state = "default"
 
-        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot_multiple(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
         reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
 
-        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
         select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
 
@@ -604,12 +596,12 @@ class Handler:
                 if k == "distance":
                     # Get list of items for the specified scale
                     item_list, indiv_list = self.rdf_handler.get_id_indiv_from_RDF(self.model_selected)
-                    self.rootframe.destroy()
-                    rootframe = Tkinter.Tk()
-                    rootframe.title(' Item of reference? ')
-                    rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
-                    self.rootframe = rootframe
-                    self.current_window = rootframe
+                    self.current_window.destroy()
+                    current_window = Tkinter.Tk()
+                    current_window.title(' Item of reference? ')
+                    current_window.protocol("WM_DELETE_WINDOW", self.close_callback)
+                    #self.rootframe = rootframe
+                    self.current_window = current_window
                     # 1st solution -> The user selects a model in the viewer
                     text_manual = Tkinter.Label(self.current_window, text="Select the "+str(self.scale)+" you want as a reference.\n\n OR\n\n")
                     text_manual.pack(side=Tkinter.TOP)
@@ -636,6 +628,7 @@ class Handler:
 #
 #
     def on_reference_selected_for_distance(self, evt):
+        # Close previous window when selection done
         if evt is not None:
             w = evt.widget
             ref = int(w.curselection()[0])
@@ -651,7 +644,8 @@ class Handler:
 
     def display_plots(self):
         """ Display new plots according to user choice(s) """
-        # Delete former canvas
+        # Delete former canvas and former windows
+        self.current_window.destroy()
         self.rootframe.destroy()
         rootframe = Tkinter.Tk()
         rootframe.title(' Interactive Analyses')
@@ -709,11 +703,11 @@ class Handler:
                     
 
     def create_main_buttons(self):
-        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot_multiple(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
         reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
 
-        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
         select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
 
@@ -946,86 +940,6 @@ class Handler:
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
         self.rootframe.after(500, self.update_plot_multiple)
-
-    def update_plot(self, source =0, to_display=set(), canvas=None):
-        """ Check for updated selections data """
-        start_time = time.time()
-        if canvas == None:
-            canvas = self.current_canvas
-
-        if source == 1:
-            logging.info("Display models sent by OnDrag: ")
-            logging.info(to_display)
-            self.models_to_display = to_display.intersection(self.all_models)
-            logging.info(self.models_to_display)
-            for k,s in canvas.shapes.iteritems():
-                if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
-                    canvas.itemconfig(k, fill='blue')
-                    logging.debug("Color: %04d" % s[5][1])
-                    #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.show('line', '%04d' % s[5][1])
-                    #cmd.disable('sele')
-                elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
-                    canvas.itemconfig(k, fill='grey')
-                    logging.debug("Hide: %04d" % s[5][1])
-                    #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.hide('line', '%04d' % s[5][1])
-                    #cmd.disable('sele')
-            self.models_shown = self.models_to_display  
-
-        elif source == 0:
-            # Check single picking items
-            if canvas.picked != 0 and canvas.picked != canvas.previous:
-                canvas.itemconfig(canvas.picked, fill='blue')
-                cmd.show('line', '%04d' % canvas.shapes[canvas.picked][5][1])
-                logging.info("You selected item %d corresponding to model %d" % (k, s[5][1]))
-                if canvas.previous != 0:
-                    canvas.itemconfig(canvas.previous, fill='grey')
-                    cmd.hide('line', '%04d' % canvas.shapes[canvas.previous][5][1])
-                cmd.disable('sele')
-                canvas.previous = canvas.picked
-            # Check selection from PyMol viewer
-            try:
-                models = self.queue.get_nowait()
-                logging.info("Models from user selection in the viewer: "+str(models))
-                self.models_to_display = models.intersection(self.all_models)
-                if len(self.models_to_display) > 0:
-                    for k,s in canvas.shapes.iteritems():
-                        if s[5][1] in self.models_to_display:
-                            logging.info("Color red -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='blue')
-                            cmd.color('red', '%04d' % s[5][1])
-                        else:
-                            logging.info("Color default -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='grey')
-                            util.cbag('%04d' % s[5][1])
-                            # cmd.select('sele', '%04d' % s[5][1])
-                            # cmd.hide('line', '(sele)')
-                            # cmd.disable('sele')
-            except Queue.Empty:
-                pass
-        # Reset plot and viewer
-        elif source == 2:
-            logging.info("RESET")
-            for canv in self.canvas:
-                for k,s in canv.shapes.iteritems():
-                    canv.itemconfig(k, fill='grey')
-                    self.models_to_display.clear()
-                    self.models_shown.clear()
-            cmd.hide('line', 'all')
-                
-        # "Selection mode"
-        elif source == 3:
-            logging.info("SELECTION MODE")
-            for canv in self.canvas:
-                for k,s in canv.shapes.iteritems():
-                    canv.itemconfig(k, fill='grey')
-                    self.models_to_display.add(s[5][1])
-                    self.models_shown.add(s[5][1])
-            cmd.show('line', 'all')
-
-        logging.debug("---- %s seconds ----" % str(time.time()-start_time))
-        self.rootframe.after(1000, self.update_plot)
 
 
     def try_convert_to_int(self, array):
