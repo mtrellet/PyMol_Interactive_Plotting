@@ -1,2 +1,6 @@
 
 pymol_session.log
+
+*.pyc
+
+test.ntriples

@@ -21,6 +21,7 @@ from __future__ import division
 from __future__ import generators
 
 import Tkinter
+from Tkinter import BooleanVar
 from pymol import cmd, util
 from pymol.wizard import Wizard
 import math
@@ -28,24 +29,28 @@ import time
 import Queue
 import threading
 import logging
+from rdflib.plugins.sparql import prepareQuery
+from rdflib import Graph, Namespace, URIRef, Literal
+from rdflib.namespace import RDF, XSD
+import trace
+import color_by_residue
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
+logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
 with_mainloop = False
 # Global variables for pymol event checking
-myspace = {'previous':set(), 'models':set()}
+myspace = {'previous':set(), 'models':set(), 'residues':set()}
 previous_mouse_mode = cmd.get("mouse_selection_mode")
 locked = False
-
 
 class PickWizard(Wizard):
 
     def __init__(self, handler):
-        self.sele_name = "lb" # must be set to "lb" for now...
+        self.sele_name = "sele" # must be set to "lb" for now...
         self.selected = []
         self.handler = handler
         # self.__observers = []
@@ -61,7 +66,7 @@ class PickWizard(Wizard):
 
         # just use selections (disable atom and bond picking)
 
-        cmd.button('m','ctrl','+lb')
+        cmd.button('m','ctrl','+sele')
         cmd.button('r','ctrl','none')
         cmd.button('r','ctsh','none')
 
@@ -70,11 +75,11 @@ class PickWizard(Wizard):
         # returns prompt for the viewer window (optional)
 
         if self.sele_name in cmd.get_names('selections'):
-            n_atom = cmd.count_atoms(self.sele_name)
+            n_atom = cmd.count_atoms("sele")
         else:
             n_atom = 0
         if n_atom:
-            list = cmd.identify(self.sele_name)
+            list = cmd.identify("sele")
             return ["%d atoms selected..."%n_atom,str(list)]
         else:
             return ["Please select some atoms..."]
@@ -83,9 +88,9 @@ class PickWizard(Wizard):
 
         # handle mouse selection callback
 
-        if not self.sele_name in cmd.get_names('selections'):
-            cmd.select(self.sele_name,'none')
-        cmd.enable(self.sele_name)
+        # if not "sele" in cmd.get_names('selections'):
+        #     cmd.select("sele",'none')
+        # cmd.enable("sele")
         cmd.refresh_wizard()
 
     def get_panel(self):
@@ -139,10 +144,38 @@ class RectTracker:
         self.canvas.bind("<Button-1>", self.__update, '+')
         self.canvas.bind("<B1-Motion>", self.__update, '+')
         self.canvas.bind("<ButtonRelease-1>", self.__stop, '+')
+        self.canvas.bind("<Button-2>", self.__accumulate, '+')
+        self.canvas.bind("<B2-Motion>", self.__accumulate, '+')
+        self.canvas.bind("<ButtonRelease-2>", self.__release, '+')
         
         self._command = opts.pop('command', lambda *args: None)
         self.rectopts = opts
-        
+
+    # def select_and_send(self, **opts):
+    #     self.start = None
+    #     self.canvas.bind("<Button-2>", self.__accumulate, '+')
+    #     self.canvas.bind("<B2-Motion>", self.__accumulate, '+')
+    #     self.canvas.bind("<ButtonRelease-2>", self.__release, '+')
+
+    #     self._command = opts.pop('command', lambda *args: None)
+    #     self.rectopts = opts
+
+    def __accumulate(self, event):
+        if not self.start:
+            self.start = [event.x, event.y]
+            return
+
+        if self.item is not None:
+            self.canvas.delete(self.item)
+        self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
+        #self._command(self.start, (event.x, event.y))
+
+    def __release(self,event):
+        self.canvas.delete(self.item)
+        self._command(self, self.canvas, self.start, (event.x, event.y), "all_in_one")
+        self.start = None
+        self.item = None
+
     def __update(self, event):
         if not self.start:
             self.start = [event.x, event.y]
@@ -151,7 +184,7 @@ class RectTracker:
         if self.item is not None:
             self.canvas.delete(self.item)
         self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
-        self._command(self.start, (event.x, event.y))
+        self._command(self, self.canvas, self.start, (event.x, event.y), "update")
         
     def __stop(self, event):
         self.start = None
@@ -200,48 +233,6 @@ class RectTracker:
     
         return items
 
-# def main():
-#     from random import shuffle
-    
-#     canv = Canvas(width=500, height=500)
-#     canv.create_rectangle(50, 50, 250, 150, fill='red')
-#     canv.pack(fill=BOTH, expand=YES)
-    
-#     rect = RectTracker(canv)
-#     # draw some base rectangles
-#     rect.draw([50,50], [250, 150], fill='red', tags=('red', 'box'))
-#     rect.draw([300,300], [400, 450], fill='green', tags=('gre', 'box'))
-    
-#     # just for fun
-#     x, y = None, None
-#     def cool_design(event):
-#         global x, y
-#         kill_xy()
-        
-#         dashes = [3, 2]
-#         x = canv.create_line(event.x, 0, event.x, 1000, dash=dashes, tags='no')
-#         y = canv.create_line(0, event.y, 1000, event.y, dash=dashes, tags='no')
-        
-#     def kill_xy(event=None):
-#         canv.delete('no')
-    
-#     canv.bind('<Motion>', cool_design, '+')
-    
-#     # command
-#     def onDrag(start, end):
-#         global x,y
-#         items = rect.hit_test(start, end)
-#         for x in rect.items:
-#             if x not in items:
-#                 canv.itemconfig(x, fill='grey')
-#                 print x
-#             else:
-#                 canv.itemconfig(x, fill='blue')
-    
-#     rect.autodraw(fill="", width=2, command=onDrag)
-    
-#     mainloop()
-
 
 class SimplePlot(Tkinter.Canvas):
 
@@ -256,6 +247,8 @@ class SimplePlot(Tkinter.Canvas):
         self.spacingy = 0
         self.xmin = 0       # min value from each axis
         self.ymin = 0
+        self.xmax = 0
+        self.ymax = 0
         self.lastx = 0      # previous x,y pos of mouse
         self.lasty = 0
         self.isdown = 0    # flag for mouse pressed
@@ -265,9 +258,11 @@ class SimplePlot(Tkinter.Canvas):
         self.symbols = 0    # 0: amino acids, 1: secondary structure
         self.previous = 0   # Previous item selected
         self.picked = 0     # Item selected
-        self.ids_ext = {}
+        self.ids_ext = {}   # Dictionary of other canvas equivalent ids
+        self.x_query_type = None
+        self.y_query_type = None
 
-    def axis(self, xmin=40, xmax=400, ymin=10, ymax=390, xint=390, yint=40, xlabels=[], ylabels=[]):
+    def axis(self, xmin=80, xmax=450, ymin=10, ymax=390, xint=390, yint=80, xlabels=[], ylabels=[], xtitle='X coordinates', ytitle='Y coordinates'):
 
         # Store variables in self object
         self.xlabels = xlabels
@@ -276,25 +271,29 @@ class SimplePlot(Tkinter.Canvas):
         self.spacingy = (ymax - ymin) / (len(ylabels) - 1)
         self.xmin = xmin
         self.ymin = ymin
+        self.xmax = xmax
+        self.ymax = ymax
 
         # Create axis lines
         self.create_line((xmin, xint, xmax, xint), fill="black", width=3)
         self.create_line((yint, ymin, yint, ymax), fill="black", width=3)
 
         # Create tick marks and labels
+        self.create_text(3*xmax/4, ymax + 20,  text=(xtitle), anchor="nw")
         nextspot = xmin
         for label in xlabels:
             self.create_line((nextspot, xint + 5, nextspot, xint - 5), fill="black", width=2)
-            self.create_text(nextspot, xint - 15, text=label)
+            self.create_text(nextspot, xint + 12, text=label)
             if len(xlabels) == 1:
                 nextspot = xmax
             else:
                 nextspot += (xmax - xmin) / (len(xlabels) - 1)
 
+        self.create_text(20, ymin + 30, text="\n".join(ytitle), anchor="nw")
         nextspot = ymax
         for label in ylabels:
             self.create_line((yint + 5, nextspot, yint - 5, nextspot), fill="black", width=2)
-            self.create_text(yint - 20, nextspot, text=label)
+            self.create_text(yint - 25, nextspot, text=label)
             if len(ylabels) == 1:
                 nextspot = ymin
             else:
@@ -338,6 +337,41 @@ class SimplePlot(Tkinter.Canvas):
         #                                      for i in cmd.get_color_tuple(color)])
         oval = create_shape(width=1, outline="black", fill="grey", *coords)
         self.shapes[oval] = [x, y, 0, xp, yp, meta]
+
+    # Convet from pixel space to values
+    def convertToValues(self, start, end):
+        unit_per_pixel_x = float(abs(self.xlabels[-1]-self.xlabels[0])/abs(self.xmax-self.xmin))
+        unit_per_pixel_y = float(abs(self.ylabels[-1]-self.ylabels[0])/abs(self.ymax-self.ymin))
+
+        logging.info("Px/unit X: %f / Y: %f" % (unit_per_pixel_x, unit_per_pixel_y))
+
+        x_low = (start[0]-self.xmin) * unit_per_pixel_x
+        x_high = (end[0]-self.xmin) * unit_per_pixel_x
+        y_low = (self.ymax-start[1]) * unit_per_pixel_y
+        y_high = (self.ymax-end[1]) * unit_per_pixel_y
+
+        if x_low > x_high:
+            tmp = x_low
+            x_low = x_high
+            x_high = tmp
+
+        if y_low > y_high:
+            tmp = y_low
+            y_low = y_high
+            y_high = tmp
+
+        return x_low, x_high, y_low, y_high
+
+    def convertToPixel(self, axis, value):
+        pixel_per_unit_x = float(abs(self.xmax-self.xmin)/abs(self.xlabels[-1]-self.xlabels[0]))
+        pixel_per_unit_y = float(abs(self.ymax-self.ymin)/abs(self.ylabels[-1]-self.ylabels[0]))
+
+        if axis == "Y":
+            pixel = self.ymax - ((value-self.ylabels[0]) * pixel_per_unit_y)
+        else:
+            pixel = self.xmin + ((value-self.xlabels[0]) * pixel_per_unit_x)
+
+        return pixel
         
     # Convert from pixel space to label space
     def convertToLabel(self, axis, value):
@@ -365,49 +399,52 @@ class SimplePlot(Tkinter.Canvas):
         return label
 
     # Converts value from 'label' space to 'pixel' space
-    def convertToPixel(self, axis, value):
+    # def convertToPixel(self, axis, value):
 
-        # Defaultly use X-axis info
-        label0 = self.xlabels[0]
-        label1 = self.xlabels[1]
-        spacing = self.spacingx
-        min = self.xmin
+    #     # Defaultly use X-axis info
+    #     label0 = self.xlabels[0]
+    #     label1 = self.xlabels[1]
+    #     spacing = self.spacingx
+    #     min = self.xmin
 
-        # Set info for Y-axis use
-        if axis == "Y":
-            label0 = self.ylabels[0]
-            label1 = self.ylabels[1]
-            spacing = self.spacingy
-            min = self.ymin
+    #     # Set info for Y-axis use
+    #     if axis == "Y":
+    #         label0 = self.ylabels[0]
+    #         label1 = self.ylabels[1]
+    #         spacing = self.spacingy
+    #         min = self.ymin
 
-        # Get axis increment in 'label' space
-        inc = abs(label1 - label0)
+    #     # Get axis increment in 'label' space
+    #     inc = abs(label1 - label0)
 
-        # 'Label' difference from value and smallest label (label0)
-        diff = float(value - label0)
+    #     # 'Label' difference from value and smallest label (label0)
+    #     diff = float(value - label0)
 
-        # Get whole number in 'label' space
-        whole = int(diff / inc)
+    #     # Get whole number in 'label' space
+    #     whole = int(diff / inc)
 
-        # Get fraction number in 'label' space
-        part = float(float(diff / inc) - whole)
+    #     # Get fraction number in 'label' space
+    #     part = float(float(diff / inc) - whole)
 
-        # Return 'pixel' position value
-        pixel = whole * spacing + part * spacing
+    #     # Return 'pixel' position value
+    #     pixel = whole * spacing + part * spacing
 
-        # Reverse number by subtracting total number of pixels - value pixels
-        if axis == "Y":
-            tot_label_diff = float(self.ylabels[-1] - label0)
-            tot_label_whole = int(tot_label_diff / inc)
-            tot_label_part = float(float(tot_label_diff / inc) - tot_label_whole)
-            tot_label_pix = tot_label_whole * spacing + tot_label_part * spacing
+    #     # Reverse number by subtracting total number of pixels - value pixels
+    #     if axis == "Y":
+    #         tot_label_diff = float(self.ylabels[-1] - label0)
+    #         tot_label_whole = int(tot_label_diff / inc)
+    #         tot_label_part = float(float(tot_label_diff / inc) - tot_label_whole)
+    #         tot_label_pix = tot_label_whole * spacing + tot_label_part * spacing
 
-            pixel = tot_label_pix - pixel
+    #         pixel = tot_label_pix - pixel
 
-        # Add min edge pixels
-        pixel = pixel + min
+    #     # Add min edge pixels
+    #     pixel = pixel + min
 
-        return pixel
+    #     if axis == "Y" and pixel > self.ymax:
+    #         pixel = self.ymax
+
+    #     return pixel
 
     # Print out which data point you just clicked on..
     def pickWhich(self, event):
@@ -495,11 +532,14 @@ def check_selections(queue):
         # Check if the user changed the selection mode (atom/residue/chain/molecule)
         logging.debug("Current mouse selection mode : %d" % int(cmd.get("mouse_selection_mode")))
         logging.debug("Number of selections: %d" % len(cmd.get_names("selections")))
-        if int(cmd.get("mouse_selection_mode")) == 5 and previous_mouse_mode == cmd.get("mouse_selection_mode") and len(cmd.get_names("selections")) >= 2:
-            logging.info("--- Selection made by the user ---")
-            logging.debug(cmd.get_names("selections")[1])
-            if(cmd.get_names("selections")[1] == 'lb'):
-                cmd.iterate('(lb)', 'models.add(model)', space=myspace)
+        if int(cmd.get("mouse_selection_mode")) == 5 and len(cmd.get_names("selections")) > 0:
+            #logging.debug(cmd.get_names("selections")[1])
+            nb_selected_objects = cmd.count_atoms('sele')
+            if(nb_selected_objects > 0):
+                logging.info("--- Selection made by the user ---")
+                logging.info(nb_selected_objects)
+                cmd.iterate('(sele)', 'models.add(model)', space=myspace)
+                logging.info(myspace['models'])
                 tmp = set()
                 # Make the list with unique items
                 for i in myspace['models']:
@@ -511,10 +551,33 @@ def check_selections(queue):
                     queue.put(tmp)
                 else:
                     time.sleep(1)
+                cmd.select('none')
+        elif int(cmd.get("mouse_selection_mode")) == 1 and len(cmd.get_names("selections")) > 0:
+            #logging.debug(cmd.get_names("selections")[0])
+
+            nb_selected_objects = cmd.count_atoms('sele')
+            if(nb_selected_objects > 0):
+                logging.info("--- Selection made by the user ---")
+                cmd.iterate('(sele)', 'residues.add(resv)', space=myspace)
+                logging.info(myspace['residues'])
+                tmp = set()
+                # Make the list with unique items
+                for i in myspace['residues']:
+                    if int(i) not in tmp:
+                        tmp.add(int(i))
+                # Check if the selection has changed
+                if tmp != myspace['previous']:
+                    myspace['previous'] = tmp
+                    queue.put(tmp)
+                    #cmd.delete('lb')
+                else:
+                    time.sleep(1)
+                cmd.select('none')
+
         else:
             # if len(cmd.get_names("selections", enabled_only=1)) == 0:
             #     queue.put(set())
-            previous_mouse_mode = cmd.get("mouse_selection_mode")
+            #previous_mouse_mode = cmd.get("mouse_selection_mode")
             time.sleep(1)
 
 
@@ -533,13 +596,13 @@ class Handler:
         rootframe.title(' Interactive Analyses')
         rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
 
-        self.canvas = 4*[]
+        self.canvas = []
 
         ###############################
         ##### NEW WINDOW FOR RMSD #####
         ###############################
 
-        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT)
+        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT, "Time Frame", "RMSD")
 
 
         if name is None:
@@ -561,14 +624,27 @@ class Handler:
         self.models_to_display = set()
         self.all_models = set()
         self.models_shown = set()
+        self.rdf_parsed = False
+        self.choices = [] # Array of IntVar to store CHeckbuttons for user choices
+        self.checkbuttons = []
+        self.button_dict = {}
+        self.rect_trackers = []
+        self.delete_buttons = []
+        self.proposed_analyses = ["distance", "x_position", "y_position", "z_position"]
+        self.scale = 'model'
+        self.models_selected = 0
+        self.item_selected = 0
+        self.current_state = "default"
 
-        reset = Tkinter.Button(self.rootframe, text = "Reset", command = lambda: self.update_plot(2), anchor = "e")
-        reset.configure(width = 10, activebackground = "#33B5E5", relief = "flat")
-        reset_window = self.current_canvas.create_window(10, 450, anchor="sw", window=reset)
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
 
-        select = Tkinter.Button(self.rootframe, text = "Select from Viewer", command = lambda: self.update_plot(3), anchor = "e")
-        select.configure(width = 20, activebackground = "#33B5E5", relief = "flat")
-        select_window = self.current_canvas.create_window(50, 450, anchor="se", window=select)
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
+        select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
+
+        self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
 
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
@@ -582,36 +658,11 @@ class Handler:
         ######
         # Call to selection tool
         rect = RectTracker(self.current_canvas)
+        rect.autodraw(fill="", width=1, command=self.onDrag)
 
-        ######
-        # Command to select by dragging
-        def onDrag(start, end):
-            global x,y, locked
-            items = rect.hit_test(start, end)
-            display=set()
-            for x in rect.items:
-                # if x not in items:
-                #     if x in canvas.shapes:
-                #         canvas.itemconfig(x, fill='grey')
-                #         if self.show[canvas.shapes[x][5][1]-1]:
-                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                #             cmd.hide('line', '(sele)')
-                # else:
-                if x in items:
-                    #canvas.itemconfig(x, fill='blue')
-                    if x in self.canvas[0].shapes:
-                        display.add(self.canvas[0].shapes[x][5][1])
-                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                        # cmd.show('line', '(sele)')
-                        logging.debug(display)
-                        self.show[self.canvas[0].shapes[x][5][1]-1] = True
-                        locked = False
-            self.update_plot_multiple(1, display, self.canvas[0])
-            if len(display) == 0 and not locked:
-                self.update_plot_multiple(1, display, self.canvas[0])
-                locked = True
-        rect.autodraw(fill="", width=2, command=onDrag)
-        #####
+        delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[0]), anchor = "w")
+        delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        delete_window = self.current_canvas.create_window(210, 445, anchor="sw", window=delete)
 
         #####
         # Call to wizard tool
@@ -632,88 +683,63 @@ class Handler:
         ##### NEW WINDOW FOR TEMPERATURE #####
         ######################################
 
-        self.create_window(parent, 500, 500, 0, 50, 250, 320, symbols, Tkinter.RIGHT)
+        self.create_window(parent, 500, 500, 0, 50, 250, 320, symbols, Tkinter.LEFT, "Time Frame", "Temperature")
 
         #####
         # Call to selection tool
         rect2 = RectTracker(self.current_canvas)
+        rect2.autodraw(fill="", width=1, command=self.onDrag)
+        
 
-        ######
-        # Command to select by dragging
-        def onDrag2(start, end):
-            global x,y, locked
-            items = rect2.hit_test(start, end)
-            display=set()
-            for x in rect2.items:
-                # if x not in items:
-                #     if x in canvas.shapes:
-                #         canvas.itemconfig(x, fill='grey')
-                #         if self.show[canvas.shapes[x][5][1]-1]:
-                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                #             cmd.hide('line', '(sele)')
-                # else:
-                if x in items:
-                    #canvas.itemconfig(x, fill='blue')
-                    if x in self.canvas[1].shapes:
-                        display.add(self.canvas[1].shapes[x][5][1])
-                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                        # cmd.show('line', '(sele)')
-                        logging.debug(display)
-                        self.show[self.canvas[1].shapes[x][5][1]-1] = True
-                        locked = False
-            self.update_plot_multiple(1, display, self.canvas[1])
-            if len(display) == 0 and not locked:
-                self.update_plot_multiple(1, display, self.canvas[1])
-                locked = True
-        rect2.autodraw(fill="", width=2, command=onDrag2)
-        #####
+        delete2 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[1]), anchor = "w")
+        delete2.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        delete_window2 = self.current_canvas.create_window(210, 445, anchor="sw", window=delete2)
 
 
         #################################
         ##### NEW WINDOW FOR ENERGY #####
         #################################
 
-        self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.BOTTOM)
+        # self.create_window(parent, 500, 500, 0, 50, 20000, 22800, symbols, Tkinter.LEFT, "Time Frame", "Energy")
 
-        #####
-        # Call to selection tool
-        rect3 = RectTracker(self.current_canvas)
+        # #####
+        # # Call to selection tool
+        # rect3 = RectTracker(self.current_canvas)
+        # rect3.autodraw(fill="", width=1, command=self.onDrag)
+        # #####
 
-        ######
-        # Command to select by dragging
-        def onDrag3(start, end):
-            global x,y, locked
-            items = rect3.hit_test(start, end)
-            display=set()
-            for x in rect3.items:
-                # if x not in items:
-                #     if x in canvas.shapes:
-                #         canvas.itemconfig(x, fill='grey')
-                #         if self.show[canvas.shapes[x][5][1]-1]:
-                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                #             cmd.hide('line', '(sele)')
-                # else:
-                if x in items:
-                    #canvas.itemconfig(x, fill='blue')
-                    if x in self.canvas[2].shapes:
-                        display.add(self.canvas[2].shapes[x][5][1])
-                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
-                        # cmd.show('line', '(sele)')
-                        logging.debug(display)
-                        self.show[self.canvas[2].shapes[x][5][1]-1] = True
-                        locked = False
-            self.update_plot_multiple(1, display, self.canvas[2])
-            if len(display) == 0 and not locked:
-                self.update_plot_multiple(1, display, self.canvas[2])
-                locked = True
-        rect3.autodraw(fill="", width=2, command=onDrag3)
-        #####
+        # delete3 = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[2]), anchor = "w")
+        # delete3.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        # delete_window3 = self.current_canvas.create_window(210, 445, anchor="sw", window=delete3)
 
 
         if selection is not None:
-            self.start(selection, self.canvas[0], 'RMSD')
-            self.start(selection, self.canvas[1], 'temperature')
-            self.start(selection, self.canvas[2], 'energy')
+            self.start(self.canvas[0], 'time_frame', 'RMSD')
+            self.start(self.canvas[1], 'time_frame', 'temperature')
+            #self.start(self.canvas[2], 'time_frame', 'energy')
+
+
+        options = Tkinter.Canvas(parent, width=200, height=500)
+        options.pack()
+
+        options.create_line(2,10,2,490, fill='black', width=1)
+
+        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'))
+        model.configure(width=8, activebackground = "#FF0000", relief='raised')
+        model_window = options.create_window(100, 40, window=model)
+        
+        chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('CHAIN'))
+        chain.configure(width=8, activebackground = "#FF0000", relief='raised')
+        chain_window = options.create_window(100, 70, window=chain)
+        
+        residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('RESIDUE'))
+        residue.configure(width=8, activebackground = "#FF0000", relief='raised')
+        residue_window = options.create_window(100, 100, window=residue)
+
+        atom = Tkinter.Button(self.rootframe, text='ATOM', command = lambda: self.propose_analyses('ATOM'))
+        atom.configure(width=8, activebackground = "#FF0000", relief='raised')
+        atom_window = options.create_window(100, 130, window=atom)
+
 
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
@@ -723,26 +749,391 @@ class Handler:
         #############################################
         self.create_ids_equivalent_dict()
 
-    
+    ######
+    # Command to select by dragging
+    def onDrag(self, rect, canvas, start, end, mode):
+        global x,y, locked
+        if mode == "update":
+            items = rect.hit_test(start, end)
+            display=set()
+            for x in rect.items:
+                # if x not in items:
+                #     if x in canvas.shapes:
+                #         canvas.itemconfig(x, fill='grey')
+                #         if self.show[canvas.shapes[x][5][1]-1]:
+                #             cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                #             cmd.hide('line', '(sele)')
+                # else:
+                if x in items:
+                    #canvas.itemconfig(x, fill='blue')
+                    if x in canvas.shapes:
+                        display.add(canvas.shapes[x][5][1])
+                        # cmd.select('sele', '%04d' % canvas.shapes[x][5][1])
+                        # cmd.show('line', '(sele)')
+                        logging.debug(display)
+                        self.show[canvas.shapes[x][5][1]-1] = True
+                        locked = False
+            self.update_plot_multiple(1, display, canvas)
+            if len(display) == 0 and not locked:
+                self.update_plot_multiple(1, display, canvas)
+                locked = True
+        elif mode == "all_in_one":
+            logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
+            x_low, x_high, y_low, y_high = canvas.convertToValues(start, end)
+            logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
+            models_selected = self.query_sub_rdf(canvas, x_low, x_high, y_low, y_high)
+            logging.info(models_selected)
+            for model in models_selected:
+                self.show[model-1] = True
+            self.update_plot_multiple(1, models_selected, canvas)
+        #####
+
+    def propose_analyses(self, scale):
+        from Tkinter import BooleanVar
+        self.scale = scale.lower()
+        query = 'SELECT DISTINCT ?x_type ?y_type WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+self.scale+' .}'
+        logging.info("QUERY: \n%s" % query)
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        logging.info("Number of queried entities: %d " % len(qres))
+
+        if len(qres) > 0:
+            new_window = Tkinter.Tk()
+            new_window.title(' Display plots ')
+            #f = Tkinter.Frame(new_window)
+            #new_window.protocol("WM_DELETE_WINDOW", self.close_window)
+            # c = Tkinter.Canvas(new_window, width=100, height=len(qres) * 40)
+            # c.pack(fill="both", expand=1)
+            text_id = Tkinter.Label(new_window, text="We have found the following plots:" )
+            text_id.pack(side=Tkinter.TOP)
+            self.checkbuttons = []
+            self.choices = []
+            self.button_dict = {}
+            cpt = 0
+            for i in qres:
+                print i[0]+" / "+i[1]
+                var = BooleanVar(new_window)
+                checkbutton = Tkinter.Checkbutton(new_window, text=i[0]+" / "+i[1], variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
+                checkbutton.pack(side=Tkinter.TOP)
+                self.choices.append(var)
+                #self.checkbuttons.append(checkbutton)
+                self.button_dict[cpt] = [i[0], i[1], self.choices[-1]]
+                cpt+=1
+            send_button = Tkinter.Button(new_window, text="Send", command= self.display_plots)
+            send_button.pack(side=Tkinter.TOP)
+        else:
+            new_window = Tkinter.Tk()
+            text_id = Tkinter.Label(new_window, text="We did not found any preprocessed plots\nThese are the possible analyses to be performed: ")
+            text_id.pack(side=Tkinter.TOP)
+            self.current_window = new_window
+            self.choices = []
+            self.button_dict = {}
+            if self.scale == "residue" or self.scale == "atom":
+                for ana in self.proposed_analyses:
+                    var = BooleanVar(self.current_window)
+                    checkbutton = Tkinter.Checkbutton(self.current_window, text=self.scale+"_id / "+ana, variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
+                    checkbutton.pack(side=Tkinter.TOP)
+                    self.choices.append(var)
+                    self.button_dict[ana] = self.choices[-1]
+                send_button = Tkinter.Button(self.current_window, text="Send", command=self.calc_plots)
+                send_button.pack(side=Tkinter.TOP)
+
+
+        new_window.mainloop()
+
+####### NEW ANALYSES ###########################################################################
+#
+#
+#
+    def calc_plots(self):
+        # Delete former canvas
+        self.current_window.destroy()
+        new_window = Tkinter.Tk()
+        self.current_window = new_window
+        self.current_window.title("Model of reference?")
+        if len(self.models_shown) > 0:
+            models = [model for model in self.models_shown]
+        else:
+            iterat = {'tmp' : set()}
+            cmd.iterate('(all)', 'tmp.add(model)', space=iterat)
+            models = [int(model) for model in iterat['tmp']]
+        if not models:
+            text_id = Tkinter.Label(self.current_window, text="No model found..!")
+            text_id.pack(side=Tkinter.TOP)
+        else:
+            # 1st solution -> The user selects a model in the viewer
+            text_manual = Tkinter.Label(self.current_window, text="Select the model you want as a reference.\n\n OR\n\n")
+            text_manual.pack(side=Tkinter.TOP)
+            cmd.set("mouse_selection_mode", 5)
+            if len(self.models_shown) == 0:
+                self.update_plot_multiple(source=3)
+            self.current_state = "selection"
+            # 2nd solution -> The user chooses a model in a list
+            text_id = Tkinter.Label(self.current_window, text="Choose the model you want in the list:")
+            text_id.pack(side=Tkinter.TOP)
+            scrollbar = Tkinter.Scrollbar(self.current_window, orient=Tkinter.VERTICAL)
+            models_listbox = Tkinter.Listbox(self.current_window,yscrollcommand=scrollbar.set)
+            scrollbar.config(command=models_listbox.yview)
+            scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+            models_listbox.pack(side=Tkinter.TOP)
+            models.sort()
+            for m in models:
+                models_listbox.insert(Tkinter.END, m)
+            models_listbox.bind('<<ListboxSelect>>', self.on_model_selected)
+#
+#
+    def on_model_selected(self, evt):
+        if evt is not None:
+            w = evt.widget
+            index = int(w.curselection()[0])
+            self.model_selected = w.get(index)
+        logging.info('Model selected: %d' % (self.model_selected))
+        dic = {}
+        for k,s in self.button_dict.iteritems():
+            logging.info("%s : %d" % (k, s.get()))
+            x_type = ""
+            y_type = ""
+            if s:
+                if k == "distance":
+                    # Get list of items for the specified scale
+                    item_list, indiv_list = self.get_id_indiv_from_RDF()
+                    self.rootframe.destroy()
+                    rootframe = Tkinter.Tk()
+                    rootframe.title(' Item of reference? ')
+                    rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
+                    self.rootframe = rootframe
+                    self.current_window = rootframe
+                    # 1st solution -> The user selects a model in the viewer
+                    text_manual = Tkinter.Label(self.current_window, text="Select the "+str(self.scale)+" you want as a reference.\n\n OR\n\n")
+                    text_manual.pack(side=Tkinter.TOP)
+                    cmd.set("mouse_selection_mode", 1)
+                    self.current_state = "selection"
+                    text_id = Tkinter.Label(self.current_window, text="Choose your "+self.scale+" of reference in the list:")
+                    text_id.pack(side=Tkinter.TOP)
+                    scrollbar = Tkinter.Scrollbar(self.current_window, orient=Tkinter.VERTICAL)
+                    items_listbox = Tkinter.Listbox(self.current_window,yscrollcommand=scrollbar.set)
+                    scrollbar.config(command=items_listbox.yview)
+                    scrollbar.pack(side=Tkinter.RIGHT, fill=Tkinter.Y)
+                    items_listbox.pack(side=Tkinter.TOP)
+                    for i in item_list:
+                        items_listbox.insert(Tkinter.END, i)
+                    items_listbox.bind('<<ListboxSelect>>', self.on_reference_selected_for_distance)
+                    if self.scale == "residue":
+                        x_type = "resid"
+                    else:
+                        x_type = "atomid"
+                    y_type = "distance"
+            # Formatting new dictionary to be used in display_plots()
+            dic[k] = [x_type, y_type, s]
+        self.button_dict = dic
+#
+#
+    def on_reference_selected_for_distance(self, evt):
+        import center_of_mass
+        item_list, indiv_list = self.get_id_indiv_from_RDF()
+        if evt is not None:
+            w = evt.widget
+            ref = int(w.curselection()[0])
+            self.item_selected = w.get(ref)
+        logging.info("Item selected: %d" % self.item_selected)
+        if self.scale == "residue":
+            ref_x, ref_y, ref_z = center_of_mass.get_com("resid %s and model %04d" % (str(self.item_selected), self.model_selected))
+        elif self.scale == "atom":
+            ref_x, ref_y, ref_z = center_of_mass.get_com("id %s and model %04d" % (str(self.item_selected), self.model_selected))
+        logging.info("Coordinates of reference item: %f %f %f" % (ref_x, ref_y, ref_z))
+        # resid_list = []
+        # cmd.iterate("(name ca)","resid_list.append(resi)")
+        my = Namespace("http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+        last_point_id = self.get_last_id("point")
+        nb_pt = 1
+        start_time = time.time()
+        for item in item_list:
+            if item != self.item_selected:
+                if self.scale == "residue":
+                    x,y,z = center_of_mass.get_com("resid %s and model %04d" % (str(item), self.model_selected))
+                elif self.scale == "atom":
+                    x,y,z = center_of_mass.get_com("id %s and model %04d" % (str(item), self.model_selected))
+                logging.info("Coordinates x y z : %f %f %f " % (x,y,z))
+                dist = math.sqrt(math.pow((ref_x-x),2)+math.pow((ref_y-y),2)+math.pow((ref_z-z),2))
+                logging.info("Distance: %f" % dist)
+                point = URIRef(my+"POINT_"+str(last_point_id+nb_pt))
+                self.rdf_graph.add( (point, RDF.type, my.point) )
+                self.rdf_graph.add( (point, my.X_value, Literal(item)) )
+                self.rdf_graph.add( (point, my.Y_value, Literal(dist)))
+                if self.scale == "residue":
+                    self.rdf_graph.add( (point, my.X_type, Literal('resid')))
+                    res = URIRef(str(indiv_list[nb_pt]))
+                    self.rdf_graph.add( (point, my.represent, res))
+                elif self.scale == "atom":
+                    self.rdf_graph.add( (point, my.X_type, Literal('atomid')))
+                    at = URIRef(str(indiv_list[nb_pt]))
+                    self.rdf_graph.add( (point, my.represent, at))
+                self.rdf_graph.add( (point, my.Y_type, Literal('distance')))
+                
+                nb_pt += 1
+        logging.info("---- %s seconds ----" % str(time.time()-start_time))
+        #self.rdf_graph.serialize("test.ntriples", format="nt")
+        self.display_plots()
+#
+#
+###################################################################################################
+
+    def display_plots(self):
+        """ Display new plots according to user choice(s) """
+        # Delete former canvas
+        self.rootframe.destroy()
+        rootframe = Tkinter.Tk()
+        rootframe.title(' Interactive Analyses')
+        rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
+        self.rootframe = rootframe
+        self.canvas = []
+        self.current_canvas = None
+        # 1st case: We come from known analyses and just redraw
+        # 2nd case: We come from new analyses we just calculated
+        logging.info("Status of checkbuttons:")
+        for k,s in self.button_dict.iteritems():
+            logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), self.scale))
+            if s[2].get():
+                xmin, xmax, ymin, ymax = self.get_mini_maxi_values(s[0], s[1])
+                logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
+                self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
+
+                rect = RectTracker(self.current_canvas)
+                rect.autodraw(fill="", width=1, command=self.onDrag)
+                self.rect_trackers.append(rect)
+
+                delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[-1]), anchor = "w")
+                delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+                delete_window = self.current_canvas.create_window(210, 445, anchor="sw", window=delete)
+                self.delete_buttons.append(delete)
+
+                if len(self.canvas) == 1:
+                    self.create_main_buttons()
+
+                self.start(self.canvas[-1], s[0], s[1])
+
+        self.create_option_buttons()
+
+        self.create_ids_equivalent_dict()
+
+        rootframe.mainloop()
+
+    def create_option_buttons(self):
+        options = Tkinter.Canvas(self.rootframe, width=200, height=500)
+        options.pack()
+
+        options.create_line(2,10,2,490, fill='black', width=1)
+
+        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'))
+        model.configure(width=8, activebackground = "#FF0000", relief='raised')
+        model_window = options.create_window(100, 40, window=model)
+        
+        chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('CHAIN'))
+        chain.configure(width=8, activebackground = "#FF0000", relief='raised')
+        chain_window = options.create_window(100, 70, window=chain)
+        
+        residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('RESIDUE'))
+        residue.configure(width=8, activebackground = "#FF0000", relief='raised')
+        residue_window = options.create_window(100, 100, window=residue)
+                    
+
+    def create_main_buttons(self):
+        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot(2), anchor = "w")
+        reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+        reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
+
+        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot(3), anchor = "w")
+        select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
+        select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
+
+        self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
+
+    def get_id_indiv_from_RDF(self):
+        query = 'SELECT ?res ?resid WHERE{ ?res my:residue_id ?resid . ?res my:belongs_to+ my:MODEL_'+str(self.model_selected)+' .} ORDER BY ?resid'
+        logging.debug("QUERY: \n%s" % query)
+
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        logging.info("Number of residues in specified model: %d " % len(qres))
+
+        id_list = []
+        indiv_list = []
+
+        for row in qres:
+            id_list.append(int(row[1]))
+            indiv_list.append(row[0])
+            logging.info("indiv: %s / id: %d" % (indiv_list[-1], id_list[-1]))
+
+        return id_list, indiv_list
+
+    def get_last_id(self, type):
+        query = 'SELECT ?id WHERE {?id rdf:type my:'+type+' .}'
+        logging.debug("QUERY: \n%s" % query)
+
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        list_id = []
+        import re
+        p = re.compile("POINT_(.*)")
+        for row in qres:
+            tmp = p.search(row[0])
+            list_id.append(int(tmp.groups()[0]))
+
+        list_id.sort()
+        return list_id[-1]
+
+    def get_mini_maxi_values(self, xtype, ytype):
+        """ Get minimum and maximum for x and y values from POINT individuals """
+
+        query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+self.scale+' .}'
+        logging.info("QUERY: \n%s" % query)
+
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        logging.info("Number of queried entities (min/max): %d " % len(qres))
+
+        res = []
+        for row in qres:
+            for r in row:
+                if r.datatype == XSD.integer:
+                    res.append(int(r))
+                else:
+                    res.append(float(r))
+        xmin = res[0]        
+        xmax = res[1]
+        ymin = res[2]
+        ymax = res[3]
+        print type(xmin), type(xmax), type(ymin), type(ymax)
+        return xmin, xmax, ymin, ymax
+
+    def delete(self, canvas):
+        print "Closed"
+        self.canvas.remove(canvas)
+        canvas.delete("all")
+        canvas.pack()
+
     def create_ids_equivalent_dict(self):
         """ Create a dictionary of equivalent ids for each canvas created """
+        for canv in self.canvas:
+            canv.ids_ext = {}
         for k,s in self.canvas[0].shapes.iteritems():
             self.canvas[0].ids_ext[k] = []
             for canv in self.canvas[1:]:
                 for k1,s1 in canv.shapes.iteritems():
                     if s1[5][1] == s[5][1]:
                         self.canvas[0].ids_ext[k].append(k1)
-                        # canv.ids_ext[k1] = []
-                        # canv.ids_ext[k1].append(k)
 
         for i in range(1,len(self.canvas)):
             self.canvas[i].ids_ext = {v[i-1]: [item for sublist in [[k], v[:i-1], v[i:]] for item in sublist] for k,v in self.canvas[0].ids_ext.items()}
 
-        print self.canvas[1].ids_ext
-        print self.canvas[2].ids_ext
-        logging.debug(self.canvas[0].shapes[192])
-        logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
-        logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
+        logging.info("Dictionaries of equivalent ids created...")
+        # logging.debug(self.canvas[0].shapes[192])
+        # logging.debug(self.canvas[1].shapes[self.canvas[0].ids_ext[192][0]])
+        # logging.debug(self.canvas[0].shapes[self.canvas[1].ids_ext[self.canvas[0].ids_ext[192][0]][0]])
 
 
     def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
@@ -768,8 +1159,7 @@ class Handler:
                         cpt+=1
                     logging.debug("Color: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.set('cartoon_transparency', '0.5')
-                    cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+                    #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
                     cmd.show('line', '%04d' % s[5][1])
                     #cmd.disable('sele')
                 elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
@@ -784,7 +1174,7 @@ class Handler:
                         cpt+=1
                     logging.debug("Hide: %04d" % s[5][1])
                     #cmd.select('sele', '%04d' % s[5][1])
-                    cmd.hide('all', '%04d' % s[5][1])
+                    cmd.hide('everything', '%04d' % s[5][1])
                     #cmd.disable('sele')
             self.models_shown = self.models_to_display  
 
@@ -801,7 +1191,9 @@ class Handler:
                             cpt+=1
                             self.canvas[cpt].itemconfig(it, fill='blue')
                         cpt+=1
-                    cmd.show('line', '%04d' % canv.shapes[canv.picked][5][1])
+                    cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
+                    cmd.show('lines', '%04d' % canv.shapes[canv.picked][5][1])
+                    logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
                     if canv.previous != 0:
                         canv.itemconfig(canv.previous, fill='grey')
                         cpt=0
@@ -812,43 +1204,102 @@ class Handler:
                                 cpt+=1
                                 self.canvas[cpt].itemconfig(it, fill='grey')
                             cpt+=1
-                        cmd.hide('line', '%04d' % canv.shapes[canvas.previous][5][1])
+                        cmd.hide('everything', '%04d' % canv.shapes[canv.previous][5][1])
                     canv.previous = canv.picked
                     break # We can pick only one item among all canvas
             # Check selection from PyMol viewer
             try:
-                models = self.queue.get_nowait()
-                logging.info("Models from user selection in the viewer: "+str(models))
-                self.models_to_display = models.intersection(self.all_models)
-                if len(self.models_to_display) > 0:
-                    for k,s in canvas.shapes.iteritems():
-                        if s[5][1] in self.models_to_display:
-                            logging.info("Color red -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='blue')
-                            cpt=0
-                            for it in canvas.ids_ext[k]:
-                                if self.canvas[cpt] != canvas:
-                                    self.canvas[cpt].itemconfig(it, fill='blue')
-                                else:
+                items = self.queue.get_nowait()
+                logging.info("Items from user selection in the viewer: "+str(items))
+                logging.info("Current state: %s / Scale: %s" % (self.current_state, self.scale))
+                
+                # Automatic checking of model selection by the user
+                if self.current_state == "default" and self.scale == "model":
+                    self.models_to_display = items.intersection(self.all_models)
+                    if len(self.models_to_display) > 0:
+                        for k,s in canvas.shapes.iteritems():
+                            if s[5][1] in self.models_to_display:
+                                logging.info("Color red -> %04d" % s[5][1]) 
+                                canvas.itemconfig(k, fill='blue')
+                                cpt=0
+                                for it in canvas.ids_ext[k]:
+                                    if self.canvas[cpt] != canvas:
+                                        self.canvas[cpt].itemconfig(it, fill='blue')
+                                    else:
+                                        cpt+=1
+                                        self.canvas[cpt].itemconfig(it, fill='blue')
                                     cpt+=1
-                                    self.canvas[cpt].itemconfig(it, fill='blue')
-                                cpt+=1
-                            cmd.color('red', '%04d' % s[5][1])
-                        else:
-                            logging.info("Color default -> %04d" % s[5][1]) 
-                            canvas.itemconfig(k, fill='grey')
-                            cpt=0
-                            for it in canvas.ids_ext[k]:
-                                if self.canvas[cpt] != canvas:
-                                    self.canvas[cpt].itemconfig(it, fill='grey')
-                                else:
+                                cmd.color('red', '%04d' % s[5][1])
+                            else:
+                                logging.info("Color default -> %04d" % s[5][1]) 
+                                canvas.itemconfig(k, fill='grey')
+                                cpt=0
+                                for it in canvas.ids_ext[k]:
+                                    if self.canvas[cpt] != canvas:
+                                        self.canvas[cpt].itemconfig(it, fill='grey')
+                                    else:
+                                        cpt+=1
+                                        self.canvas[cpt].itemconfig(it, fill='grey')
                                     cpt+=1
-                                    self.canvas[cpt].itemconfig(it, fill='grey')
-                                cpt+=1
-                            util.cbag('%04d' % s[5][1])
-                            # cmd.select('sele', '%04d' % s[5][1])
-                            # cmd.hide('line', '(sele)')
-                    cmd.disable('lb')
+                                util.cbag('%04d' % s[5][1])
+                                # cmd.select('sele', '%04d' % s[5][1])
+                                # cmd.hide('line', '(sele)')
+                        cmd.disable('lb')
+                # We wait for user selection to trigger next steps
+                elif self.current_state == "selection":
+                    print cmd.get("mouse_selection_mode")
+                    # Model selection
+                    if int(cmd.get("mouse_selection_mode")) == 5:
+                        try:
+                            logging.info("Model selected for analyses: %d " % list(items)[0])
+                            self.model_selected = list(items)[0]
+                            cmd.hide('everything', 'all')
+                            cmd.show('cartoon', '%04d' % self.model_selected)
+                            cmd.show('lines', '%04d' % self.model_selected)
+                            color_by_residue.color_by_restype()
+                            for k,s in canvas.shapes.iteritems():
+                                if s[5][1] == self.model_selected:
+                                    canvas.itemconfig(k, fill='blue')
+                                    cpt=0
+                                    for it in canvas.ids_ext[k]:
+                                        if self.canvas[cpt] != canvas:
+                                            self.canvas[cpt].itemconfig(it, fill='blue')
+                                        else:
+                                            cpt+=1
+                                            self.canvas[cpt].itemconfig(it, fill='blue')
+                                        cpt+=1
+                                else:
+                                    logging.info("Color default -> %04d" % s[5][1]) 
+                                    canvas.itemconfig(k, fill='grey')
+                                    cpt=0
+                                    for it in canvas.ids_ext[k]:
+                                        if self.canvas[cpt] != canvas:
+                                            self.canvas[cpt].itemconfig(it, fill='grey')
+                                        else:
+                                            cpt+=1
+                                            self.canvas[cpt].itemconfig(it, fill='grey')
+                                        cpt+=1
+                                    # cmd.select('sele', '%04d' % s[5][1])
+                            
+                            #cmd.disable('lb')
+                            self.current_state = "default"
+                            self.on_model_selected(evt=None)
+                            items = set()
+                        except IndexError:
+                            logging.info("No model selected in the viewer")
+                            pass
+                    # Residue selection
+                    elif int(cmd.get("mouse_selection_mode")) == 1:
+                        try:
+                            logging.info("Residue selection for analyses: %d " % list(items)[0])
+                            self.item_selected = list(items)[0]
+                            items = set()
+                            self.current_state = "default"
+                            self.on_reference_selected_for_distance(evt=None)
+                        except IndexError:
+                            logging.info("No residue selected in the viewer")
+                            pass
+
             except Queue.Empty:
                 pass
         # Reset plot and viewer
@@ -867,7 +1318,9 @@ class Handler:
                         cpt+=1
                     self.models_to_display.clear()
                     self.models_shown.clear()
-            cmd.hide('line', 'all')
+                canv.previous = 0
+                canv.picked = 0
+            cmd.hide('everything', 'all')
                 
         # "Selection mode"
         elif source == 3:
@@ -876,8 +1329,8 @@ class Handler:
                 for k,s in canv.shapes.iteritems():
                     canv.itemconfig(k, fill='grey')
                     cpt=0
-                    for it in canvas.ids_ext[k]:
-                        if self.canvas[cpt] != canvas:
+                    for it in canv.ids_ext[k]:
+                        if self.canvas[cpt] != canv:
                             self.canvas[cpt].itemconfig(it, fill='grey')
                         else:
                             cpt+=1
@@ -885,7 +1338,8 @@ class Handler:
                         cpt+=1
                     self.models_to_display.add(s[5][1])
                     self.models_shown.add(s[5][1])
-            cmd.show('line', 'all')
+            cmd.show('cartoon', 'name CA')
+            cmd.show('lines', 'all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
         self.rootframe.after(500, self.update_plot_multiple)
@@ -920,12 +1374,11 @@ class Handler:
             # Check single picking items
             if canvas.picked != 0 and canvas.picked != canvas.previous:
                 canvas.itemconfig(canvas.picked, fill='blue')
-                cmd.select('sele', '%04d' % canvas.shapes[canvas.picked][5][1])
-                cmd.show('line', '(sele)')
+                cmd.show('line', '%04d' % canvas.shapes[canvas.picked][5][1])
+                logging.info("You selected item %d corresponding to model %d" % (k, s[5][1]))
                 if canvas.previous != 0:
                     canvas.itemconfig(canvas.previous, fill='grey')
-                    cmd.select('sele', '%04d' % canvas.shapes[canvas.previous][5][1])
-                    cmd.hide('line', '(sele)')
+                    cmd.hide('line', '%04d' % canvas.shapes[canvas.previous][5][1])
                 cmd.disable('sele')
                 canvas.previous = canvas.picked
             # Check selection from PyMol viewer
@@ -972,19 +1425,18 @@ class Handler:
         self.rootframe.after(1000, self.update_plot)
 
 
-    # def notify(self, observable, *args, **kwargs):
-    #     print('Got', args, kwargs, 'From', observable)
-    #     myspace = {'models':[]}
-    #     cmd.iterate('(lb)', 'models.append(model)', space=myspace)
-    #     for i in set(myspace['models']):
-    #         if int(i) not in self.models_to_display:
-    #             self.models_to_display.add(int(i))
-    #     for m in self.models_to_display:
-    #         for s in self.canvas.shapes:
-    #             if m == self.canvas.shapes[s][5][1]:
-    #                 self.canvas.itemconfig(s, fill='blue')
+    def try_convert_to_int(self, array):
+        result = []
+        for a in array:
+            f = float(a)
+            i = int(f)
+            if f != i:
+                return array
+            result.append(i)
+        return result
 
-    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols, position):
+
+    def create_window(self, parent, width, height, min_x, max_x, min_y, max_y, symbols, position, xtitle, ytitle):
         """ Create new plot window """
         canvas = SimplePlot(parent, width=width, height=height)
         #canvas.bind("<Button-2>", canvas.pickWhich)
@@ -992,10 +1444,9 @@ class Handler:
         canvas.pack(side=position, fill="both", expand=1)
         x_gap = float(max_x-min_x) / 5
         y_gap = float(max_y - min_y) / 5
-        xlabels = [float("{0:.2f}".format(min_x + i*x_gap)) for i in range(6)]
-        ylabels = [float("{0:.2f}".format(min_y + i*y_gap)) for i in range(6)]
-        canvas.axis(xlabels=xlabels,
-                    ylabels=ylabels)
+        xlabels = self.try_convert_to_int([float("{0:.2f}".format(min_x + i*x_gap)) for i in range(6)])
+        ylabels = self.try_convert_to_int([float("{0:.2f}".format(min_y + i*y_gap)) for i in range(6)])
+        canvas.axis(xlabels=xlabels, ylabels=ylabels, xtitle=xtitle, ytitle=ytitle)
 
         canvas.update()
 
@@ -1005,7 +1456,8 @@ class Handler:
         self.current_canvas = canvas
         self.canvas.append(canvas)
 
-
+    def close_window(self):
+        logging.info("WINDOW CLOSED")
 
     def close_callback(self):
         cmd.delete(self.name)
@@ -1020,10 +1472,26 @@ class Handler:
         logging.info ("---- %s seconds ----" % str(time.time()-start_time))
         logging.info("Number of triples: %d" % len(self.rdf_graph))
 
-    def query_rdf(self, query_type):
-        """ Query the RDF graph for specific values """
-        from rdflib.plugins.sparql import prepareQuery
-        query = 'SELECT ?x ?y ?id  WHERE { ?point rdf:type my:point . ?point my:value_type "'+query_type+'" . ?point my:Y_value ?y . ?point my:represent ?mod . ?mod my:time_frame ?x . ?mod my:model_id ?id .}'
+    def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh):
+        """ Query the RDF graph for specific range of values made by user selection """
+        
+        query = 'SELECT ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:model_id ?id .}'
+        logging.info("QUERY: \n%s" % query)
+        q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
+        qres = self.rdf_graph.query(q)
+
+        logging.info("Number of queried entities: %d " % len(qres))
+
+        models = set()
+        for row in qres:
+            models.add(int(row[0]))
+
+        return models
+
+    def query_rdf(self, x_query_type, y_query_type):
+        """ Query the RDF graph to build complete plot """
+        
+        query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:'+self.scale+'_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres= self.rdf_graph.query(q)
@@ -1032,15 +1500,18 @@ class Handler:
 
         return qres
 
-    def start(self, sel, canvas, query_type):
+    def start(self, canvas, x_query_type, y_query_type):
         self.lock = 1
-        cmd.iterate('(%s) and name CA' % sel, 'idx2resn[model,index] = (resn, color, ss)',
-                     space={'idx2resn': canvas.idx2resn})
+
+        canvas.x_query_type = x_query_type
+        canvas.y_query_type = y_query_type
 
         # Parse main RDF database
-        self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/all_parsed.ntriples")
+        if (not self.rdf_parsed):
+            self.parse_rdf("/Users/trellet/Dev/Protege_OWL/data/mod_res_pt_parsed.ntriples")
+            self.rdf_parsed = True
         # Query RMSD points to draw first plot
-        qres = self.query_rdf(query_type)
+        qres = self.query_rdf(x_query_type, y_query_type)
 
         for row in qres:
             if int(row[2] not in self.all_models):

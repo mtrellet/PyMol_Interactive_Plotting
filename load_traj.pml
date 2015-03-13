@@ -15,4 +15,6 @@ delete peptide_fit
 
 hide everything
 
+set cartoon_transparency, 0.1
+
 disable sele
