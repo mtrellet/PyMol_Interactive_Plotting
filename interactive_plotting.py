@@ -338,15 +338,7 @@ class Handler:
         self.item_selected = 0
         self.current_state = "default"
 
-        reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot_multiple(2), anchor = "w")
-        reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-        reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
-
-        select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
-        select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
-        select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
-
-        self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
+        self.create_main_buttons()
 
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
@@ -422,26 +414,7 @@ class Handler:
             #self.start(self.canvas[2], 'time_frame', 'energy')
 
 
-        options = Tkinter.Canvas(parent, width=200, height=500)
-        options.pack()
-
-        options.create_line(2,10,2,490, fill='black', width=1)
-
-        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'))
-        model.configure(width=8, activebackground = "#FF0000", relief='raised')
-        model_window = options.create_window(100, 40, window=model)
-        
-        chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('CHAIN'))
-        chain.configure(width=8, activebackground = "#FF0000", relief='raised')
-        chain_window = options.create_window(100, 70, window=chain)
-        
-        residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('RESIDUE'))
-        residue.configure(width=8, activebackground = "#FF0000", relief='raised')
-        residue_window = options.create_window(100, 100, window=residue)
-
-        atom = Tkinter.Button(self.rootframe, text='ATOM', command = lambda: self.propose_analyses('ATOM'))
-        atom.configure(width=8, activebackground = "#FF0000", relief='raised')
-        atom_window = options.create_window(100, 130, window=atom)
+        self.create_option_buttons()
 
 
         if with_mainloop and pmgapp is None:
@@ -587,6 +560,12 @@ class Handler:
             w = evt.widget
             index = int(w.curselection()[0])
             self.model_selected = w.get(index)
+            for k,s in self.current_canvas.ids_ext.iteritems():
+                if s[5][1] == self.model_selected:
+                    self.current_canvas.picked = k
+            # tmp = set()
+            # tmp.add(self.model_selected)
+            # self.update_plot_multiple(source=0, to_display=tmp)
         logging.info('Model selected: %d' % (self.model_selected))
         dic = {}
         for k,s in self.button_dict.iteritems():
@@ -701,6 +680,10 @@ class Handler:
         residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('RESIDUE'))
         residue.configure(width=8, activebackground = "#FF0000", relief='raised')
         residue_window = options.create_window(100, 100, window=residue)
+
+        atom = Tkinter.Button(self.rootframe, text='ATOM', command = lambda: self.propose_analyses('ATOM'))
+        atom.configure(width=8, activebackground = "#FF0000", relief='raised')
+        atom_window = options.create_window(100, 130, window=atom)
                     
 
     def create_main_buttons(self):
@@ -810,7 +793,8 @@ class Handler:
                             cpt+=1
                         logging.debug("Line: %04d" % s[5][1])
                         #cmd.select('sele', '%04d' % s[5][1])
-                        cmd.show('line', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+                        cmd.hide('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+                        # cmd.show('line', 'resid %d and model %04d' % (s[5][1], self.model_selected))
                         #cmd.disable('sele')
                 self.residues_shown = self.residues_to_display
 

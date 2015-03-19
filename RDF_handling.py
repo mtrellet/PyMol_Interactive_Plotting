@@ -156,7 +156,6 @@ class RDF_Handler:
 
         res = []
         for row in qres:
-            print row
             for r in row:
                 if r.datatype == XSD.integer:
                     res.append(int(r))

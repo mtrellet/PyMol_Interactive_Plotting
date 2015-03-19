@@ -1,5 +1,9 @@
 import Tkinter
 from Tkinter import BooleanVar
+import math
+
+import logging
+logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 
 class SimplePlot(Tkinter.Canvas):
 
@@ -107,8 +111,13 @@ class SimplePlot(Tkinter.Canvas):
 
     # Convet from pixel space to values
     def convertToValues(self, start, end):
-        unit_per_pixel_x = float(abs(self.xlabels[-1]-self.xlabels[0])/abs(self.xmax-self.xmin))
-        unit_per_pixel_y = float(abs(self.ylabels[-1]-self.ylabels[0])/abs(self.ymax-self.ymin))
+        unit_per_pixel_x = float(abs(float(self.xlabels[-1])-float(self.xlabels[0]))/abs(float(self.xmax)-float(self.xmin)))
+        unit_per_pixel_y = float(abs(float(self.ylabels[-1])-float(self.ylabels[0]))/abs(float(self.ymax)-float(self.ymin)))
+
+        # logging.info("xlabels: %f %f / ylabels: %f %f", (self.xlabels[0], self.xlabels[-1], self.ylabels[0], self.ylabels[-1]))
+        print self.xlabels
+        print self.ylabels
+        print self.xmin, self.xmax, self.ymin, self.ymax
 
         logging.info("Px/unit X: %f / Y: %f" % (unit_per_pixel_x, unit_per_pixel_y))
 
