@@ -26,10 +26,10 @@ class RDF_Handler:
         logging.info("Number of triples: %d" % len(self.rdf_graph))
         self.rdf_parsed = True
 
-    def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh):
+    def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh, scale):
         """ Query the RDF graph for specific range of values made by user selection """
         
-        query = 'SELECT ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:model_id ?id .}'
+        query = 'SELECT ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:'+scale+'_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres = self.rdf_graph.query(q)
@@ -156,6 +156,7 @@ class RDF_Handler:
 
         res = []
         for row in qres:
+            print row
             for r in row:
                 if r.datatype == XSD.integer:
                     res.append(int(r))

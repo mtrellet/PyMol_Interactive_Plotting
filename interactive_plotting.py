@@ -458,7 +458,7 @@ class Handler:
             logging.info("START/END: %d:%d / %d:%d" % (start[0], start[1], end[0], end[1]))
             x_low, x_high, y_low, y_high = canvas.convertToValues(start, end)
             logging.info("Value limits: x=[%f -> %f]\ny=[%f -> %f]" % (x_low, x_high, y_low, y_high))
-            models_selected = self.rdf_handler.query_sub_rdf(canvas, x_low, x_high, y_low, y_high)
+            models_selected = self.rdf_handler.query_sub_rdf(canvas, x_low, x_high, y_low, y_high, self.scale)
             logging.info(models_selected)
             for model in models_selected:
                 self.show[model-1] = True
@@ -560,9 +560,14 @@ class Handler:
             w = evt.widget
             index = int(w.curselection()[0])
             self.model_selected = w.get(index)
-            for k,s in self.current_canvas.ids_ext.iteritems():
+            cmd.hide('everything', 'all')
+            cmd.show('line', '%04d' % (self.model_selected))
+            for k,s in self.current_canvas.shapes.iteritems():
                 if s[5][1] == self.model_selected:
                     self.current_canvas.picked = k
+                    tmp = set()
+                    tmp.add(self.model_selected)
+                    self.update_plot_multiple(source=0, to_display=tmp)
             # tmp = set()
             # tmp.add(self.model_selected)
             # self.update_plot_multiple(source=0, to_display=tmp)
@@ -612,6 +617,7 @@ class Handler:
             w = evt.widget
             ref = int(w.curselection()[0])
             self.item_selected = w.get(ref)
+            self.current_state = "default"
         logging.info("Item selected: %d" % self.item_selected)
         
         self.rdf_handler.add_distance_points(self.item_selected, self.model_selected, self.scale)
@@ -802,6 +808,7 @@ class Handler:
             # Check single picking items
             for canv in self.canvas:
                 if canv.picked != 0 and canv.picked != canv.previous:
+                    logging.info("Something has been picked")
                     canv.itemconfig(canv.picked, fill='blue')
                     cpt = 0
                     for it in canv.ids_ext[canv.picked]:
@@ -811,9 +818,13 @@ class Handler:
                             cpt+=1
                             self.canvas[cpt].itemconfig(it, fill='blue')
                         cpt+=1
-                    cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
-                    cmd.show('lines', '%04d' % canv.shapes[canv.picked][5][1])
-                    logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
+                    if self.scale == "model":
+                        cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
+                        cmd.show('lines', '%04d' % canv.shapes[canv.picked][5][1])
+                        logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
+                    elif self.scale == "residue":
+                        cmd.show('sticks', 'resid %d and model %04d' % (canv.shapes[canv.picked][5][1], self.model_selected))
+                        logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
                     if canv.previous != 0:
                         canv.itemconfig(canv.previous, fill='grey')
                         cpt=0
@@ -824,7 +835,10 @@ class Handler:
                                 cpt+=1
                                 self.canvas[cpt].itemconfig(it, fill='grey')
                             cpt+=1
-                        cmd.hide('everything', '%04d' % canv.shapes[canv.previous][5][1])
+                        if self.scale == "model":
+                            cmd.hide('everything', '%04d' % canv.shapes[canv.previous][5][1])
+                        elif self.scale == "residue":
+                            cmd.hide('sticks', 'resid %d and model %04d' % (canv.shapes[canv.previous][5][1], self.model_selected))
                     canv.previous = canv.picked
                     break # We can pick only one item among all canvas
             # Check selection from PyMol viewer
@@ -1081,8 +1095,8 @@ def __init_plugin__(self):
     t = threading.Thread(target=check_selections, args=(queue,))
     t.start()
     logging.info("Checking changes in selections... (infinite loop)")
-    self.menuBar.addcascademenu('Plugin', 'PlotTools', 'Plot Tools', label='Analyses Plot Tools')
-    self.menuBar.addmenuitem('PlotTools', 'command', 'Launch Rama Plot', label='RMSD Plot',
-                             command=lambda: Handler(queue, '(enabled)'))
+    self.menuBar.addmenuitem('Plugin', 'command', 'Plot Tools', label='Analyses Plot Tools', command=lambda: Handler(queue, '(enabled)'))
+    #self.menuBar.addmenuitem('PlotTools', 'command', 'Launch Rama Plot', label='RMSD Plot',
+    #                         command=lambda: Handler(queue, '(enabled)'))
 
 # vi:expandtab:smarttab

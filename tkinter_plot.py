@@ -121,10 +121,10 @@ class SimplePlot(Tkinter.Canvas):
 
         logging.info("Px/unit X: %f / Y: %f" % (unit_per_pixel_x, unit_per_pixel_y))
 
-        x_low = (start[0]-self.xmin) * unit_per_pixel_x
-        x_high = (end[0]-self.xmin) * unit_per_pixel_x
-        y_low = (self.ymax-start[1]) * unit_per_pixel_y
-        y_high = (self.ymax-end[1]) * unit_per_pixel_y
+        x_low = self.xlabels[0]+(start[0]-self.xmin) * unit_per_pixel_x
+        x_high = self.xlabels[0]+(end[0]-self.xmin) * unit_per_pixel_x
+        y_low = self.ylabels[0]+(self.ymax-start[1]) * unit_per_pixel_y
+        y_high = self.ylabels[0]+(self.ymax-end[1]) * unit_per_pixel_y
 
         if x_low > x_high:
             tmp = x_low
@@ -139,8 +139,8 @@ class SimplePlot(Tkinter.Canvas):
         return x_low, x_high, y_low, y_high
 
     def convertToPixel(self, axis, value):
-        pixel_per_unit_x = float(abs(self.xmax-self.xmin)/abs(self.xlabels[-1]-self.xlabels[0]))
-        pixel_per_unit_y = float(abs(self.ymax-self.ymin)/abs(self.ylabels[-1]-self.ylabels[0]))
+        pixel_per_unit_x = float(abs(float(self.xmax)-float(self.xmin))/abs(float(self.xlabels[-1])-float(self.xlabels[0])))
+        pixel_per_unit_y = float(abs(float(self.ymax)-float(self.ymin))/abs(float(self.ylabels[-1])-float(self.ylabels[0])))
 
         if axis == "Y":
             pixel = self.ymax - ((value-self.ylabels[0]) * pixel_per_unit_y)
@@ -231,7 +231,7 @@ class SimplePlot(Tkinter.Canvas):
         spot = event.widget.find_closest(x, y)
 
         distance = math.sqrt( (self.coords(spot[0])[0] - x)*(self.coords(spot[0])[0] - x) + (self.coords(spot[0])[1] -y)*(self.coords(spot[0])[1] - y) ) 
-        logging.debug("Distance of "+str(distance))
+        logging.info("Distance of "+str(distance))
 
         # Print the shape's meta information corresponding with the shape that was picked
         if spot[0] in self.shapes and distance < 10:
