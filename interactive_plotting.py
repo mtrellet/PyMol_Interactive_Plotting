@@ -334,7 +334,7 @@ class Handler:
         self.delete_buttons = []
         self.proposed_analyses = ["distance", "x_position", "y_position", "z_position"]
         self.scale = 'model'
-        self.models_selected = 0
+        self.model_selected = 0
         self.item_selected = 0
         self.current_state = "default"
 
@@ -552,25 +552,16 @@ class Handler:
             models.sort()
             for m in models:
                 models_listbox.insert(Tkinter.END, m)
-            models_listbox.bind('<<ListboxSelect>>', self.on_model_selected)
-#
-#
-    def on_model_selected(self, evt):
+            models_listbox.bind('<<ListboxSelect>>', self.on_model_selected_list)
+
+    def on_model_selected_list(self,evt):
         if evt is not None:
             w = evt.widget
             index = int(w.curselection()[0])
             self.model_selected = w.get(index)
-            cmd.hide('everything', 'all')
-            cmd.show('line', '%04d' % (self.model_selected))
-            for k,s in self.current_canvas.shapes.iteritems():
-                if s[5][1] == self.model_selected:
-                    self.current_canvas.picked = k
-                    tmp = set()
-                    tmp.add(self.model_selected)
-                    self.update_plot_multiple(source=0, to_display=tmp)
-            # tmp = set()
-            # tmp.add(self.model_selected)
-            # self.update_plot_multiple(source=0, to_display=tmp)
+            cmd.select("%04d" % (self.model_selected))
+
+    def on_model_selected(self, evt):
         logging.info('Model selected: %d' % (self.model_selected))
         dic = {}
         for k,s in self.button_dict.iteritems():
@@ -622,6 +613,7 @@ class Handler:
         
         self.rdf_handler.add_distance_points(self.item_selected, self.model_selected, self.scale)
         #self.rdf_graph.serialize("test.ntriples", format="nt")
+        cmd.zoom("vis")
         self.display_plots()
         self.update_plot_multiple()
 #
