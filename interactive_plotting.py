@@ -313,7 +313,7 @@ class Handler:
             except AttributeError:
                 name = 'Handler'
 
-        self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/mod_res_pt_parsed.ntriples")
+        self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/VisualAnalytics_final.ttl", "/Users/trellet/Dev/Protege_OWL/data/peptide_traj/peptide_traj_rmsd_energy_temperature.ttl")
         self.queue = queue
         self.rootframe = rootframe
         self.current_canvas = self.canvas[-1]
@@ -333,7 +333,7 @@ class Handler:
         self.rect_trackers = []
         self.delete_buttons = []
         self.proposed_analyses = ["distance", "x_position", "y_position", "z_position"]
-        self.scale = 'model'
+        self.scale = 'Model'
         self.model_selected = 0
         self.item_selected = 0
         self.current_state = "default"
@@ -467,7 +467,7 @@ class Handler:
 
     def propose_analyses(self, scale):
         from Tkinter import BooleanVar
-        self.scale = scale.lower()
+        self.scale = scale
 
         qres = self.rdf_handler.get_analyses(self.scale)
 
@@ -501,7 +501,7 @@ class Handler:
             self.current_window = new_window
             self.choices = []
             self.button_dict = {}
-            if self.scale == "residue" or self.scale == "atom":
+            if self.scale == "Residue" or self.scale == "Atom":
                 for ana in self.proposed_analyses:
                     var = BooleanVar(self.current_window)
                     checkbutton = Tkinter.Checkbutton(self.current_window, text=self.scale+"_id / "+ana, variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
@@ -593,11 +593,11 @@ class Handler:
                     for i in item_list:
                         items_listbox.insert(Tkinter.END, i)
                     items_listbox.bind('<<ListboxSelect>>', self.on_reference_selected_for_distance)
-                    if self.scale == "residue":
-                        x_type = "resid"
+                    if self.scale == "Residue":
+                        x_type = "Resid"
                     else:
-                        x_type = "atomid"
-                    y_type = "distance"
+                        x_type = "Atomid"
+                    y_type = "Distance"
             # Formatting new dictionary to be used in display_plots()
             dic[k] = [x_type, y_type, s]
         self.button_dict = dic
@@ -667,19 +667,19 @@ class Handler:
 
         options.create_line(2,10,2,490, fill='black', width=1)
 
-        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('MODEL'))
+        model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('Model'))
         model.configure(width=8, activebackground = "#FF0000", relief='raised')
         model_window = options.create_window(100, 40, window=model)
         
-        chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('CHAIN'))
+        chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('Chain'))
         chain.configure(width=8, activebackground = "#FF0000", relief='raised')
         chain_window = options.create_window(100, 70, window=chain)
         
-        residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('RESIDUE'))
+        residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('Residue'))
         residue.configure(width=8, activebackground = "#FF0000", relief='raised')
         residue_window = options.create_window(100, 100, window=residue)
 
-        atom = Tkinter.Button(self.rootframe, text='ATOM', command = lambda: self.propose_analyses('ATOM'))
+        atom = Tkinter.Button(self.rootframe, text='ATOM', command = lambda: self.propose_analyses('Atom'))
         atom.configure(width=8, activebackground = "#FF0000", relief='raised')
         atom_window = options.create_window(100, 130, window=atom)
                     
@@ -722,7 +722,7 @@ class Handler:
         if canvas == None:
             canvas = self.current_canvas
         if source == 1:
-            if self.scale == "model":
+            if self.scale == "Model":
                 logging.info("Display models sent by OnDrag: ")
                 logging.info(to_display)
                 self.models_to_display = to_display.intersection(self.all_models)
@@ -758,7 +758,7 @@ class Handler:
                         cmd.hide('everything', '%04d' % s[5][1])
                         #cmd.disable('sele')
                 self.models_shown = self.models_to_display 
-            elif self.scale == "residue":
+            elif self.scale == "Residue":
                 logging.info("Display residues sent by OnDrag: ")
                 logging.info(to_display)
                 self.residues_to_display = to_display.intersection(self.all_residues)
@@ -810,11 +810,11 @@ class Handler:
                             cpt+=1
                             self.canvas[cpt].itemconfig(it, fill='blue')
                         cpt+=1
-                    if self.scale == "model":
+                    if self.scale == "Model":
                         cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
                         cmd.show('lines', '%04d' % canv.shapes[canv.picked][5][1])
                         logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
-                    elif self.scale == "residue":
+                    elif self.scale == "Residue":
                         cmd.show('sticks', 'resid %d and model %04d' % (canv.shapes[canv.picked][5][1], self.model_selected))
                         logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
                     if canv.previous != 0:
@@ -827,9 +827,9 @@ class Handler:
                                 cpt+=1
                                 self.canvas[cpt].itemconfig(it, fill='grey')
                             cpt+=1
-                        if self.scale == "model":
+                        if self.scale == "Model":
                             cmd.hide('everything', '%04d' % canv.shapes[canv.previous][5][1])
-                        elif self.scale == "residue":
+                        elif self.scale == "Residue":
                             cmd.hide('sticks', 'resid %d and model %04d' % (canv.shapes[canv.previous][5][1], self.model_selected))
                     canv.previous = canv.picked
                     break # We can pick only one item among all canvas
@@ -840,7 +840,7 @@ class Handler:
                 logging.info("Current state: %s / Scale: %s" % (self.current_state, self.scale))
                 
                 # Automatic checking of model selection by the user
-                if self.current_state == "default" and self.scale == "model":
+                if self.current_state == "default" and self.scale == "Model":
                     self.models_to_display = items.intersection(self.all_models)
                     if len(self.models_to_display) > 0:
                         for k,s in canvas.shapes.iteritems():
@@ -1019,13 +1019,13 @@ class Handler:
         # Query points to draw first plot
         qres = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
 
-        if self.scale == "model":
+        if self.scale == "Model":
             for row in qres:
                 if int(row[2] not in self.all_models):
                     self.all_models.add(int(row[2]))
                 model_index = ('all', int(row[2]))
                 canvas.plot(float(row[0]), float(row[1]), model_index)
-        elif self.scale == "residue":
+        elif self.scale == "Residue":
             for row in qres:
                 if int(row[2] not in self.all_residues):
                     self.all_residues.add(int(row[2]))

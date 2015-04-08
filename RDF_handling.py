@@ -9,19 +9,26 @@ import logging
 logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 
 class RDF_Handler:
-    def __init__(self, db_file):
+    def __init__(self, ontology, db_file):
         self.rdf_parsed = False
         #self.main_handler = main_handler
         self.rdf_graph = Graph()
-        self.parse_rdf(db_file)
+        self.parse_rdf(ontology, db_file)
 
 
-    def parse_rdf(self,filename):
+    def parse_rdf(self,ontology,filename):
         """ Parse the RDF database """
         start_time = time.time()
 
+        # Parsing of ontology
+        logging.info("Parsing of %s..." % ontology)
+        self.rdf_graph.parse(ontology, format="n3")
+        logging.info ("---- %s seconds ----" % str(time.time()-start_time))
+        logging.info("Number of triples: %d" % len(self.rdf_graph))
+
+        # Parsing of RDF DB
         logging.info("Parsing of %s..." % filename)
-        self.rdf_graph.parse(filename, format="nt")
+        self.rdf_graph.parse(filename, format="n3")
         logging.info ("---- %s seconds ----" % str(time.time()-start_time))
         logging.info("Number of triples: %d" % len(self.rdf_graph))
         self.rdf_parsed = True
@@ -29,7 +36,7 @@ class RDF_Handler:
     def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh, scale):
         """ Query the RDF graph for specific range of values made by user selection """
         
-        query = 'SELECT ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:'+scale+'_id ?id .}'
+        query = 'SELECT ?id WHERE { ?point rdf:type my:Point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:'+scale.lower()+'_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres = self.rdf_graph.query(q)
@@ -45,7 +52,7 @@ class RDF_Handler:
     def query_rdf(self, x_query_type, y_query_type, scale):
         """ Query the RDF graph to build complete plot """
         
-        query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:'+scale+'_id ?id .}'
+        query = 'SELECT ?x ?y ?id WHERE { ?point rdf:type my:Point . ?point my:Y_type "'+y_query_type+'" . ?point my:Y_value ?y . ?point my:X_type "'+x_query_type+'" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:'+scale.lower()+'_id ?id .}'
         logging.info("QUERY: \n%s" % query)
         q = prepareQuery(query, initNs = { "my": "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#" })
         qres= self.rdf_graph.query(q)
