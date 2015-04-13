@@ -30,7 +30,7 @@ import time
 import Queue
 import threading
 import logging
-from RDF_handling import RDF_Handler
+from RDF_handling_distant import RDF_Handler
 import trace
 import color_by_residue
 from guppy import hpy
@@ -161,11 +161,11 @@ class RectTracker:
         if self.item is not None:
             self.canvas.delete(self.item)
         self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
-        #self._command(self.start, (event.x, event.y))
+        self._command(self, self.canvas, self.start, (event.x, event.y), "all_in_one")
 
     def __release(self,event):
         self.canvas.delete(self.item)
-        self._command(self, self.canvas, self.start, (event.x, event.y), "all_in_one")
+        #self._command(self, self.canvas, self.start, (event.x, event.y), "all_in_one")
         self.start = None
         self.item = None
 
@@ -313,7 +313,8 @@ class Handler:
             except AttributeError:
                 name = 'Handler'
 
-        self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/VisualAnalytics_final.ttl", "/Users/trellet/Dev/Protege_OWL/data/peptide_traj/peptide_traj_rmsd_energy_temperature.ttl")
+        #self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/VisualAnalytics_final.ttl", "/Users/trellet/Dev/Protege_OWL/data/peptide_traj/peptide_traj_rmsd_energy_temperature.ttl")
+        self.rdf_handler = RDF_Handler("http://localhost:8890/sparql", "http://mytest.com", "http://mytest.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
         self.queue = queue
         self.rootframe = rootframe
         self.current_canvas = self.canvas[-1]
@@ -594,10 +595,10 @@ class Handler:
                         items_listbox.insert(Tkinter.END, i)
                     items_listbox.bind('<<ListboxSelect>>', self.on_reference_selected_for_distance)
                     if self.scale == "Residue":
-                        x_type = "Resid"
+                        x_type = "resid"
                     else:
-                        x_type = "Atomid"
-                    y_type = "Distance"
+                        x_type = "atomid"
+                    y_type = "distance"
             # Formatting new dictionary to be used in display_plots()
             dic[k] = [x_type, y_type, s]
         self.button_dict = dic
@@ -1017,17 +1018,18 @@ class Handler:
         canvas.y_query_type = y_query_type
 
         # Query points to draw first plot
-        qres = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
+        points = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
 
         if self.scale == "Model":
-            for row in qres:
-                if int(row[2] not in self.all_models):
+            for row in points:
+                if int(row[2]) not in self.all_models:
                     self.all_models.add(int(row[2]))
                 model_index = ('all', int(row[2]))
+                #print (float(row[0]), float(row[1]), model_index)
                 canvas.plot(float(row[0]), float(row[1]), model_index)
         elif self.scale == "Residue":
-            for row in qres:
-                if int(row[2] not in self.all_residues):
+            for row in points:
+                if int(row[2]) not in self.all_residues:
                     self.all_residues.add(int(row[2]))
                 residue_index = ('all', int(row[2]))
                 canvas.plot(float(row[0]), float(row[1]), residue_index)
