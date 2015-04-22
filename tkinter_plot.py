@@ -32,6 +32,7 @@ class SimplePlot(Tkinter.Canvas):
         self.ids_ext = {}   # Dictionary of other canvas equivalent ids
         self.x_query_type = None
         self.y_query_type = None
+        self.selected = [] # models selected in the canvas
 
     def axis(self, xmin=80, xmax=450, ymin=10, ymax=390, xint=390, yint=80, xlabels=[], ylabels=[], xtitle='X coordinates', ytitle='Y coordinates'):
 

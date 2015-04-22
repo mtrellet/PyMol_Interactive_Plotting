@@ -6,7 +6,7 @@ See more here: http://www.pymolwiki.org/index.php/dynoplot
 #  Author:        Dan Kulp
 #  Creation Date: 8/29/05
 #
-#  Modified 2011-11-17 by Thomas Holder
+#  Created 2011-11-17 by Thomas Holder
 #  Modified 2015-01-15 by Mikael Trellet
 #
 #  Notes:
@@ -314,9 +314,10 @@ class Handler:
                 name = 'Handler'
 
         #self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/VisualAnalytics_final.ttl", "/Users/trellet/Dev/Protege_OWL/data/peptide_traj/peptide_traj_rmsd_energy_temperature.ttl")
-        self.rdf_handler = RDF_Handler("http://localhost:8890/sparql", "http://mytest.com", "http://mytest.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+        self.rdf_handler = RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com", "http://peptide_traj.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
         self.queue = queue
         self.rootframe = rootframe
+        self.current_window = self.rootframe
         self.current_canvas = self.canvas[-1]
         self.name = name
         self.lock = 0
@@ -338,8 +339,14 @@ class Handler:
         self.model_selected = 0
         self.item_selected = 0
         self.current_state = "default"
+        self.correlate = BooleanVar(self.rootframe)
+        self.color_selection = {0: "blue", 1:"red", 2:"yellow", 3:"black", 4:"orange"}
+        self.x_choice = ""
+        self.y_choice = ""
+        self.params_plot = []
 
         self.create_main_buttons()
+
 
         if name != 'none':
             auto_zoom = cmd.get('auto_zoom')
@@ -426,7 +433,6 @@ class Handler:
         #############################################
         self.create_ids_equivalent_dict()
 
-
     ######
     # Command to select by dragging
     def onDrag(self, rect, canvas, start, end, mode):
@@ -473,52 +479,101 @@ class Handler:
         qres = self.rdf_handler.get_analyses(self.scale)
 
         if len(qres) > 0:
+            if self.current_window.title() == ' Display plots':
+                self.current_window.destroy()
             new_window = Tkinter.Tk()
             new_window.title(' Display plots ')
-            #f = Tkinter.Frame(new_window)
-            #new_window.protocol("WM_DELETE_WINDOW", self.close_window)
-            # c = Tkinter.Canvas(new_window, width=100, height=len(qres) * 40)
-            # c.pack(fill="both", expand=1)
-            text_id = Tkinter.Label(new_window, text="We have found the following plots:" )
-            text_id.pack(side=Tkinter.TOP)
+            self.current_window = new_window
+            #text_id = Tkinter.Label(new_window, text="We have found the following plots:" )
+            text_x = Tkinter.Label(new_window, text="Choose an value to display on X" )
+            #text_x.pack(side=Tkinter.TOP)
+            text_x.grid(row=0, column=0,columnspan=2)
             self.checkbuttons = []
             self.choices = []
             self.button_dict = {}
             cpt = 0
             for i in qres:
-                var = BooleanVar(new_window)
-                checkbutton = Tkinter.Checkbutton(new_window, text=i[0]+" / "+i[1], variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
-                checkbutton.pack(side=Tkinter.TOP)
-                self.choices.append(var)
-                #self.checkbuttons.append(checkbutton)
-                self.button_dict[cpt] = [i[0], i[1], self.choices[-1]]
-                cpt+=1
-            send_button = Tkinter.Button(new_window, text="Send", command= self.display_plots)
-            send_button.pack(side=Tkinter.TOP)
-        else:
-            new_window = Tkinter.Tk()
-            text_id = Tkinter.Label(new_window, text="We did not found any preprocessed plots\nThese are the possible analyses to be performed: ")
-            text_id.pack(side=Tkinter.TOP)
-            self.current_window = new_window
-            self.choices = []
-            self.button_dict = {}
-            if self.scale == "Residue" or self.scale == "Atom":
-                for ana in self.proposed_analyses:
-                    var = BooleanVar(self.current_window)
-                    checkbutton = Tkinter.Checkbutton(self.current_window, text=self.scale+"_id / "+ana, variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
-                    checkbutton.pack(side=Tkinter.TOP)
-                    self.choices.append(var)
-                    self.button_dict[ana] = self.choices[-1]
-                send_button = Tkinter.Button(self.current_window, text="Send", command=self.calc_plots)
-                send_button.pack(side=Tkinter.TOP)
+                if i not in self.choices:
+                    self.choices.append(i)
+            logging.info(self.choices)
+            #x_scrollbar = Tkinter.Scrollbar(new_window, orient=Tkinter.VERTICAL)
+            x_listbox = Tkinter.Listbox(self.current_window,selectmode=Tkinter.SINGLE, exportselection=0)
+            #x_scrollbar.config(command=x_listbox.yview)
+            x_listbox.grid(row=1, column=0, columnspan=2)
+            #x_scrollbar.grid(row=1, column=1)
+            # x_scrollbar.pack(side=Tkinter.RIGHT)
+            # x_listbox.pack(side=Tkinter.TOP)
+            
+            text_y = Tkinter.Label(new_window, text="Choose an value to display on Y" )
+            text_y.grid(row=2, column=0, columnspan=2)
+            #y_scrollbar = Tkinter.Scrollbar(new_window, orient=Tkinter.VERTICAL)
+            y_listbox = Tkinter.Listbox(self.current_window, selectmode=Tkinter.SINGLE, exportselection=0)
+            #y_scrollbar.config(command=y_listbox.yview)
+            y_listbox.grid(row=3, column=0, columnspan=2)
+            #y_scrollbar.grid(row=3, column=1)
+            # y_scrollbar.pack()
+            # y_listbox.pack(side=Tkinter.TOP)
+            for choice in self.choices:
+                x_listbox.insert(Tkinter.END, choice)
+                y_listbox.insert(Tkinter.END, choice)
+                # var = BooleanVar(new_window)
+                # checkbutton = Tkinter.Checkbutton(new_window, text=choice, variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
+                # checkbutton.pack(side=Tkinter.TOP)
+                # self.choices.append(var)
+                # #self.checkbuttons.append(checkbutton)
+                # self.button_dict[cpt] = [i[0], i[1], self.choices[-1]]
+                # cpt+=1
+            x_listbox.bind('<<ListboxSelect>>', self.list_selection_x)
+            y_listbox.bind('<<ListboxSelect>>', self.list_selection_y)
+            send_button = Tkinter.Button(self.current_window, text="Send", command= self.display_plots)
+            send_button.grid(row=4, column=0)
+            other_button = Tkinter.Button(self.current_window, text="Other plot", command= self.new_params_selection)
+            other_button.grid(row=4, column=1)
+        # else:
+        #     new_window = Tkinter.Tk()
+        #     text_id = Tkinter.Label(new_window, text="We did not found any preprocessed plots\nThese are the possible analyses to be performed: ")
+        #     text_id.pack(side=Tkinter.TOP)
+        #     self.current_window = new_window
+        #     self.choices = []
+        #     self.button_dict = {}
+        #     if self.scale == "Residue" or self.scale == "Atom":
+        #         for ana in self.proposed_analyses:
+        #             var = BooleanVar(self.current_window)
+        #             checkbutton = Tkinter.Checkbutton(self.current_window, text=self.scale+"_id / "+ana, variable = var, onvalue=True, offvalue=False, height = 5, width = 20)
+        #             checkbutton.pack(side=Tkinter.TOP)
+        #             self.choices.append(var)
+        #             self.button_dict[ana] = self.choices[-1]
+        #         send_button = Tkinter.Button(self.current_window, text="Send", command=self.calc_plots)
+                # send_button.pack(side=Tkinter.TOP)
 
 
         new_window.mainloop()
 
-####### NEW ANALYSES ###########################################################################
-#
-#
-#
+    def new_params_selection(self):
+        if self.x_choice != '' and self.y_choice != '':
+            self.params_plot.append([self.x_choice, self.y_choice])
+            self.x_choice = ''
+            self.y_choice = ''
+        self.propose_analyses(self.scale)
+
+    def list_selection_x(self, evt):
+        if evt is not None:
+            w = evt.widget
+            self.x_choice = self.choices[w.curselection()[0]]
+            print self.x_choice
+            # index = int(w.curselection()[0])
+            # self.model_selected = w.get(index)
+            # cmd.select("%04d" % (self.model_selected))
+
+    def list_selection_y(self, evt):
+        if evt is not None:
+            w = evt.widget
+            self.y_choice = self.choices[w.curselection()[0]]
+            print self.y_choice
+
+    ####### NEW ANALYSES #############
+    #
+
     def calc_plots(self):
         # Delete former canvas
         self.current_window.destroy()
@@ -623,24 +678,24 @@ class Handler:
 
     def display_plots(self):
         """ Display new plots according to user choice(s) """
+        if self.x_choice != '' and self.y_choice != '':
+            self.params_plot.append([self.x_choice, self.y_choice])
         # Delete former canvas and former windows
-        self.current_window.destroy()
-        self.rootframe.destroy()
-        rootframe = Tkinter.Tk()
-        rootframe.title(' Interactive Analyses')
-        rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
-        self.rootframe = rootframe
-        self.canvas = []
-        self.current_canvas = None
-        # 1st case: We come from known analyses and just redraw
-        # 2nd case: We come from new analyses we just calculated
-        logging.info("Status of checkbuttons:")
-        for k,s in self.button_dict.iteritems():
-            logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), self.scale))
-            if s[2].get():
-                xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(s[0], s[1], self.scale)
+        if len(self.params_plot) > 0:
+            self.current_window.destroy()
+            self.rootframe.destroy()
+            rootframe = Tkinter.Tk()
+            rootframe.title(' Interactive Analyses')
+            rootframe.protocol("WM_DELETE_WINDOW", self.close_callback)
+            self.rootframe = rootframe
+            self.canvas = []
+            self.current_canvas = None
+
+            for params in self.params_plot:
+                logging.info("New plot: "+params[0]+" "+params[1])
+                xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(params[0], params[1], self.scale)
                 logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
-                self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
+                self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, params[0], params[1])
 
                 rect = RectTracker(self.current_canvas)
                 rect.autodraw(fill="", width=1, command=self.onDrag)
@@ -654,13 +709,38 @@ class Handler:
                 if len(self.canvas) == 1:
                     self.create_main_buttons()
 
-                self.start(self.canvas[-1], s[0], s[1])
+                self.start(self.canvas[-1], params[0], params[1])
 
-        self.create_option_buttons()
 
-        self.create_ids_equivalent_dict()
+            # # 1st case: We come from known analyses and just redraw
+            # # 2nd case: We come from new analyses we just calculated
+            # logging.info("Status of checkbuttons:")
+            # for k,s in self.button_dict.iteritems():
+            #     logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), self.scale))
+            #     if s[2].get():
+            #         xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(s[0], s[1], self.scale)
+            #         logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
+            #         self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
 
-        rootframe.mainloop()
+            #         rect = RectTracker(self.current_canvas)
+            #         rect.autodraw(fill="", width=1, command=self.onDrag)
+            #         self.rect_trackers.append(rect)
+
+            #         delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[-1]), anchor = "w")
+            #         delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+            #         delete_window = self.current_canvas.create_window(210, 445, anchor="sw", window=delete)
+            #         self.delete_buttons.append(delete)
+
+            #         if len(self.canvas) == 1:
+            #             self.create_main_buttons()
+
+            #         self.start(self.canvas[-1], s[0], s[1])
+
+            self.create_option_buttons()
+
+            self.create_ids_equivalent_dict()
+
+            rootframe.mainloop()
 
     def create_option_buttons(self):
         options = Tkinter.Canvas(self.rootframe, width=200, height=500)
@@ -694,6 +774,9 @@ class Handler:
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
         select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
 
+        correlate_check = Tkinter.Checkbutton(self.rootframe, text= 'Correlate graphs', variable=self.correlate)
+        correlate_window = self.current_canvas.create_window(400, 490, anchor="se", window=correlate_check)
+
         self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
 
 
@@ -723,42 +806,65 @@ class Handler:
         if canvas == None:
             canvas = self.current_canvas
         if source == 1:
+            # Check mulltiple selection by dragging rectangle
             if self.scale == "Model":
                 logging.info("Display models sent by OnDrag: ")
                 logging.info(to_display)
                 self.models_to_display = to_display.intersection(self.all_models)
+                canvas.selected = self.models_to_display
                 logging.info(self.models_to_display)
-                for k,s in canvas.shapes.iteritems():
-                    if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
-                        canvas.itemconfig(k, fill='blue')
-                        cpt = 0
-                        for it in canvas.ids_ext[k]:
-                            if self.canvas[cpt] != canvas:
-                                self.canvas[cpt].itemconfig(it, fill='blue')
-                            else:
+                print self.correlate.get()
+                if self.correlate.get():
+                    for k,s in canvas.shapes.iteritems():
+                        if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
+                            canvas.itemconfig(k, fill='blue')
+                            cpt = 0
+                            for it in canvas.ids_ext[k]:
+                                if self.canvas[cpt] != canvas:
+                                    self.canvas[cpt].itemconfig(it, fill='blue')
+                                else:
+                                    cpt+=1
+                                    self.canvas[cpt].itemconfig(it, fill='blue')
                                 cpt+=1
-                                self.canvas[cpt].itemconfig(it, fill='blue')
-                            cpt+=1
-                        logging.debug("Color: %04d" % s[5][1])
-                        #cmd.select('sele', '%04d' % s[5][1])
-                        #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
-                        cmd.show('line', '%04d' % s[5][1])
-                        #cmd.disable('sele')
-                    elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
-                        canvas.itemconfig(k, fill='grey')
-                        cpt=0
-                        for it in canvas.ids_ext[k]:
-                            if self.canvas[cpt] != canvas:
-                                self.canvas[cpt].itemconfig(it, fill='grey')
-                            else:
+                            logging.debug("Color: %04d" % s[5][1])
+                            #cmd.select('sele', '%04d' % s[5][1])
+                            #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+                            cmd.show('line', '%04d' % s[5][1])
+                            #cmd.disable('sele')
+                        elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
+                            canvas.itemconfig(k, fill='grey')
+                            cpt=0
+                            for it in canvas.ids_ext[k]:
+                                if self.canvas[cpt] != canvas:
+                                    self.canvas[cpt].itemconfig(it, fill='grey')
+                                else:
+                                    cpt+=1
+                                    self.canvas[cpt].itemconfig(it, fill='grey')
                                 cpt+=1
-                                self.canvas[cpt].itemconfig(it, fill='grey')
-                            cpt+=1
-                        logging.debug("Hide: %04d" % s[5][1])
-                        #cmd.select('sele', '%04d' % s[5][1])
-                        cmd.hide('everything', '%04d' % s[5][1])
-                        #cmd.disable('sele')
-                self.models_shown = self.models_to_display 
+                            logging.debug("Hide: %04d" % s[5][1])
+                            #cmd.select('sele', '%04d' % s[5][1])
+                            cmd.hide('everything', '%04d' % s[5][1])
+                            #cmd.disable('sele')
+                    self.models_shown = self.models_to_display 
+                else:
+                    for k,s in canvas.shapes.iteritems():
+                        if s[5][1] in canvas.selected:
+                            canvas.itemconfig(k, fill=self.color_selection[self.canvas.index(canvas)])
+                        elif s[5][1] not in self.models_to_display:
+                            canvas.itemconfig(k, fill='grey')
+                    show = canvas.selected
+                    tmp = []
+                    for canv in self.canvas:
+                        if len(canv.selected) > 0 and canv != canvas:
+                            tmp = [val for val in show if val in canv.selected]
+                            show = tmp
+                    for model in self.models_shown:
+                        if model in show:
+                            cmd.show('line', '%04d' % model)
+                        else:
+                            cmd.hide('everything', '%04d' % model)
+                    self.models_shown = show
+
             elif self.scale == "Residue":
                 logging.info("Display residues sent by OnDrag: ")
                 logging.info(to_display)
@@ -1017,7 +1123,7 @@ class Handler:
         canvas.x_query_type = x_query_type
         canvas.y_query_type = y_query_type
 
-        # Query points to draw first plot
+        # Query points to draw plot
         points = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
 
         if self.scale == "Model":

@@ -74,15 +74,18 @@ class RDF_Handler:
     def get_analyses(self, scale):
         """ Get which analyses already exist for specific scale """
 
-        query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
+        #query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
+        query = u"""SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}""" % (self.uri, scale)
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
         logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
         res = []
+        import re
         for row in qres["results"]["bindings"]:
-            res.append([row["x_type"]["value"], row["y_type"]["value"]])
+            parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
+            res.append(parsed)
 
         return res
 
