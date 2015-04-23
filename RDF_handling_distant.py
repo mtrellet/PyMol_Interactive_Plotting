@@ -41,7 +41,6 @@ class RDF_Handler:
 
         models = set()
         for result in qres["results"]["bindings"]:
-            print result["id"]["value"]
             models.add(int(result["id"]["value"]))
 
         return models
@@ -49,23 +48,27 @@ class RDF_Handler:
     def query_rdf(self, x_query_type, y_query_type, scale):
         """ Query the RDF graph to build complete plot """
         
-        query = u"""SELECT ?x ?y FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
-        query2 = u"""SELECT ?id FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
+        # query = u"""SELECT ?x ?y FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
+        # query2 = u"""SELECT ?id FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
+
+        query = """SELECT * FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}""" % (self.uri, x_query_type, y_query_type, scale, scale.lower())
         
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
-        self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
-        qres2 = self.sparql_wrapper.query().convert()
+        # self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
+        # qres2 = self.sparql_wrapper.query().convert()
 
         logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
 
         points = []
 
-        for i in range(0,len(qres["results"]["bindings"])):
-            points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
-            points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
+        # for i in range(0,len(qres["results"]["bindings"])):
+        #     points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
+        #     points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
+        for res in qres["results"]["bindings"]:
+            points.append( [res["x"]["value"], res["y"]["value"], res["id"]["value"]])
         # in qres["results"]["bindings"]:
         #     points.append([ res["x"]["value"], res["y"]["value"] ])
 
@@ -85,6 +88,7 @@ class RDF_Handler:
         import re
         for row in qres["results"]["bindings"]:
             parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
+            print parsed
             res.append(parsed)
 
         return res
@@ -192,7 +196,8 @@ class RDF_Handler:
     def get_mini_maxi_values(self, xtype, ytype, scale):
         """ Get minimum and maximum for x and y values from POINT individuals """
 
-        query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <'+self.uri+'> WHERE { ?point my:X_value ?x . ?point my:Y_value ?y . ?point my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale+' .}'
+        # query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <'+self.uri+'> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale+' .}'
+        query = """SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s .}""" % (self.uri, xtype, ytype, scale)
         logging.info("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)

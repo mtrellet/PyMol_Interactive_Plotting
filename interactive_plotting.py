@@ -340,6 +340,7 @@ class Handler:
         self.item_selected = 0
         self.current_state = "default"
         self.correlate = BooleanVar(self.rootframe)
+        self.correlate.set(False)
         self.color_selection = {0: "blue", 1:"red", 2:"yellow", 3:"black", 4:"orange"}
         self.x_choice = ""
         self.y_choice = ""
@@ -417,7 +418,7 @@ class Handler:
 
 
         if selection is not None:
-            self.start(self.canvas[0], 'time_frame', 'RMSD')
+            self.start(self.canvas[0], 'time_frame', 'rmsd_to_reference')
             self.start(self.canvas[1], 'time_frame', 'temperature')
             #self.start(self.canvas[2], 'time_frame', 'energy')
 
@@ -473,13 +474,13 @@ class Handler:
         #####
 
     def propose_analyses(self, scale):
-        from Tkinter import BooleanVar
         self.scale = scale
 
         qres = self.rdf_handler.get_analyses(self.scale)
 
         if len(qres) > 0:
-            if self.current_window.title() == ' Display plots':
+            if len(self.params_plot) > 0:
+                print "Destroy window"
                 self.current_window.destroy()
             new_window = Tkinter.Tk()
             new_window.title(' Display plots ')
@@ -773,6 +774,9 @@ class Handler:
         select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
         select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
+
+        self.correlate = BooleanVar(self.rootframe)
+        self.correlate.set(False)
 
         correlate_check = Tkinter.Checkbutton(self.rootframe, text= 'Correlate graphs', variable=self.correlate)
         correlate_window = self.current_canvas.create_window(400, 490, anchor="se", window=correlate_check)
