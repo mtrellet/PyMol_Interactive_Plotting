@@ -434,6 +434,16 @@ class Handler:
         #############################################
         self.create_ids_equivalent_dict()
 
+    def delete(self, canvas):
+        self.canvas.remove(canvas)
+        if self.current_canvas == canvas:
+            if len(self.canvas) > 0:
+                self.current_canvas = self.canvas[-1]
+            else:
+                self.current_canvas = None
+        canvas.delete("all")
+
+
     ######
     # Command to select by dragging
     def onDrag(self, rect, canvas, start, end, mode):
@@ -774,6 +784,10 @@ class Handler:
         select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
         select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
+
+        add = Tkinter.Button(self.rootframe, text = 'ADD', command = lambda: self.propose_analyses, anchor = 'w')
+        add.configure(width= 5, activebackground = "#33B5E5", relief= "raised")
+        add_window = self.current_canvas.create_window(400, 490, anchor="se", window=add)
 
         self.correlate = BooleanVar(self.rootframe)
         self.correlate.set(False)
