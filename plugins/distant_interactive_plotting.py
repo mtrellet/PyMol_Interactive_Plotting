@@ -97,9 +97,6 @@ class PickWizard(Wizard):
         return [[ 1, 'Mode of selection',''], [ 2, 'Selection by atom','cmd.set("mouse_selection_mode", 0);cmd.refresh_wizard()'], [ 2, 'Selection by residues','cmd.set("mouse_selection_mode", 1);cmd.refresh_wizard()'], [ 2, 'Selection by chain','cmd.set("mouse_selection_mode", 2);cmd.refresh_wizard()'], [ 2, 'Selection by model','cmd.set("mouse_selection_mode", 5);cmd.refresh_wizard()'], [ 2, 'Clear Selection','cmd.delete("'+self.sele_name+'");cmd.refresh_wizard()'],]
 
 
-"""Rect Tracker class for Python Tkinter Canvas"""
-"""http://code.activestate.com/recipes/577409-python-tkinter-canvas-rectangle-selection-box/"""
-
 def groups(glist, numPerGroup=2):
     result = []
 
@@ -127,104 +124,6 @@ def average(points):
         aver[1] += point[1]
         
     return aver[0]/len(points), aver[1]/len(points)
-
-class RectTracker:
-    
-    def __init__(self, canvas):
-        self.canvas = canvas
-        self.item = None
-        
-    def draw(self, start, end, **opts):
-        """Draw the rectangle"""
-        return self.canvas.create_rectangle(*(list(start)+list(end)), **opts)
-        
-    def autodraw(self, **opts):
-        """Setup automatic drawing; supports command option"""
-        self.start = None
-        self.canvas.bind("<Button-1>", self.__update, '+')
-        self.canvas.bind("<B1-Motion>", self.__update, '+')
-        self.canvas.bind("<ButtonRelease-1>", self.__stop, '+')
-        self.canvas.bind("<Button-2>", self.__accumulate, '+')
-        self.canvas.bind("<B2-Motion>", self.__accumulate, '+')
-        self.canvas.bind("<ButtonRelease-2>", self.__release, '+')
-        
-        self._command = opts.pop('command', lambda *args: None)
-        self.rectopts = opts
-
-
-    def __accumulate(self, event):
-        if not self.start:
-            self.start = [event.x, event.y]
-            return
-
-        if self.item is not None:
-            self.canvas.delete(self.item)
-        self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
-        self._command(self, self.canvas, self.start, (event.x, event.y), "all_in_one")
-
-    def __release(self,event):
-        self.canvas.delete(self.item)
-        #self._command(self, self.canvas, self.start, (event.x, event.y), "all_in_one")
-        self.start = None
-        self.item = None
-
-    def __update(self, event):
-        if not self.start:
-            self.start = [event.x, event.y]
-            return
-        
-        if self.item is not None:
-            self.canvas.delete(self.item)
-        self.item = self.draw(self.start, (event.x, event.y), **self.rectopts)
-        self._command(self, self.canvas, self.start, (event.x, event.y), "update")
-        
-    def __stop(self, event):
-        self.start = None
-        self.canvas.delete(self.item)
-        self.item = None
-        
-    def hit_test(self, start, end, tags=None, ignoretags=None, ignore=[]):
-        """
-        Check to see if there are items between the start and end
-        """
-        ignore = set(ignore)
-        ignore.update([self.item])
-        
-        # first filter all of the items in the canvas
-        if isinstance(tags, str):
-            tags = [tags]
-        
-        if tags:
-            tocheck = []
-            for tag in tags:
-                tocheck.extend(self.canvas.find_withtag(tag))
-        else:
-            tocheck = self.canvas.find_all()
-        tocheck = [x for x in tocheck if x != self.item]
-        if ignoretags:
-            if not hasattr(ignoretags, '__iter__'):
-                ignoretags = [ignoretags]
-            tocheck = [x for x in tocheck if x not in self.canvas.find_withtag(it) for it in ignoretags]
-        
-        self.items = tocheck
-        
-        # then figure out the box
-        xlow = min(start[0], end[0])
-        xhigh = max(start[0], end[0])
-        
-        ylow = min(start[1], end[1])
-        yhigh = max(start[1], end[1])
-        
-        items = []
-        for item in tocheck:
-            if item not in ignore:
-                if item in self.canvas.shapes:
-                    x, y = average(groups(self.canvas.coords(item)))
-                    if (xlow < x < xhigh) and (ylow < y < yhigh):
-                        items.append(item)
-    
-        return items
-
 
 def check_selections(queue):
     """ Check if the selection made by the user changed """
