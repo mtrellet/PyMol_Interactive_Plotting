@@ -1,4 +1,4 @@
-import colorsys,sys
+
 from pymol import cmd
 
 aa_1_3 = {

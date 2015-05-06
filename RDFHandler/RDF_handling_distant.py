@@ -1,11 +1,12 @@
-from SPARQLWrapper import SPARQLWrapper, JSON, TURTLE
 import time
 import math
-import center_of_mass
 import re
-import unicodedata
-
 import logging
+
+from SPARQLWrapper import SPARQLWrapper, JSON
+
+from utils import center_of_mass
+
 logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 
 class RDF_Handler:
@@ -32,7 +33,7 @@ class RDF_Handler:
         """ Query the RDF graph for specific range of values made by user selection """
         
         
-        query = 'SELECT ?id FROM <'+self.uri+'> WHERE { ?point rdf:type my:Point . ?point my:Y_type "'+str(canvas.y_query_type)+'" . ?point my:Y_value ?y . FILTER (?y > '+str(ylow)+' && ?y < '+str(yhigh)+') . ?point my:X_type "'+str(canvas.x_query_type)+'" . ?point my:X_value ?x . FILTER (?x > '+str(xlow)+' && ?x < '+str(xhigh)+') . ?point my:represent ?mod . ?mod my:'+scale.lower()+'_id ?id .}'
+        query = 'SELECT ?id FROM <%s> WHERE { ?model my:%s ?y . FILTER (?y > %s && ?y < %s) . ?model my:%s ?x . FILTER (?x > %s && ?x < %s) . ?model my:%s_id ?id .}' % (self.uri, str(canvas.y_query_type), str(ylow), str(yhigh), str(canvas.x_query_type), str(xlow), str(xhigh), str(scale.lower()))
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
@@ -51,24 +52,25 @@ class RDF_Handler:
         # query = u"""SELECT ?x ?y FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
         # query2 = u"""SELECT ?id FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
 
-        query = """SELECT * FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}""" % (self.uri, x_query_type, y_query_type, scale, scale.lower())
+        query = """SELECT ?x ?y FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}""" % (self.uri, x_query_type, y_query_type, scale, scale.lower())
+        query2 = """SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}""" % (self.uri, scale, scale.lower())
         
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
-        # self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
-        # qres2 = self.sparql_wrapper.query().convert()
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
+        qres2 = self.sparql_wrapper.query().convert()
 
         logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
 
         points = []
 
-        # for i in range(0,len(qres["results"]["bindings"])):
-        #     points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
-        #     points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
-        for res in qres["results"]["bindings"]:
-            points.append( [res["x"]["value"], res["y"]["value"], res["id"]["value"]])
+        for i in range(0,len(qres["results"]["bindings"])):
+            points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
+            points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
+        # for res in qres["results"]["bindings"]:
+        #     points.append( [res["x"]["value"], res["y"]["value"], res["id"]["value"]])
         # in qres["results"]["bindings"]:
         #     points.append([ res["x"]["value"], res["y"]["value"] ])
 
@@ -88,7 +90,6 @@ class RDF_Handler:
         import re
         for row in qres["results"]["bindings"]:
             parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
-            print parsed
             res.append(parsed)
 
         return res
