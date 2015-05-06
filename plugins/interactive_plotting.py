@@ -34,8 +34,6 @@ from RDFHandler.RDF_handling_distant import RDF_Handler
 from utils import color_by_residue
 
 
-
-
 # Parameters of logging output
 import logging
 logging.basicConfig(filename="log/pymol_session.log", filemode="w", level=logging.INFO)
@@ -501,7 +499,7 @@ class Handler:
 
         if len(qres) > 0:
             if len(self.params_plot) > 0:
-                print "Destroy window"
+                logging.info("Destroy window")
                 self.current_window.destroy()
             new_window = Tkinter.Tk()
             new_window.title(' Display plots ')
@@ -845,7 +843,6 @@ class Handler:
                 self.models_to_display = to_display.intersection(self.all_models)
                 canvas.selected = self.models_to_display
                 logging.info(self.models_to_display)
-                print self.correlate.get()
                 if self.correlate.get():
                     for k,s in canvas.shapes.iteritems():
                         if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
