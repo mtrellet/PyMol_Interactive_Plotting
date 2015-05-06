@@ -22,19 +22,19 @@ from __future__ import generators
 
 import Tkinter
 from Tkinter import BooleanVar
-from tkinter_plot import SimplePlot
-from pymol import cmd, util
-from pymol.wizard import Wizard
-import math
 import time
 import Queue
 import threading
-import logging
-from RDF_handling_distant import RDF_Handler
-import trace
-import color_by_residue
-from guppy import hpy
-from memory_profiler import profile
+
+from pymol import cmd, util
+from pymol.wizard import Wizard
+
+from graph_generator.tkinter_plot import SimplePlot
+from RDFHandler.RDF_handling_distant import RDF_Handler
+from utils import color_by_residue
+
+
+
 
 # Parameters of logging output
 import logging
@@ -305,7 +305,7 @@ class Handler:
         ##### NEW WINDOW FOR RMSD #####
         ###############################
 
-        self.create_window(parent, 500, 500, 0, 50, 0, 0.27, symbols, Tkinter.LEFT, "Time Frame", "RMSD")
+        self.create_window(parent, 500, 450, 0, 50, 0, 0.27, symbols, Tkinter.LEFT, "Time Frame", "RMSD")
 
         if name is None:
             try:
@@ -345,6 +345,8 @@ class Handler:
         self.x_choice = ""
         self.y_choice = ""
         self.params_plot = []
+        self.options_button = None
+        self.main_button = None
 
         self.create_main_buttons()
 
@@ -387,7 +389,7 @@ class Handler:
         ##### NEW WINDOW FOR TEMPERATURE #####
         ######################################
 
-        self.create_window(parent, 500, 500, 0, 50, 250, 320, symbols, Tkinter.LEFT, "Time Frame", "Temperature")
+        self.create_window(parent, 500, 450, 0, 50, 250, 320, symbols, Tkinter.LEFT, "Time Frame", "Temperature")
 
         #####
         # Call to selection tool
@@ -435,13 +437,22 @@ class Handler:
         self.create_ids_equivalent_dict()
 
     def delete(self, canvas):
-        self.canvas.remove(canvas)
+        self.canvas.remove(canvas)    
         if self.current_canvas == canvas:
             if len(self.canvas) > 0:
                 self.current_canvas = self.canvas[-1]
             else:
                 self.current_canvas = None
-        canvas.delete("all")
+        #canvas.delete("all")
+        canvas.destroy()
+
+        self.main_button.destroy()
+        self.options_button.destroy()
+        self.create_main_buttons()
+        self.create_option_buttons()
+
+        # for canv in self.canvas:
+        #     canv.pack()
 
 
     ######
@@ -483,7 +494,7 @@ class Handler:
             self.update_plot_multiple(1, models_selected, canvas)
         #####
 
-    def propose_analyses(self, scale):
+    def propose_analyses(self, scale, mode="new"):
         self.scale = scale
 
         qres = self.rdf_handler.get_analyses(self.scale)
@@ -536,7 +547,7 @@ class Handler:
                 # cpt+=1
             x_listbox.bind('<<ListboxSelect>>', self.list_selection_x)
             y_listbox.bind('<<ListboxSelect>>', self.list_selection_y)
-            send_button = Tkinter.Button(self.current_window, text="Send", command= self.display_plots)
+            send_button = Tkinter.Button(self.current_window, text="Send", command= lambda: self.display_plots("add"))
             send_button.grid(row=4, column=0)
             other_button = Tkinter.Button(self.current_window, text="Other plot", command= self.new_params_selection)
             other_button.grid(row=4, column=1)
@@ -687,12 +698,12 @@ class Handler:
 #
 ###################################################################################################
 
-    def display_plots(self):
+    def display_plots(self, mode="new"):
         """ Display new plots according to user choice(s) """
         if self.x_choice != '' and self.y_choice != '':
             self.params_plot.append([self.x_choice, self.y_choice])
         # Delete former canvas and former windows
-        if len(self.params_plot) > 0:
+        if len(self.params_plot) > 0 and mode == "new":
             self.current_window.destroy()
             self.rootframe.destroy()
             rootframe = Tkinter.Tk()
@@ -706,7 +717,7 @@ class Handler:
                 logging.info("New plot: "+params[0]+" "+params[1])
                 xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(params[0], params[1], self.scale)
                 logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
-                self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, params[0], params[1])
+                self.create_window(self.rootframe, 500, 450, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, params[0], params[1])
 
                 rect = RectTracker(self.current_canvas)
                 rect.autodraw(fill="", width=1, command=self.onDrag)
@@ -722,80 +733,83 @@ class Handler:
 
                 self.start(self.canvas[-1], params[0], params[1])
 
-
-            # # 1st case: We come from known analyses and just redraw
-            # # 2nd case: We come from new analyses we just calculated
-            # logging.info("Status of checkbuttons:")
-            # for k,s in self.button_dict.iteritems():
-            #     logging.info("%s / %s : %d for %s" % (s[0], s[1], s[2].get(), self.scale))
-            #     if s[2].get():
-            #         xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(s[0], s[1], self.scale)
-            #         logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
-            #         self.create_window(self.rootframe, 500, 500, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, s[0], s[1])
-
-            #         rect = RectTracker(self.current_canvas)
-            #         rect.autodraw(fill="", width=1, command=self.onDrag)
-            #         self.rect_trackers.append(rect)
-
-            #         delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[-1]), anchor = "w")
-            #         delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-            #         delete_window = self.current_canvas.create_window(210, 445, anchor="sw", window=delete)
-            #         self.delete_buttons.append(delete)
-
-            #         if len(self.canvas) == 1:
-            #             self.create_main_buttons()
-
-            #         self.start(self.canvas[-1], s[0], s[1])
-
             self.create_option_buttons()
 
             self.create_ids_equivalent_dict()
 
             rootframe.mainloop()
 
-    def create_option_buttons(self):
-        options = Tkinter.Canvas(self.rootframe, width=200, height=500)
-        options.pack()
+        elif len(self.params_plot) > 0 and mode == "add":
+            self.current_window.destroy()
+            for params in self.params_plot:
+                logging.info("New plot: "+params[0]+" "+params[1])
+                xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(params[0], params[1], self.scale)
+                logging.info("xmin / xmax / ymin / ymax: %f %f %f %f" % (xmin, xmax, ymin, ymax))
+                self.create_window(self.rootframe, 500, 450, xmin, xmax, ymin*0.90, ymax*1.10, '', Tkinter.LEFT, params[0], params[1])
 
-        options.create_line(2,10,2,490, fill='black', width=1)
+                rect = RectTracker(self.current_canvas)
+                rect.autodraw(fill="", width=1, command=self.onDrag)
+                self.rect_trackers.append(rect)
+
+                delete = Tkinter.Button(self.rootframe, text = "Delete", command = lambda: self.delete(self.canvas[-1]), anchor = "w")
+                delete.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
+                delete_window = self.current_canvas.create_window(210, 445, anchor="sw", window=delete)
+                self.delete_buttons.append(delete)
+
+                if len(self.canvas) == 1:
+                    self.create_main_buttons()
+
+                self.start(self.canvas[-1], params[0], params[1])
+
+            self.create_ids_equivalent_dict()
+
+
+    def create_option_buttons(self):
+        self.options_button = Tkinter.Canvas(self.rootframe, width=200, height=450)
+        self.options_button.pack()
+
+        self.options_button.create_line(2,10,2,490, fill='black', width=1)
 
         model = Tkinter.Button(self.rootframe, text='MODEL', command = lambda: self.propose_analyses('Model'))
         model.configure(width=8, activebackground = "#FF0000", relief='raised')
-        model_window = options.create_window(100, 40, window=model)
+        model_window = self.options_button.create_window(100, 40, window=model)
         
         chain = Tkinter.Button(self.rootframe, text='CHAIN', command = lambda: self.propose_analyses('Chain'))
         chain.configure(width=8, activebackground = "#FF0000", relief='raised')
-        chain_window = options.create_window(100, 70, window=chain)
+        chain_window = self.options_button.create_window(100, 70, window=chain)
         
         residue = Tkinter.Button(self.rootframe, text='RESIDUE', command = lambda: self.propose_analyses('Residue'))
         residue.configure(width=8, activebackground = "#FF0000", relief='raised')
-        residue_window = options.create_window(100, 100, window=residue)
+        residue_window = self.options_button.create_window(100, 100, window=residue)
 
         atom = Tkinter.Button(self.rootframe, text='ATOM', command = lambda: self.propose_analyses('Atom'))
         atom.configure(width=8, activebackground = "#FF0000", relief='raised')
-        atom_window = options.create_window(100, 130, window=atom)
+        atom_window = self.options_button.create_window(100, 130, window=atom)
                     
 
     def create_main_buttons(self):
+        self.main_button = Tkinter.Canvas(self.rootframe, width=400, height=100)
+        self.main_button.pack(side=Tkinter.BOTTOM, fill=Tkinter.BOTH)
+
         reset = Tkinter.Button(self.rootframe, text = 'RESET', command = lambda: self.update_plot_multiple(2), anchor = "w")
         reset.configure(width = 6, activebackground = "#33B5E5", relief = "raised")
-        reset_window = self.current_canvas.create_window(40, 490, anchor="sw", window=reset)
+        reset_window = self.main_button.create_window(40, 90, anchor="sw", window=reset)
 
         select = Tkinter.Button(self.rootframe, text = 'SELECT FROM VIEWER', command = lambda: self.update_plot_multiple(3), anchor = "w")
         select.configure(width = 19, activebackground = "#33B5E5", relief = "raised")
-        select_window = self.current_canvas.create_window(270, 490, anchor="se", window=select)
+        select_window = self.main_button.create_window(270, 90, anchor="se", window=select)
 
-        add = Tkinter.Button(self.rootframe, text = 'ADD', command = lambda: self.propose_analyses, anchor = 'w')
+        add = Tkinter.Button(self.rootframe, text = 'ADD', command = lambda: self.propose_analyses(self.scale, "add"), anchor = 'w')
         add.configure(width= 5, activebackground = "#33B5E5", relief= "raised")
-        add_window = self.current_canvas.create_window(400, 490, anchor="se", window=add)
+        add_window = self.main_button.create_window(335, 90, anchor="se", window=add)
 
         self.correlate = BooleanVar(self.rootframe)
         self.correlate.set(False)
 
         correlate_check = Tkinter.Checkbutton(self.rootframe, text= 'Correlate graphs', variable=self.correlate)
-        correlate_window = self.current_canvas.create_window(400, 490, anchor="se", window=correlate_check)
+        correlate_window = self.main_button.create_window(460, 90, anchor="se", window=correlate_check)
 
-        self.current_canvas.create_line(40, 455, 300, 455, fill='black', width=1)
+        self.main_button.create_line(40, 40, 300, 40, fill='black', width=1)
 
 
     def create_ids_equivalent_dict(self):
