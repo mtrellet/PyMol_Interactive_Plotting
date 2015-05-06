@@ -1,11 +1,13 @@
+import time
+import math
+import logging
+
 from rdflib.plugins.sparql import prepareQuery
 from rdflib import Graph, Namespace, URIRef, Literal
 from rdflib.namespace import RDF, XSD
-import time
-import math
-import center_of_mass
 
-import logging
+from utils import center_of_mass
+
 logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 
 class RDF_Handler:

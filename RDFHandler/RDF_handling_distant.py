@@ -1,11 +1,12 @@
-from SPARQLWrapper import SPARQLWrapper, JSON, TURTLE
 import time
 import math
-import center_of_mass
 import re
-import unicodedata
-
 import logging
+
+from SPARQLWrapper import SPARQLWrapper, JSON
+
+from utils import center_of_mass
+
 logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 
 class RDF_Handler:
