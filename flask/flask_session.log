@@ -1,0 +1,56 @@
+INFO:Visual Analytics.cors:Configuring CORS with resources: {'/*': {'automatic_options': True, 'allow_headers': ['Content-Type'], 'send_wildcard': False, 'intercept_exceptions': True, 'origins': ['.*'], 'vary_header': True, 'supports_credentials': False, 'resources': '/*', 'methods': 'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'}}
+INFO:root:Parsing OSC client params...
+INFO:root:Creating web server and OSC client...
+INFO:root:Web server 
+IP: 0.0.0.0 	 PORT: 5000 	 Debug: True 
+OSC server
+IP: 127.0.0.1 	 PORT: 8000
+
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:18] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:18] "GET /data.js HTTP/1.1" 404 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:19] "GET /data.json HTTP/1.1" 404 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:19] "GET /static/json/temperature.json HTTP/1.1" 304 -
+INFO:root:Selected models: [100, 103, 109, 111, 113, 12, 122, 123, 128, 133, 141, 145, 148, 151, 156, 158, 159, 16, 166, 171, 173, 174, 177, 186, 187, 194, 197, 205, 209, 212, 213, 215, 218, 22, 220, 224, 231, 241, 242, 245, 247, 26, 29, 31, 35, 38, 39, 5, 51, 53, 57, 61, 67, 76, 78, 84, 86, 89, 97, 99, 30]
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:25] "GET /_array2python?wordlist=%5B%22100%22%2C%22103%22%2C%22109%22%2C%22111%22%2C%22113%22%2C%2212%22%2C%22122%22%2C%22123%22%2C%22128%22%2C%22133%22%2C%22141%22%2C%22145%22%2C%22148%22%2C%22151%22%2C%22156%22%2C%22158%22%2C%22159%22%2C%2216%22%2C%22166%22%2C%22171%22%2C%22173%22%2C%22174%22%2C%22177%22%2C%22186%22%2C%22187%22%2C%22194%22%2C%22197%22%2C%22205%22%2C%22209%22%2C%22212%22%2C%22213%22%2C%22215%22%2C%22218%22%2C%2222%22%2C%22220%22%2C%22224%22%2C%22231%22%2C%22241%22%2C%22242%22%2C%22245%22%2C%22247%22%2C%2226%22%2C%2229%22%2C%2231%22%2C%2235%22%2C%2238%22%2C%2239%22%2C%225%22%2C%2251%22%2C%2253%22%2C%2257%22%2C%2261%22%2C%2267%22%2C%2276%22%2C%2278%22%2C%2284%22%2C%2286%22%2C%2289%22%2C%2297%22%2C%2299%22%2C%2230%22%5D HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:38] "GET /_array2python?wordlist=%5B%5D HTTP/1.1" 500 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:38] "GET /_array2python?wordlist=%5B%5D HTTP/1.1" 500 -
+INFO:root:Selected models: [10, 103, 105, 109, 125, 14, 150, 173, 189, 194, 201, 207, 212, 220, 226, 237, 241, 247, 31, 35, 66, 67, 8, 83, 86, 96]
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:09:41] "GET /_array2python?wordlist=%5B%2210%22%2C%22103%22%2C%22105%22%2C%22109%22%2C%22125%22%2C%2214%22%2C%22150%22%2C%22173%22%2C%22189%22%2C%22194%22%2C%22201%22%2C%22207%22%2C%22212%22%2C%22220%22%2C%22226%22%2C%22237%22%2C%22241%22%2C%22247%22%2C%2231%22%2C%2235%22%2C%2266%22%2C%2267%22%2C%228%22%2C%2283%22%2C%2286%22%2C%2296%22%5D HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:11:44] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:11:44] "GET /data.js HTTP/1.1" 404 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:11:45] "GET /data.js HTTP/1.1" 404 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:11:45] "GET /data.json HTTP/1.1" 404 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:11:45] "GET /static/json/temperature.json HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:11:45] "GET /favicon.ico HTTP/1.1" 404 -
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:11:45] "GET /favicon.ico HTTP/1.1" 404 -
+INFO:root:Selected models: [13, 133, 177, 22, 227, 232, 242, 38, 57, 61, 84]
+INFO:werkzeug:192.168.2.4 - - [07/May/2015 15:12:08] "GET /_array2python?wordlist=%5B%2213%22%2C%22133%22%2C%22177%22%2C%2222%22%2C%22227%22%2C%22232%22%2C%22242%22%2C%2238%22%2C%2257%22%2C%2261%22%2C%2284%22%5D HTTP/1.1" 200 -
+INFO:werkzeug:129.175.156.48 - - [07/May/2015 15:15:52] "GET /favicon.ico HTTP/1.1" 404 -
+INFO:werkzeug:129.175.156.48 - - [07/May/2015 15:15:52] "GET /favicon.ico HTTP/1.1" 404 -
+INFO:werkzeug:129.175.156.48 - - [07/May/2015 15:15:55] "GET /favicon.ico HTTP/1.1" 404 -
+INFO:werkzeug:129.175.156.48 - - [07/May/2015 15:15:55] "GET /favicon.ico HTTP/1.1" 404 -
+INFO:root:Selected models: [159, 166, 173, 231, 31, 35, 67, 76, 97]
+INFO:werkzeug:192.168.2.135 - - [07/May/2015 15:16:03] "GET /_array2python?wordlist=%5B%22159%22%2C%22166%22%2C%22173%22%2C%22231%22%2C%2231%22%2C%2235%22%2C%2267%22%2C%2276%22%2C%2297%22%5D HTTP/1.1" 200 -
+INFO:root:Selected models: [14, 189, 201, 237, 8]
+INFO:werkzeug:192.168.2.135 - - [07/May/2015 15:17:11] "GET /_array2python?wordlist=%5B%2214%22%2C%22189%22%2C%22201%22%2C%22237%22%2C%228%22%5D HTTP/1.1" 200 -
+INFO:root:Selected models: [13, 133, 57, 61]
+INFO:werkzeug:192.168.2.135 - - [07/May/2015 15:18:05] "GET /_array2python?wordlist=%5B%2213%22%2C%22133%22%2C%2257%22%2C%2261%22%5D HTTP/1.1" 200 -
+INFO:root:Selected models: [201, 237, 8, 83]
+INFO:werkzeug:192.168.2.135 - - [07/May/2015 15:18:18] "GET /_array2python?wordlist=%5B%22201%22%2C%22237%22%2C%228%22%2C%2283%22%5D HTTP/1.1" 200 -
+INFO:root:Selected models: [1, 105, 132, 14, 150, 153, 163, 189, 192, 211, 226, 50, 60, 96, 108]
+INFO:werkzeug:192.168.2.135 - - [07/May/2015 15:18:25] "GET /_array2python?wordlist=%5B%221%22%2C%22105%22%2C%22132%22%2C%2214%22%2C%22150%22%2C%22153%22%2C%22163%22%2C%22189%22%2C%22192%22%2C%22211%22%2C%22226%22%2C%2250%22%2C%2260%22%2C%2296%22%2C%22108%22%5D HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:08] "GET / HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:09] "GET /data.js HTTP/1.1" 404 -
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:10] "GET /data.json HTTP/1.1" 404 -
+INFO:root:Selected models: [109, 166, 186, 205, 215, 220, 231, 31, 67, 86, 97, 30]
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:15] "GET /_array2python?wordlist=%5B%22109%22%2C%22166%22%2C%22186%22%2C%22205%22%2C%22215%22%2C%22220%22%2C%22231%22%2C%2231%22%2C%2267%22%2C%2286%22%2C%2297%22%2C%2230%22%5D HTTP/1.1" 200 -
+INFO:root:Selected models: [10, 105, 132, 14, 150, 189, 201, 211, 52, 8, 108]
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:24] "GET /_array2python?wordlist=%5B%2210%22%2C%22105%22%2C%22132%22%2C%2214%22%2C%22150%22%2C%22189%22%2C%22201%22%2C%22211%22%2C%2252%22%2C%228%22%2C%22108%22%5D HTTP/1.1" 200 -
+INFO:root:Selected models: [10, 105, 132, 14, 150, 189, 201, 211, 52, 8, 108]
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:24] "GET /_array2python?wordlist=%5B%2210%22%2C%22105%22%2C%22132%22%2C%2214%22%2C%22150%22%2C%22189%22%2C%22201%22%2C%22211%22%2C%2252%22%2C%228%22%2C%22108%22%5D HTTP/1.1" 200 -
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:25] "GET /_array2python?wordlist=%5B%5D HTTP/1.1" 500 -
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:25] "GET /_array2python?wordlist=%5B%5D HTTP/1.1" 500 -
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:28] "GET /_array2python?wordlist=%5B%5D HTTP/1.1" 500 -
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:29] "GET /_array2python?wordlist=%5B%5D HTTP/1.1" 500 -
+INFO:root:Selected models: [122, 159, 166, 177, 231, 242, 38, 57, 76, 84, 97]
+INFO:werkzeug:192.168.2.5 - - [07/May/2015 15:19:31] "GET /_array2python?wordlist=%5B%22122%22%2C%22159%22%2C%22166%22%2C%22177%22%2C%22231%22%2C%22242%22%2C%2238%22%2C%2257%22%2C%2276%22%2C%2284%22%2C%2297%22%5D HTTP/1.1" 200 -

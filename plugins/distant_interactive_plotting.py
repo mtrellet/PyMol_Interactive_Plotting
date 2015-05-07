@@ -29,10 +29,14 @@ import json
 
 from pymol import cmd, util
 from pymol.wizard import Wizard
+from pythonosc import udp_client
 
 from graph_generator.tkinter_plot import SimplePlot
 from RDFHandler.RDF_handling_distant import RDF_Handler
 from utils import color_by_residue
+
+import liblo
+import sys
 
 
 # Parameters of logging output
@@ -229,10 +233,32 @@ class Handler:
         self.params_plot = []
         self.options_button = None
         self.main_button = None
+        self.osc_ip = "127.0.0.1"
+        self.osc_port = 8000
+        self.osc_receiver = None
+        self.osc_sender = None
+
 
         # wiz.register_observer(self.notify)
         # wiz.notify_observers('test')
 
+        logging.info("Create OSC receiver and sender")
+        # create server, listening on port 1234
+        try:
+            self.osc_receiver = liblo.Server(self.osc_port)
+        except liblo.ServerError, err:
+            print str(err)
+            sys.exit()
+
+        # send all messages to port 1234 on the local machine
+        try:
+            self.osc_sender = liblo.Address(self.osc_port)
+        except liblo.AddressError, err:
+            print str(err)
+            sys.exit()
+
+        # register method taking a blob, and passing user data to the callback
+        self.osc_receiver.add_method("/selected", 'b', self.selected_callback, "user")
 
         ######################################
         ##### NEW WINDOW FOR TEMPERATURE #####
@@ -243,17 +269,29 @@ class Handler:
             self.start('time_frame', 'temperature')
             #self.start(self.canvas[2], 'time_frame', 'energy')
 
-
-        self.create_option_buttons()
-
-
         if with_mainloop and pmgapp is None:
             rootframe.mainloop()
 
         #############################################
         ##### CREATE CANVAS ITEM IDs DICTIONARY #####
         #############################################
-        self.create_ids_equivalent_dict()
+        # self.create_ids_equivalent_dict()
+
+        # loop and dispatch messages every 100ms
+        while True:
+            self.osc_receiver.recv(100)
+
+    def selected_callback(self, path, args, types, src, data):
+        print "received message '%s'" % path
+        print "blob contains %d bytes, user data was '%s'" % (len(args[0]), data)
+        print "data: %s" % (str(args[0]))
+        to_display = set()
+        if args[0]:
+            for s in args[0]:
+                to_display.add(s)
+            self.update_plot_multiple(1,to_display)
+        else:
+            self.update_plot_multiple(1,to_display)
 
     def delete(self, canvas):
         self.canvas.remove(canvas)    
@@ -654,105 +692,96 @@ class Handler:
     def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
         """ Check for updated selections data in all plots simultaneously"""
         start_time = time.time()
-        if canvas == None:
-            canvas = self.current_canvas
         if source == 1:
             # Check mulltiple selection by dragging rectangle
             if self.scale == "Model":
                 logging.info("Display models sent by OnDrag: ")
                 logging.info(to_display)
                 self.models_to_display = to_display.intersection(self.all_models)
-                canvas.selected = self.models_to_display
                 logging.info(self.models_to_display)
-                print self.correlate.get()
-                if self.correlate.get():
-                    for k,s in canvas.shapes.iteritems():
-                        if s[5][1] in self.models_to_display and s[5][1] not in self.models_shown:
-                            canvas.itemconfig(k, fill='blue')
-                            cpt = 0
-                            for it in canvas.ids_ext[k]:
-                                if self.canvas[cpt] != canvas:
-                                    self.canvas[cpt].itemconfig(it, fill='blue')
-                                else:
-                                    cpt+=1
-                                    self.canvas[cpt].itemconfig(it, fill='blue')
-                                cpt+=1
-                            logging.debug("Color: %04d" % s[5][1])
-                            #cmd.select('sele', '%04d' % s[5][1])
-                            #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
-                            cmd.show('line', '%04d' % s[5][1])
-                            #cmd.disable('sele')
-                        elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
-                            canvas.itemconfig(k, fill='grey')
-                            cpt=0
-                            for it in canvas.ids_ext[k]:
-                                if self.canvas[cpt] != canvas:
-                                    self.canvas[cpt].itemconfig(it, fill='grey')
-                                else:
-                                    cpt+=1
-                                    self.canvas[cpt].itemconfig(it, fill='grey')
-                                cpt+=1
-                            logging.debug("Hide: %04d" % s[5][1])
-                            #cmd.select('sele', '%04d' % s[5][1])
-                            cmd.hide('everything', '%04d' % s[5][1])
-                            #cmd.disable('sele')
-                    self.models_shown = self.models_to_display 
-                else:
-                    for k,s in canvas.shapes.iteritems():
-                        if s[5][1] in canvas.selected:
-                            canvas.itemconfig(k, fill=self.color_selection[self.canvas.index(canvas)])
-                        elif s[5][1] not in self.models_to_display:
-                            canvas.itemconfig(k, fill='grey')
-                    show = canvas.selected
-                    tmp = []
-                    for canv in self.canvas:
-                        if len(canv.selected) > 0 and canv != canvas:
-                            tmp = [val for val in show if val in canv.selected]
-                            show = tmp
-                    for model in self.models_shown:
-                        if model in show:
-                            cmd.show('line', '%04d' % model)
-                        else:
-                            cmd.hide('everything', '%04d' % model)
-                    self.models_shown = show
-
-            elif self.scale == "Residue":
-                logging.info("Display residues sent by OnDrag: ")
-                logging.info(to_display)
-                self.residues_to_display = to_display.intersection(self.all_residues)
-                logging.info(self.residues_to_display)
-                for k,s in canvas.shapes.iteritems():
-                    if s[5][1] in self.residues_to_display and s[5][1] not in self.residues_shown:
-                        canvas.itemconfig(k, fill='blue')
-                        cpt = 0
-                        for it in canvas.ids_ext[k]:
-                            if self.canvas[cpt] != canvas:
-                                self.canvas[cpt].itemconfig(it, fill='blue')
-                            else:
-                                cpt+=1
-                                self.canvas[cpt].itemconfig(it, fill='blue')
-                            cpt+=1
-                        logging.debug("Stick: %04d" % s[5][1])
+                #if self.correlate.get():
+                for m in self.all_models:
+                    if m in self.models_to_display:
+                        logging.debug("Color: %04d" % m)
                         #cmd.select('sele', '%04d' % s[5][1])
                         #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
-                        cmd.show('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+                        cmd.show('line', '%04d' % m)
                         #cmd.disable('sele')
-                    elif s[5][1] not in self.residues_to_display and s[5][1] in self.residues_shown:
-                        canvas.itemconfig(k, fill='grey')
-                        cpt=0
-                        for it in canvas.ids_ext[k]:
-                            if self.canvas[cpt] != canvas:
-                                self.canvas[cpt].itemconfig(it, fill='grey')
-                            else:
-                                cpt+=1
-                                self.canvas[cpt].itemconfig(it, fill='grey')
-                            cpt+=1
-                        logging.debug("Line: %04d" % s[5][1])
-                        #cmd.select('sele', '%04d' % s[5][1])
-                        cmd.hide('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
-                        # cmd.show('line', 'resid %d and model %04d' % (s[5][1], self.model_selected))
-                        #cmd.disable('sele')
-                self.residues_shown = self.residues_to_display
+                    elif m in self.models_shown:
+                        cmd.hide('line', '%04d' % m)
+
+                self.models_shown = self.models_to_display
+            #     elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
+            #                 canvas.itemconfig(k, fill='grey')
+            #                 cpt=0
+            #                 for it in canvas.ids_ext[k]:
+            #                     if self.canvas[cpt] != canvas:
+            #                         self.canvas[cpt].itemconfig(it, fill='grey')
+            #                     else:
+            #                         cpt+=1
+            #                         self.canvas[cpt].itemconfig(it, fill='grey')
+            #                     cpt+=1
+            #                 logging.debug("Hide: %04d" % s[5][1])
+            #                 #cmd.select('sele', '%04d' % s[5][1])
+            #                 cmd.hide('everything', '%04d' % s[5][1])
+            #                 #cmd.disable('sele')
+            #         self.models_shown = self.models_to_display
+            #     else:
+            #         for k,s in canvas.shapes.iteritems():
+            #             if s[5][1] in canvas.selected:
+            #                 canvas.itemconfig(k, fill=self.color_selection[self.canvas.index(canvas)])
+            #             elif s[5][1] not in self.models_to_display:
+            #                 canvas.itemconfig(k, fill='grey')
+            #         show = canvas.selected
+            #         tmp = []
+            #         for canv in self.canvas:
+            #             if len(canv.selected) > 0 and canv != canvas:
+            #                 tmp = [val for val in show if val in canv.selected]
+            #                 show = tmp
+            #         for model in self.models_shown:
+            #             if model in show:
+            #                 cmd.show('line', '%04d' % model)
+            #             else:
+            #                 cmd.hide('everything', '%04d' % model)
+            #         self.models_shown = show
+            #
+            # elif self.scale == "Residue":
+            #     logging.info("Display residues sent by OnDrag: ")
+            #     logging.info(to_display)
+            #     self.residues_to_display = to_display.intersection(self.all_residues)
+            #     logging.info(self.residues_to_display)
+            #     for k,s in canvas.shapes.iteritems():
+            #         if s[5][1] in self.residues_to_display and s[5][1] not in self.residues_shown:
+            #             canvas.itemconfig(k, fill='blue')
+            #             cpt = 0
+            #             for it in canvas.ids_ext[k]:
+            #                 if self.canvas[cpt] != canvas:
+            #                     self.canvas[cpt].itemconfig(it, fill='blue')
+            #                 else:
+            #                     cpt+=1
+            #                     self.canvas[cpt].itemconfig(it, fill='blue')
+            #                 cpt+=1
+            #             logging.debug("Stick: %04d" % s[5][1])
+            #             #cmd.select('sele', '%04d' % s[5][1])
+            #             #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+            #             cmd.show('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+            #             #cmd.disable('sele')
+            #         elif s[5][1] not in self.residues_to_display and s[5][1] in self.residues_shown:
+            #             canvas.itemconfig(k, fill='grey')
+            #             cpt=0
+            #             for it in canvas.ids_ext[k]:
+            #                 if self.canvas[cpt] != canvas:
+            #                     self.canvas[cpt].itemconfig(it, fill='grey')
+            #                 else:
+            #                     cpt+=1
+            #                     self.canvas[cpt].itemconfig(it, fill='grey')
+            #                 cpt+=1
+            #             logging.debug("Line: %04d" % s[5][1])
+            #             #cmd.select('sele', '%04d' % s[5][1])
+            #             cmd.hide('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+            #             # cmd.show('line', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+            #             #cmd.disable('sele')
+            #     self.residues_shown = self.residues_to_display
 
         elif source == 0:
             # Check single picking items
@@ -992,11 +1021,16 @@ class Handler:
         res_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
 
         json_string = json.dumps(res_dic)
-        print json_string
-        output = open('/Volumes/WWW/json/'+y_query_type+'.json', 'w')
-        output.write(json_string)
-        output.close()
+        logging.debug("json dictionary: \n%s" % json_string)
 
+        import os.path
+        file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s_%s.json" % (x_query_type, y_query_type)
+        if not os.path.exists(file_path):
+            output = open(file_path, 'w')
+            output.write(json_string)
+            output.close()
+
+        self.osc_client = udp_client.UDPClient(self.osc_ip, self.osc_port)
         # if self.scale == "Model":
         #     for row in points:
         #         if int(row[2]) not in self.all_models:
