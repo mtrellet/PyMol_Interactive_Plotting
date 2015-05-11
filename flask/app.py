@@ -6,12 +6,13 @@ from flask_cors import CORS, cross_origin
 import json
 
 import argparse
-
 import liblo
-
 import sys
+import threading
 
 import logging
+from OSCHandler.osc_server import MyServer
+
 logging.basicConfig(filename="flask_session.log", filemode="w", level=logging.INFO)
 
 app = Flask('Visual Analytics')
@@ -38,18 +39,43 @@ def array2python():
     if len(wordlist) > 0:
         selected = [ int(s) for s in wordlist]
         logging.info("Selected models: "+str(selected))
-        liblo.send( target, "/selected", selected )
+        liblo.send( "osc.udp://chm6048.limsi.fr:8000/", "/selected", selected )
         return jsonify(result=wordlist)
     else:
         liblo.send(target, "/selected", False )
+        return jsonify(result=wordlist)
+
+def new_plot_callback(path, args):
+    logging.info(args)
+
+def fallback(path, args, types, src):
+    logging.info("got unknown message '%s' from '%s'" % (path, src.url))
+    for a, t in zip(args, types):
+        print "argument of type '%s': %s" % (t, a)
+
+def create_osc_server(server_port):
+    # create server, listening on port 1234
+    try:
+        osc_receiver = MyServer(server_port)
+        logging.info("Create OSC receiver and sender on %s " % osc_receiver.url)
+        # self.osc_receiver = liblo.Server(self.server_port)
+    except liblo.ServerError, err:
+        print str(err)
+        sys.exit()
+
+    osc_receiver.start()
 
 if __name__ == "__main__":
     # Parse args to setup OSC client
     logging.info("Parsing OSC client params...")
     parser = argparse.ArgumentParser()
-    parser.add_argument("--osc_ip", default="127.0.0.1",
+    parser.add_argument("--client_ip", default="127.0.0.1",
         help="The ip of the OSC server")
-    parser.add_argument("--osc_port", type=int, default=8000,
+    parser.add_argument("--client_port", type=int, default=8000,
+        help="The port the OSC server is listening on")
+    parser.add_argument("--server_ip", default="127.0.0.1",
+        help="The ip of the OSC server")
+    parser.add_argument("--server_port", type=int, default=8100,
         help="The port the OSC server is listening on")
     parser.add_argument("--ip", default="0.0.0.0",
         help="The ip of the web server")
@@ -59,16 +85,24 @@ if __name__ == "__main__":
         help="Debug mode True/False")
     args = parser.parse_args()
 
-    logging.info("Creating web server and OSC client...")
-    logging.info("Web server \nIP: %s \t PORT: %d \t Debug: %s \nOSC server\nIP: %s \t PORT: %d\n" % (args.ip, args.port, args.debug, args.osc_ip, args.osc_port))
+    logging.info("Web server \nIP: %s \t PORT: %d \t Debug: %s \nOSC server\nIP: %s \t PORT: %d\n" % (args.ip, args.port, args.debug, args.client_ip, args.client_port))
 
-    # send all messages to port 1234 on the local machine
+    # send all messages to port client_port on the local machine
     try:
-        target = liblo.Address(args.osc_port)
+        target = liblo.Address(args.client_port)
+        logging.info("Initialization of sender adress on %s" % target.url)
     except liblo.AddressError, err:
         print str(err)
         sys.exit()
 
+    logging.info(target.url)
+
+    # osc_thread = threading.Thread(target=create_osc_server, args=(args.server_port,))
+    # logging.info("***************")
+    # osc_thread.start()
+
     # osc_client = udp_client.UDPClient(args.osc_ip, args.osc_port)
     app.run(host=args.ip, port=args.port, debug=args.debug)
+
+
 

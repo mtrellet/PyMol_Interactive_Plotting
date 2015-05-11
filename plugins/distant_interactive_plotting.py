@@ -30,6 +30,7 @@ import json
 from pymol import cmd, util
 from pymol.wizard import Wizard
 from pythonosc import udp_client
+from OSCHandler.osc_server import MyServer
 
 from graph_generator.tkinter_plot import SimplePlot
 from RDFHandler.RDF_handling_distant import RDF_Handler
@@ -50,6 +51,9 @@ with_mainloop = False
 myspace = {'previous':set(), 'models':set(), 'residues':set()}
 previous_mouse_mode = cmd.get("mouse_selection_mode")
 locked = False
+
+# Multi-threading queue init
+queue = Queue.Queue()
 
 class PickWizard(Wizard):
 
@@ -185,7 +189,6 @@ def check_selections(queue):
             #previous_mouse_mode = cmd.get("mouse_selection_mode")
             time.sleep(0.5)
 
-
 class Handler:
 
     def __init__(self, queue, selection=None, name=None, symbols='', state=-1):
@@ -234,31 +237,28 @@ class Handler:
         self.options_button = None
         self.main_button = None
         self.osc_ip = "127.0.0.1"
-        self.osc_port = 8000
+        self.server_port = 8000
+        self.client_port = 8100
         self.osc_receiver = None
         self.osc_sender = None
 
-
-        # wiz.register_observer(self.notify)
-        # wiz.notify_observers('test')
-
-        logging.info("Create OSC receiver and sender")
-        # create server, listening on port 1234
-        try:
-            self.osc_receiver = liblo.Server(self.osc_port)
-        except liblo.ServerError, err:
-            print str(err)
-            sys.exit()
-
         # send all messages to port 1234 on the local machine
-        try:
-            self.osc_sender = liblo.Address(self.osc_port)
-        except liblo.AddressError, err:
-            print str(err)
-            sys.exit()
+        # try:
+        #     self.osc_sender = liblo.Address(self.server_port)
+        #     logging.info("Initialization of sender adress on %s" % self.osc_sender.url)
+        # except liblo.AddressError, err:
+        #     print str(err)
+        #     sys.exit()
 
-        # register method taking a blob, and passing user data to the callback
-        self.osc_receiver.add_method("/selected", 'b', self.selected_callback, "user")
+        for t in threading.enumerate():
+            print t
+
+        osc_thread = threading.Thread(target=self.create_osc_server)
+        osc_thread.start()
+        #self.create_osc_server()
+
+        for t in threading.enumerate():
+            print t
 
         ######################################
         ##### NEW WINDOW FOR TEMPERATURE #####
@@ -269,29 +269,102 @@ class Handler:
             self.start('time_frame', 'temperature')
             #self.start(self.canvas[2], 'time_frame', 'energy')
 
-        if with_mainloop and pmgapp is None:
-            rootframe.mainloop()
-
         #############################################
         ##### CREATE CANVAS ITEM IDs DICTIONARY #####
         #############################################
         # self.create_ids_equivalent_dict()
 
-        # loop and dispatch messages every 100ms
-        while True:
-            self.osc_receiver.recv(100)
 
-    def selected_callback(self, path, args, types, src, data):
-        print "received message '%s'" % path
-        print "blob contains %d bytes, user data was '%s'" % (len(args[0]), data)
-        print "data: %s" % (str(args[0]))
+    def create_osc_server(self):
+        logging.info("Create OSC receiver and sender")
+        # create server, listening on port 1234
+        try:
+            print self.server_port
+            self.osc_receiver = MyServer(self.server_port, pymol_handler=self)
+            # self.osc_receiver = liblo.Server(self.server_port)
+        except liblo.ServerError, err:
+            print str(err)
+            sys.exit()
+
+        self.osc_receiver.start()
+
+        # register method taking a blob, and passing user data to the callback
+        #self.osc_receiver.add_method("/selected", 'b', self.selected_callback, "user")
+
+        # loop and dispatch messages every 100ms
+        # while True:
+        #     self.osc_receiver.recv(100)
+
+    #
+    # def selected_callback(self, path, args, types, src, data):
+    #     print "received message '%s'" % path
+    #     print "blob contains %d bytes, user data was '%s'" % (len(args[0]), data)
+    #     print "data: %s" % (str(args[0]))
+    #     to_display = set()
+    #     if args[0]:
+    #         for s in args[0]:
+    #             to_display.add(s)
+    #     self.update_plot_multiple(1,to_display)
+
+    def new_selected_models(self, selected_models):
         to_display = set()
-        if args[0]:
-            for s in args[0]:
-                to_display.add(s)
-            self.update_plot_multiple(1,to_display)
-        else:
-            self.update_plot_multiple(1,to_display)
+        for m in selected_models:
+            to_display.add(m)
+        self.update_plot_multiple(1, to_display)
+
+
+    def start(self, x_query_type, y_query_type):
+        # Query points to draw plot
+        """
+        Query points to draw plots
+        :param x_query_type: nature of x values
+        :param y_query_type: nature of y values
+        """
+        points = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
+
+        ### Create dictionary for json
+        self.all_models = set()
+        json_dic = []
+        for row in points:
+            if int(row[2]) not in self.all_models:
+                json_dic.append({'id': int(row[2]), x_query_type: float(row[0]), y_query_type: float(row[1])})
+                # res_dic[x_query_type] = float(row[0])
+                # res_dic[y_query_type] = float(row[1])
+                self.all_models.add(int(row[2]))
+        json_dic.append({'nb_models': len(self.all_models)})
+
+        xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
+        json_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
+
+        json_string = json.dumps(json_dic)
+        logging.debug("json dictionary: \n%s" % json_string)
+
+        import os.path
+        file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s_%s_%s.json" % \
+                    (self.scale.lower(), x_query_type, y_query_type)
+        if not os.path.exists(file_path):
+            output = open(file_path, 'w')
+            output.write(json_string)
+            output.close()
+
+
+        # logging.info("Send new plots information on server %s " % self.osc_sender.url)
+        liblo.send("osc.udp://chm6048.limsi.fr:8000/", '/new_plots', x_query_type, y_query_type)
+
+        # if self.scale == "Model":
+        #     for row in points:
+        #         if int(row[2]) not in self.all_models:
+        #             self.all_models.add(int(row[2]))
+        #         model_index = ('all', int(row[2]))
+        #         #print (float(row[0]), float(row[1]), model_index)
+        #         canvas.plot(float(row[0]), float(row[1]), model_index)
+        # elif self.scale == "Residue":
+        #     for row in points:
+        #         if int(row[2]) not in self.all_residues:
+        #             self.all_residues.add(int(row[2]))
+        #         residue_index = ('all', int(row[2]))
+        #         canvas.plot(float(row[0]), float(row[1]), residue_index)
+        # self.lock = 0
 
     def delete(self, canvas):
         self.canvas.remove(canvas)    
@@ -997,55 +1070,6 @@ class Handler:
         cmd.delete(self.name)
         self.rootframe.destroy()
 
-    def start(self, x_query_type, y_query_type):
-        # Query points to draw plot
-        """
-        Query points to draw plots
-        :param x_query_type: nature of x values
-        :param y_query_type: nature of y values
-        """
-        points = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
-
-        ### Create dictionary for json
-        self.all_models = set()
-        res_dic = []
-        for row in points:
-            if int(row[2]) not in self.all_models:
-                res_dic.append({'id': int(row[2]), x_query_type: float(row[0]), y_query_type: float(row[1])})
-                # res_dic[x_query_type] = float(row[0])
-                # res_dic[y_query_type] = float(row[1])
-                self.all_models.add(int(row[2]))
-        res_dic.append({'nb_models': len(self.all_models)})
-
-        xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
-        res_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
-
-        json_string = json.dumps(res_dic)
-        logging.debug("json dictionary: \n%s" % json_string)
-
-        import os.path
-        file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s_%s.json" % (x_query_type, y_query_type)
-        if not os.path.exists(file_path):
-            output = open(file_path, 'w')
-            output.write(json_string)
-            output.close()
-
-        self.osc_client = udp_client.UDPClient(self.osc_ip, self.osc_port)
-        # if self.scale == "Model":
-        #     for row in points:
-        #         if int(row[2]) not in self.all_models:
-        #             self.all_models.add(int(row[2]))
-        #         model_index = ('all', int(row[2]))
-        #         #print (float(row[0]), float(row[1]), model_index)
-        #         canvas.plot(float(row[0]), float(row[1]), model_index)
-        # elif self.scale == "Residue":
-        #     for row in points:
-        #         if int(row[2]) not in self.all_residues:
-        #             self.all_residues.add(int(row[2]))
-        #         residue_index = ('all', int(row[2]))
-        #         canvas.plot(float(row[0]), float(row[1]), residue_index)
-        # self.lock = 0
-
     def __call__(self):
         if self.lock:
             return
@@ -1061,41 +1085,41 @@ class Handler:
         #         value[2] = 0
 
 
-def rama(sel='(all)', name=None, symbols='aa', filename=None, state=-1):
-    '''
-DESCRIPTION
-
-    Ramachandran Plot
-    http://pymolwiki.org/index.php/DynoPlot
-
-ARGUMENTS
-
-    sel = string: atom selection {default: all}
-
-    name = string: name of callback object which is responsible for setting
-    angles when canvas points are dragged, or 'none' to not create a callback
-    object {default: Handler}
-
-    symbols = string: aa for amino acid or ss for secondary structure {default: aa}
-
-    filename = string: filename for postscript dump of canvas {default: None}
-    '''
-    queue = Queue.Queue()
-    # Start background thread to check selections
-    t = threading.Thread(target=check_selections, args=(queue,))
-    t.start()
-    logging.info("Checking changes in selections... (infinite loop)")
-    dyno = Handler(queue, sel, name, symbols, int(state))
-    if filename is not None:
-        dyno.canvas.postscript(file=filename)
+# def rama(sel='(all)', name=None, symbols='aa', filename=None, state=-1):
+#     '''
+# DESCRIPTION
+#
+#     Ramachandran Plot
+#     http://pymolwiki.org/index.php/DynoPlot
+#
+# ARGUMENTS
+#
+#     sel = string: atom selection {default: all}
+#
+#     name = string: name of callback object which is responsible for setting
+#     angles when canvas points are dragged, or 'none' to not create a callback
+#     object {default: Handler}
+#
+#     symbols = string: aa for amino acid or ss for secondary structure {default: aa}
+#
+#     filename = string: filename for postscript dump of canvas {default: None}
+#     '''
+#     queue = Queue.Queue()
+#     # Start background thread to check selections
+#     t = threading.Thread(target=check_selections, args=(queue,))
+#     t.start()
+#     logging.info("Checking changes in selections... (infinite loop)")
+#     dyno = Handler(queue, sel, name, symbols, int(state))
+#     if filename is not None:
+#         dyno.canvas.postscript(file=filename)
 
 # Extend these commands
-cmd.extend('ramachandran', rama)
-cmd.auto_arg[0]['ramachandran'] = cmd.auto_arg[0]['zoom']
+# cmd.extend('ramachandran', rama)
+# cmd.auto_arg[0]['ramachandran'] = cmd.auto_arg[0]['zoom']
 
 # Add to plugin menu
 def __init_plugin__(self):
-    queue = Queue.Queue()
+    #queue = Queue.Queue()
     # Start background thread to check selections
     t = threading.Thread(target=check_selections, args=(queue,))
     t.start()
