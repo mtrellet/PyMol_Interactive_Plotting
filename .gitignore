@@ -1,5 +1,5 @@
 
-pymol_session.log
+*.log
 
 *.pyc
 
