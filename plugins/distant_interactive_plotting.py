@@ -42,7 +42,8 @@ import sys
 
 # Parameters of logging output
 import logging
-logging.basicConfig(filename="log/pymol_session.log", filemode="w", level=logging.INFO)
+FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(filename="log/pymol_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
@@ -349,8 +350,7 @@ class Handler:
 
 
         # logging.info("Send new plots information on server %s " % self.osc_sender.url)
-        liblo.send("osc.udp://chm6048.limsi.fr:8000/", '/new_plots', x_query_type, y_query_type)
-
+        
         # if self.scale == "Model":
         #     for row in points:
         #         if int(row[2]) not in self.all_models:

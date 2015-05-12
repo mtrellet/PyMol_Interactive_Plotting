@@ -4,18 +4,21 @@ import logging
 
 
 class MyServer(ServerThread):
-    def __init__(self, port, pymol_handler = None):
+    def __init__(self, port, pymol_handler = None, flask_server = None):
         """
         Initialize an OSC server to listen to specific port
         :param port: OSC port
         :param pymol_handler: PyMol associated app
         """
+        logging.info("***************")
         logging.info("Initialization of OSC server on port: %d " % port)
         ServerThread.__init__(self, port)
         logging.info("Server running on %s " % self.url)
+        logging.info("***************")
         #self.target = Address(port)
         self.selected_models = []
         self.pymol_handler = pymol_handler
+        self.flask_server = flask_server
 
 
     @make_method('/selected', 'b')

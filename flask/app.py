@@ -10,10 +10,11 @@ import liblo
 import sys
 import threading
 
-import logging
 from OSCHandler.osc_server import MyServer
 
-logging.basicConfig(filename="flask_session.log", filemode="w", level=logging.INFO)
+import logging
+FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 
 app = Flask('Visual Analytics')
 cors = CORS(app, resources=r'/*', allow_headers='Content-Type')
@@ -57,7 +58,6 @@ def create_osc_server(server_port):
     # create server, listening on port 1234
     try:
         osc_receiver = MyServer(server_port)
-        logging.info("Create OSC receiver and sender on %s " % osc_receiver.url)
         # self.osc_receiver = liblo.Server(self.server_port)
     except liblo.ServerError, err:
         print str(err)
@@ -98,7 +98,6 @@ if __name__ == "__main__":
     logging.info(target.url)
 
     # osc_thread = threading.Thread(target=create_osc_server, args=(args.server_port,))
-    # logging.info("***************")
     # osc_thread.start()
 
     # osc_client = udp_client.UDPClient(args.osc_ip, args.osc_port)
