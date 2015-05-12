@@ -240,7 +240,7 @@ class Handler:
         self.osc_ip = "127.0.0.1"
         self.server_port = 8000
         self.client_port = 8100
-        self.osc_receiver = None
+        self.osc_receiver = []
         self.osc_sender = None
 
         # send all messages to port 1234 on the local machine
@@ -254,9 +254,12 @@ class Handler:
         for t in threading.enumerate():
             print t
 
-        osc_thread = threading.Thread(target=self.create_osc_server)
+        osc_thread = threading.Thread(target=self.create_osc_server, args=(self.server_port,))
         osc_thread.start()
         #self.create_osc_server()
+
+        osc_thread2 = threading.Thread(target=self.create_osc_server, args=(self.client_port,))
+        osc_thread2.start()
 
         for t in threading.enumerate():
             print t
@@ -276,18 +279,18 @@ class Handler:
         # self.create_ids_equivalent_dict()
 
 
-    def create_osc_server(self):
+    def create_osc_server(self, port):
         logging.info("Create OSC receiver and sender")
         # create server, listening on port 1234
         try:
-            print self.server_port
-            self.osc_receiver = MyServer(self.server_port, pymol_handler=self)
+            print port
+            self.osc_receiver.append(MyServer(port, pymol_handler=self))
             # self.osc_receiver = liblo.Server(self.server_port)
         except liblo.ServerError, err:
             print str(err)
             sys.exit()
 
-        self.osc_receiver.start()
+        self.osc_receiver[-1].start()
 
         # register method taking a blob, and passing user data to the callback
         #self.osc_receiver.add_method("/selected", 'b', self.selected_callback, "user")
@@ -350,7 +353,8 @@ class Handler:
 
 
         # logging.info("Send new plots information on server %s " % self.osc_sender.url)
-        
+        liblo.send("osc.udp://chm6048.limsi.fr:8000/", '/new_plots', x_query_type, y_query_type)
+
         # if self.scale == "Model":
         #     for row in points:
         #         if int(row[2]) not in self.all_models:

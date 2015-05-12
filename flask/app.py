@@ -40,7 +40,7 @@ def array2python():
     if len(wordlist) > 0:
         selected = [ int(s) for s in wordlist]
         logging.info("Selected models: "+str(selected))
-        liblo.send( "osc.udp://chm6048.limsi.fr:8000/", "/selected", selected )
+        liblo.send("osc.udp://chm6048.limsi.fr:8100/", "/selected", selected )
         return jsonify(result=wordlist)
     else:
         liblo.send(target, "/selected", False )

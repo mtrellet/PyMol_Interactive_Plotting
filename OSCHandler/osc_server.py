@@ -9,6 +9,7 @@ class MyServer(ServerThread):
         Initialize an OSC server to listen to specific port
         :param port: OSC port
         :param pymol_handler: PyMol associated app
+        :param flask_server: Flask web server
         """
         logging.info("***************")
         logging.info("Initialization of OSC server on port: %d " % port)
