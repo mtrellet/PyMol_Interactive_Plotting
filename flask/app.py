@@ -11,6 +11,7 @@ import sys
 import threading
 
 from OSCHandler.osc_server import MyServer
+from multiprocessing.connection import Client
 
 import logging
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
@@ -21,6 +22,9 @@ cors = CORS(app, resources=r'/*', allow_headers='Content-Type')
 
 osc_client = None
 target = None
+
+# address = ('localhost', 6000)
+# conn = Client(address)
 
 
 @app.route("/",methods=['GET', 'POST'])
@@ -40,19 +44,28 @@ def array2python():
     if len(wordlist) > 0:
         selected = [ int(s) for s in wordlist]
         logging.info("Selected models: "+str(selected))
-        liblo.send("osc.udp://chm6048.limsi.fr:8100/", "/selected", selected )
+
+        ######## MULTIPROC #######
+        # print conn
+        # conn.send(selected)
+        # can also send arbitrary objects:
+        # conn.send(['a', 2.5, None, int, sum])
+        # conn.close()
+
+        ######## LIBLO ##########
+        liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
         return jsonify(result=wordlist)
     else:
         liblo.send(target, "/selected", False )
         return jsonify(result=wordlist)
 
-def new_plot_callback(path, args):
-    logging.info(args)
-
-def fallback(path, args, types, src):
-    logging.info("got unknown message '%s' from '%s'" % (path, src.url))
-    for a, t in zip(args, types):
-        print "argument of type '%s': %s" % (t, a)
+# def new_plot_callback(path, args):
+#     logging.info(args)
+#
+# def fallback(path, args, types, src):
+#     logging.info("got unknown message '%s' from '%s'" % (path, src.url))
+#     for a, t in zip(args, types):
+#         print "argument of type '%s': %s" % (t, a)
 
 def create_osc_server(server_port):
     # create server, listening on port 1234
@@ -102,6 +115,5 @@ if __name__ == "__main__":
 
     # osc_client = udp_client.UDPClient(args.osc_ip, args.osc_port)
     app.run(host=args.ip, port=args.port, debug=args.debug)
-
 
 

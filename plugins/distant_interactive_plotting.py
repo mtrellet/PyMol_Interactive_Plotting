@@ -39,6 +39,7 @@ from utils import color_by_residue
 import liblo
 import sys
 
+from multiprocessing.connection import Listener
 
 # Parameters of logging output
 import logging
@@ -240,6 +241,7 @@ class Handler:
         self.osc_ip = "127.0.0.1"
         self.server_port = 8000
         self.client_port = 8100
+        self.multi_port = 6000
         self.osc_receiver = []
         self.osc_sender = None
 
@@ -256,10 +258,12 @@ class Handler:
 
         osc_thread = threading.Thread(target=self.create_osc_server, args=(self.server_port,))
         osc_thread.start()
-        #self.create_osc_server()
+        #
+        # osc_thread2 = threading.Thread(target=self.create_osc_server, args=(self.client_port,))
+        # osc_thread2.start()
 
-        osc_thread2 = threading.Thread(target=self.create_osc_server, args=(self.client_port,))
-        osc_thread2.start()
+        # osc_thread = threading.Thread(target=self.create_multiproc_server)
+        # osc_thread.start()
 
         for t in threading.enumerate():
             print t
@@ -277,6 +281,22 @@ class Handler:
         ##### CREATE CANVAS ITEM IDs DICTIONARY #####
         #############################################
         # self.create_ids_equivalent_dict()
+
+    def create_multiproc_server(self, port=6000):
+
+        logging.info("Create OSC receiver and sender")
+        # create server, listening on port 1234
+        address = ('localhost', port)
+        listener = Listener(address)
+        conn = listener.accept()
+
+        while True:
+            msg = conn.recv()
+            print msg
+            if msg == 'close':
+                conn.close()
+                break
+        #listener.close()
 
 
     def create_osc_server(self, port):
@@ -353,7 +373,7 @@ class Handler:
 
 
         # logging.info("Send new plots information on server %s " % self.osc_sender.url)
-        liblo.send("osc.udp://chm6048.limsi.fr:8000/", '/new_plots', x_query_type, y_query_type)
+        liblo.send(('chm6048.limsi.fr',8000), '/new_plots', x_query_type, y_query_type)
 
         # if self.scale == "Model":
         #     for row in points:
