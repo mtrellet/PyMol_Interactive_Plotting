@@ -3,6 +3,7 @@ from flask import render_template
 from flask import request
 from flask import jsonify
 from flask_cors import CORS, cross_origin
+from flask.ext.socketio import SocketIO
 import json
 
 import argparse
@@ -11,17 +12,25 @@ import sys
 import threading
 
 from OSCHandler.osc_server import MyServer
-from multiprocessing.connection import Client
+from gevent import monkey
+monkey.patch_all()
 
 import logging
+from RDFHandler.RDF_handling_distant import RDF_Handler
+
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 
 app = Flask('Visual Analytics')
+app.debug = True
 cors = CORS(app, resources=r'/*', allow_headers='Content-Type')
+
+socketio = SocketIO(app)
 
 osc_client = None
 target = None
+
+rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com", "http://peptide_traj.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
 
 # address = ('localhost', 6000)
 # conn = Client(address)
@@ -58,6 +67,20 @@ def array2python():
     else:
         liblo.send(target, "/selected", False )
         return jsonify(result=wordlist)
+
+@socketio.on('connected', namespace='/socketio')
+def connected(message):
+    print message['data']
+    socketio.emit('response', {'data': 'OK'}, namespace='/socketio')
+
+
+@socketio.on('get', namespace='/socketio')
+def get_available_analyses(message):
+    global rdf_handler
+    print message['data']
+    ava_ana = rdf_handler.get_analyses()
+    logging.info("Available analyses: %s" % ava_ana)
+    socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
 
 # def new_plot_callback(path, args):
 #     logging.info(args)
@@ -114,6 +137,8 @@ if __name__ == "__main__":
     # osc_thread.start()
 
     # osc_client = udp_client.UDPClient(args.osc_ip, args.osc_port)
-    app.run(host=args.ip, port=args.port, debug=args.debug)
+
+    #app.run(host=args.ip, port=args.port, debug=args.debug)
+    socketio.run(app, port=args.port)
 
 

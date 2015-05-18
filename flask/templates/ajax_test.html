@@ -72,6 +72,7 @@ svg *::-webkit-selection {
 <head>
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
   <script src="http://d3js.org/d3.v3.min.js" type="text/javascript"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
 </head>
 <body>
 
@@ -511,7 +512,53 @@ function refreshGraph() {
   // }, 1000);
 </script>
 
-<script src="data.js"></script>
+<!--<script src="data.js"></script>-->
 
+<script type="text/javascript">
+var selected = [];
+$(document).ready(function() {
+    var url = "http://" + document.domain + ":" + location.port;
+    console.log(url);
+    var socket = io.connect(url + "/socketio");
+    socket.on('connect', function() {
+        socket.emit('connected',{data: 'I\'m connected!'});
+    });
+
+    socket.on('response', function(msg){
+        console.log(msg);
+    });
+
+    $('form#get_ana').submit(function(event) {
+        socket.emit('get', {data: 'request'});
+        return false;
+    });
+
+    socket.on('list_ana', function(msg){
+        console.log(msg);
+        $("#analyses").prepend('<select id="ana_choice" multiple="" onchange="ana_choice_update();"></select>');
+        var list = document.getElementById("ana_choice")
+        for (i=0; i < msg.data.length; i++) {
+            var length = list.length;
+            list[length] = new Option (msg.data[i]);
+        }
+    });
+});
+
+//function ana_choice_update() {
+//    if selected.length < 2 {
+//        var list = document.getElementById("ana_choice")
+//        selected.push(list.selected)
+//    }
+//}
+
+</script>
+
+<div id="ana_button">
+    <form id="get_ana">
+        <button type="submit">Avalaible Analyses</button>
+    </form>
+</div>
+<br>
+<div id="analyses"></div>
 </body>
 </html>
