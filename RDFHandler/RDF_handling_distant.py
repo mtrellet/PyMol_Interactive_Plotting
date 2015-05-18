@@ -7,12 +7,13 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 
 from utils import center_of_mass
 
-logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
+# logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.INFO)
 
 class RDF_Handler:
-    def __init__(self, server, uri, rules, prefix, graph):
+    def __init__(self, server, uri, rules, prefix, graph, scale='Model'):
         #self.main_handler = main_handler
         # self.rdf_graph = Graph()
+        self.scale = scale
         self.distant_server = server
         self.uri = uri
         self.rules_name = rules
@@ -28,12 +29,18 @@ class RDF_Handler:
         logging.info(self.prefix)
         logging.info(self.uri)
 
+    def set_scale(self,scale):
+        pass
 
-    def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh, scale):
+
+    def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh):
         """ Query the RDF graph for specific range of values made by user selection """
         
         
-        query = 'SELECT ?id FROM <%s> WHERE { ?model my:%s ?y . FILTER (?y > %s && ?y < %s) . ?model my:%s ?x . FILTER (?x > %s && ?x < %s) . ?model my:%s_id ?id .}' % (self.uri, str(canvas.y_query_type), str(ylow), str(yhigh), str(canvas.x_query_type), str(xlow), str(xhigh), str(scale.lower()))
+        query = 'SELECT ?id FROM <%s> WHERE { ?model my:%s ?y . FILTER (?y > %s && ?y < %s) . ?model my:%s ?x . FILTER ' \
+                '(?x > %s && ?x < %s) . ?model my:%s_id ?id .}' % (self.uri, str(canvas.y_query_type), str(ylow),
+                                                                   str(yhigh), str(canvas.x_query_type), str(xlow),
+                                                                   str(xhigh), str(self.scale.lower()))
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
@@ -46,14 +53,15 @@ class RDF_Handler:
 
         return models
 
-    def query_rdf(self, x_query_type, y_query_type, scale):
+    def query_rdf(self, x_query_type, y_query_type):
         """ Query the RDF graph to build complete plot """
         
         # query = u"""SELECT ?x ?y FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
         # query2 = u"""SELECT ?id FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
 
-        query = """SELECT ?x ?y FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}""" % (self.uri, x_query_type, y_query_type, scale, scale.lower())
-        query2 = """SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}""" % (self.uri, scale, scale.lower())
+        query = """SELECT ?x ?y FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id
+        ?id}""" % (self.uri, x_query_type, y_query_type, self.scale, self.scale.lower())
+        query2 = """SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}""" % (self.uri, self.scale, self.scale.lower())
         
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -76,11 +84,11 @@ class RDF_Handler:
 
         return points
 
-    def get_analyses(self, scale):
+    def get_analyses(self):
         """ Get which analyses already exist for specific scale """
 
         #query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
-        query = u"""SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}""" % (self.uri, scale)
+        query = u"""SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}""" % (self.uri, self.scale)
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
@@ -94,12 +102,12 @@ class RDF_Handler:
 
         return res
 
-    def add_distance_points(self, item_selected, model_selected, scale):
+    def add_distance_points(self, item_selected, model_selected):
         item_list, indiv_list = self.get_id_indiv_from_RDF(model_selected)
 
-        if scale == "Residue":
+        if self.scale == "Residue":
             ref_x, ref_y, ref_z = center_of_mass.get_com("resid %s and model %04d" % (str(item_selected), model_selected))
-        elif scale == "Atom":
+        elif self.scale == "Atom":
             ref_x, ref_y, ref_z = center_of_mass.get_com("id %s and model %04d" % (str(item_selected), model_selected))
         logging.info("Coordinates of reference item: %f %f %f" % (ref_x, ref_y, ref_z))
 
@@ -110,9 +118,9 @@ class RDF_Handler:
         rdf_insert_header = "%s\ninsert data { graph <%s> { " % (self.prefix, self.uri)
         for item in item_list:
             if item != item_selected:
-                if scale == "Residue":
+                if self.scale == "Residue":
                     x,y,z = center_of_mass.get_com("resid %s and model %04d" % (str(item), model_selected))
-                elif scale == "Atom":
+                elif self.scale == "Atom":
                     x,y,z = center_of_mass.get_com("id %s and model %04d" % (str(item), model_selected))
                 logging.info("Coordinates x y z : %f %f %f " % (x,y,z))
                 dist = math.sqrt(math.pow((ref_x-x),2)+math.pow((ref_y-y),2)+math.pow((ref_z-z),2))
@@ -128,7 +136,7 @@ class RDF_Handler:
                 insertion += point+" "+self.prefix_name+":X_value "+str(item)+" . "
                 insertion += point+" "+self.prefix_name+":Y_value "+str(dist)+" . "
                 
-                if scale == "Residue":
+                if self.scale == "Residue":
                     insertion += point+" "+self.prefix_name+':X_type "resid" . '
                     res = str(indiv_list[nb_pt])
                     p = re.compile("RES_[0-9]+")
@@ -139,7 +147,7 @@ class RDF_Handler:
                     # self.rdf_graph.add( (point, my.X_type, Literal('resid')))
                     # res = str(indiv_list[nb_pt])
                     # self.rdf_graph.add( (point, my.represent, res))
-                elif scale == "Atom":
+                elif self.scale == "Atom":
                     insertion += point+" "+self.prefix_name+":X_type atomid . "
                     at = str(indiv_list[nb_pt])
                     insertion += point+" "+self.prefix_name+":represent "+at+" . "
@@ -194,11 +202,12 @@ class RDF_Handler:
         list_id.sort()
         return list_id[-1]
 
-    def get_mini_maxi_values(self, xtype, ytype, scale):
+    def get_mini_maxi_values(self, xtype, ytype):
         """ Get minimum and maximum for x and y values from POINT individuals """
 
         # query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <'+self.uri+'> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale+' .}'
-        query = """SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s .}""" % (self.uri, xtype, ytype, scale)
+        query = """SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <%s> WHERE
+        { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s .}""" % (self.uri, xtype, ytype, self.scale)
         logging.info("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)

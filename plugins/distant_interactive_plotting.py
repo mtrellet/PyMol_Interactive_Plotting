@@ -104,7 +104,11 @@ class PickWizard(Wizard):
         cmd.refresh_wizard()
 
     def get_panel(self):
-        return [[ 1, 'Mode of selection',''], [ 2, 'Selection by atom','cmd.set("mouse_selection_mode", 0);cmd.refresh_wizard()'], [ 2, 'Selection by residues','cmd.set("mouse_selection_mode", 1);cmd.refresh_wizard()'], [ 2, 'Selection by chain','cmd.set("mouse_selection_mode", 2);cmd.refresh_wizard()'], [ 2, 'Selection by model','cmd.set("mouse_selection_mode", 5);cmd.refresh_wizard()'], [ 2, 'Clear Selection','cmd.delete("'+self.sele_name+'");cmd.refresh_wizard()'],]
+        return [[ 1, 'Mode of selection',''], [ 2, 'Selection by atom','cmd.set("mouse_selection_mode", 0);cmd.refresh_wizard()'],
+                [ 2, 'Selection by residues','cmd.set("mouse_selection_mode", 1);cmd.refresh_wizard()'],
+                [ 2, 'Selection by chain','cmd.set("mouse_selection_mode", 2);cmd.refresh_wizard()'],
+                [ 2, 'Selection by model','cmd.set("mouse_selection_mode", 5);cmd.refresh_wizard()'],
+                [ 2, 'Clear Selection','cmd.delete("'+self.sele_name+'");cmd.refresh_wizard()'],]
 
 
 def groups(glist, numPerGroup=2):
@@ -208,7 +212,9 @@ class Handler:
                 name = 'Handler'
 
         #self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/VisualAnalytics_final.ttl", "/Users/trellet/Dev/Protege_OWL/data/peptide_traj/peptide_traj_rmsd_energy_temperature.ttl")
-        self.rdf_handler = RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com", "http://peptide_traj.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+        self.rdf_handler = RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com",
+                                       "http://peptide_traj.com/rules", "my",
+                                       "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
         self.queue = queue
 
         self.lock = 0
