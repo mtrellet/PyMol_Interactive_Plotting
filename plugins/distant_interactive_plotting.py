@@ -1,4 +1,4 @@
-'''
+"""
 See more here: http://www.pymolwiki.org/index.php/dynoplot
 
 ###############################################
@@ -15,7 +15,7 @@ See more here: http://www.pymolwiki.org/index.php/dynoplot
 #           * RDF parsing and querying with SPARQL
 #   RMSD plot shown over trajectory.
 ###############################################
-'''
+"""
 
 from __future__ import division
 from __future__ import generators
@@ -29,7 +29,6 @@ import json
 
 from pymol import cmd, util
 from pymol.wizard import Wizard
-from pythonosc import udp_client
 from OSCHandler.osc_server import MyServer
 
 from graph_generator.tkinter_plot import SimplePlot
@@ -259,8 +258,8 @@ class Handler:
         #     print str(err)
         #     sys.exit()
 
-        for t in threading.enumerate():
-            print t
+        # for t in threading.enumerate():
+        #     print t
 
         osc_thread = threading.Thread(target=self.create_osc_server, args=(self.server_port,))
         osc_thread.start()
@@ -271,8 +270,8 @@ class Handler:
         # osc_thread = threading.Thread(target=self.create_multiproc_server)
         # osc_thread.start()
 
-        for t in threading.enumerate():
-            print t
+        # for t in threading.enumerate():
+        #     print t
 
         ######################################
         ##### NEW WINDOW FOR TEMPERATURE #####
