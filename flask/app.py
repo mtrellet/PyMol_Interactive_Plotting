@@ -82,6 +82,12 @@ def get_available_analyses(message):
     logging.info("Available analyses: %s" % ava_ana)
     socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
 
+@socketio.on('create', namespace='/socketio')
+def get_plot_values(message):
+    global rdf_handler
+    print message['data']
+    socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
+
 # def new_plot_callback(path, args):
 #     logging.info(args)
 #
