@@ -2,8 +2,13 @@ var x_analyses_list = [];
 var y_analyses_list = [];
 var ana_list = [];
 var request_ana = [];
+var counter = 0;
 
 $(document).ready(function() {
+
+    var to_hide = document.getElementById("analysis_buttons");
+    to_hide.style.display = 'none';
+
     var url = "http://" + document.domain + ":" + location.port;
     console.log(url);
     var socket = io.connect(url + "/socketio");
@@ -67,41 +72,45 @@ $(document).ready(function() {
             request_ana.push(y_select.value)
         }
         y_select.selectedIndex = 0;
-
+        console.log(request_ana)
         socket.emit('create', {data: request_ana});
         return false;
+    });
+
+    socket.on('new_plot', function(msg){
+        console.log(msg);
+//        var body = document.getElementsByTagName('body')[0];
+//        var script = document.createElement('script');
+//        script.type = 'text/javascript';
+//        script.src = 'static/javascript/analyses_selection.js';
+//        // To pass arguments: http://stackoverflow.com/questions/9642205/how-to-force-a-script-reload-and-re-execute
+//        script.class = msg.data[0];
+//        body.insertBefore(script, body.firstChild);
+        create_3djs_plot(msg.data, counter)
+        counter += 1;
+//        location.reload(true);
     });
 });
 
 function check_x(val){
     var y_choice = document.getElementById("ana_choice_y").value;
     if (val != "None" && y_choice != "None") {
-        var html = '<div id="analysis_buttons"> <br><br> <button onclick="new_ana_lists();">More plot</button>';
-        html += '<form id="send_ana"> <button type="submit">Create plots</button> </form>';
-        html += '</div>';
-//        var div = document.getElementById("two_column");
-//        div.innerHTML += html;
-        $("body").append(html);
-        $("body").append('<br>');
+        var to_show = document.getElementById("analysis_buttons");
+        to_show.style.display = '';
     }
 }
 
 function check_y(val){
     var x_choice = document.getElementById("ana_choice_x").value;
     if (val != "None" && x_choice != "None") {
-        var html = '<div id="analysis_buttons"> <br><br> <button onclick="new_ana_lists();">More plot</button>';
-        html += '<form id="send_ana"> <button type="submit">Create plots</button> </form>';
-        html += '</div>';
-        //var div = document.getElementById("body");
-//        div.innerHTML += html;
-        $("body").append(html);
-        $("body").append('<br>');
+        var to_show = document.getElementById("analysis_buttons");
+        to_show.style.display = '';
     }
 }
 
 function new_ana_lists(){
     var buttons = document.getElementById("analysis_buttons");
-    buttons.parentNode.removeChild(buttons);
+    buttons.style.display = 'none';
 
     var x_select = document.getElementById("ana_choice_x")
     request_ana.push(x_select.value)

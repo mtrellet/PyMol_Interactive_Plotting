@@ -207,10 +207,6 @@ class Handler:
             except AttributeError:
                 name = 'Handler'
 
-        #self.rdf_handler = RDF_Handler("/Users/trellet/Dev/Protege_OWL/data/VisualAnalytics_final.ttl", "/Users/trellet/Dev/Protege_OWL/data/peptide_traj/peptide_traj_rmsd_energy_temperature.ttl")
-        self.rdf_handler = RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com",
-                                       "http://peptide_traj.com/rules", "my",
-                                       "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
         self.queue = queue
 
         self.lock = 0
@@ -335,45 +331,6 @@ class Handler:
         for m in selected_models:
             to_display.add(m)
         self.update_plot_multiple(1, to_display)
-
-
-    def start(self, x_query_type, y_query_type):
-        # Query points to draw plot
-        """
-        Query points to draw plots
-        :param x_query_type: nature of x values
-        :param y_query_type: nature of y values
-        """
-        points = self.rdf_handler.query_rdf(x_query_type, y_query_type, self.scale)
-
-        ### Create dictionary for json
-        self.all_models = set()
-        json_dic = []
-        for row in points:
-            if int(row[2]) not in self.all_models:
-                json_dic.append({'id': int(row[2]), x_query_type: float(row[0]), y_query_type: float(row[1])})
-                # res_dic[x_query_type] = float(row[0])
-                # res_dic[y_query_type] = float(row[1])
-                self.all_models.add(int(row[2]))
-        json_dic.append({'nb_models': len(self.all_models)})
-
-        xmin, xmax, ymin, ymax = self.rdf_handler.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
-        json_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
-
-        json_string = json.dumps(json_dic)
-        logging.debug("json dictionary: \n%s" % json_string)
-
-        import os.path
-        file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s_%s_%s.json" % \
-                    (self.scale.lower(), x_query_type, y_query_type)
-        if not os.path.exists(file_path):
-            output = open(file_path, 'w')
-            output.write(json_string)
-            output.close()
-
-
-        # logging.info("Send new plots information on server %s " % self.osc_sender.url)
-        liblo.send(('chm6048.limsi.fr',8000), '/new_plots', x_query_type, y_query_type)
 
 
     def update_plot_multiple(self, source =0, to_display=set(), canvas = None):

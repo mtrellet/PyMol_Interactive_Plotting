@@ -7,30 +7,33 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
 </head>
 <body>
+    <script>
+      $.getJSON("data.json", function(data) {
+        $.each(data, function(idx, obj){
+            $.each(obj, function(key, value){
+                console.log(key + " : " + value);
+            });
+        }); // this will show the info it in firebug console
+      });
+    </script>
 
-<script>
-  $.getJSON("data.json", function(data) {
-    $.each(data, function(idx, obj){ 
-        $.each(obj, function(key, value){
-            console.log(key + " : " + value);
-        });
-    }); // this will show the info it in firebug console
-  });
-</script>
+    <script src="static/javascript/create_3djs_plot.js"></script>
 
-<div id='demo'></div>
+    <script src="static/javascript/analyses_selection.js"></script>
 
-<script src="static/javascript/create_3djs_plot.js"></script>
+    <div id="ana_button">
+        <form id="get_ana">
+            <button type="submit">Available Analyses</button>
+        </form>
+    </div>
+    <br>
+    <div id="current_plots"></div>
+    <div id="two_column"></div>
+    <div id="analysis_buttons"> </br></br>
+        <button onclick="new_ana_lists();">More plot</button>
+        <form id="send_ana"> <button type="submit">Create plots</button> </form>
+    </div>
 
-<script src="static/javascript/analyses_selection.js"></script>
-
-<div id="ana_button">
-    <form id="get_ana">
-        <button type="submit">Available Analyses</button>
-    </form>
-</div>
-<br>
-<div id="current_plots"></div>
-<div id="two_column"></div>
+    <div id='demo'></div>
 </body>
 </html>

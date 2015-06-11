@@ -23,6 +23,7 @@ logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, l
 
 app = Flask('Visual Analytics')
 app.debug = True
+
 cors = CORS(app, resources=r'/*', allow_headers='Content-Type')
 
 socketio = SocketIO(app)
@@ -86,7 +87,11 @@ def get_available_analyses(message):
 def get_plot_values(message):
     global rdf_handler
     print message['data']
-    socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
+    for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
+        json_file = rdf_handler.create_JSON(x_type, y_type)
+        socketio.emit('new_plot', {'data' : json_file}, namespace='/socketio')
+
+    #socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
 
 # def new_plot_callback(path, args):
 #     logging.info(args)
@@ -145,6 +150,6 @@ if __name__ == "__main__":
     # osc_client = udp_client.UDPClient(args.osc_ip, args.osc_port)
 
     #app.run(host=args.ip, port=args.port, debug=args.debug)
-    socketio.run(app, port=args.port)
+    socketio.run(app, host=args.ip, port=args.port)
 
 
