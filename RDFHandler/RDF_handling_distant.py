@@ -2,6 +2,7 @@ import time
 import math
 import re
 import logging
+import json
 
 from SPARQLWrapper import SPARQLWrapper, JSON
 
@@ -31,6 +32,47 @@ class RDF_Handler:
 
     def set_scale(self,scale):
         pass
+
+    def create_JSON(self, x_query_type, y_query_type):
+        # Query points to draw plot
+        """
+        Query points to draw plots
+        :param x_query_type: nature of x values
+        :param y_query_type: nature of y values
+        """
+        points = self.query_rdf(x_query_type, y_query_type, self.scale)
+
+        ### Create dictionary for json
+        all_models = set()
+        json_dic = []
+        for row in points:
+            if int(row[2]) not in all_models:
+                json_dic.append({'id': int(row[2]), "x": float(row[0]), "y": float(row[1])})
+                # res_dic[x_query_type] = float(row[0])
+                # res_dic[y_query_type] = float(row[1])
+                all_models.add(int(row[2]))
+        json_dic.append({'x_type': x_query_type, 'y_type': y_query_type})
+        json_dic.append({'nb_models': len(all_models)})
+
+        xmin, xmax, ymin, ymax = self.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
+        json_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
+
+        json_string = json.dumps(json_dic)
+        logging.debug("json dictionary: \n%s" % json_string)
+
+        import os.path
+        file_name = "%s_%s_%s.json" % (self.scale.lower(), x_query_type, y_query_type)
+        file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s" % file_name
+        # if not os.path.exists(file_path):
+        output = open(file_path, 'w')
+        output.write(json_string)
+        output.close()
+
+        return file_name
+
+        # logging.info("Send new plots information on server %s " % self.osc_sender.url)
+        # liblo.send(('chm6048.limsi.fr',8000), '/new_plots', x_query_type, y_query_type)
+
 
 
     def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh, scale=None):
@@ -235,3 +277,21 @@ class RDF_Handler:
         ymax = res[3]
 
         return xmin, xmax, ymin, ymax
+
+    def is_action(self, key):
+        pass
+
+    def is_selection(self, key):
+        pass
+
+    def is_representation(self, key):
+        pass
+
+    def is_color(self, key):
+        pass
+
+    def is_property(self, key):
+        pass
+
+    def check_indiv_for_selection(self, component, id=None):
+        pass
