@@ -7,6 +7,7 @@ import json
 from SPARQLWrapper import SPARQLWrapper, JSON
 
 from utils import center_of_mass
+from utils.aa_conversion import from_name_to_3_letters
 
 #logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
 
@@ -279,19 +280,77 @@ class RDF_Handler:
         return xmin, xmax, ymin, ymax
 
     def is_action(self, key):
-        pass
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Action}' % key
+        logging.info("QUERY: \n%s" % query)
 
-    def is_selection(self, key):
-        pass
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
+
+    def is_component(self, key):
+        logging.info('Key to identify: %s' % key)
+        if from_name_to_3_letters(key):
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % from_name_to_3_letters(key)
+        else:
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
 
     def is_representation(self, key):
-        pass
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Representation}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
 
     def is_color(self, key):
-        pass
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Color}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
 
     def is_property(self, key):
-        pass
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Property}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
 
     def check_indiv_for_selection(self, component, id=None):
         pass
+
+    def is_id(self, key, component):
+        if isinstance(key, int):
+            logging.info('Key to identify: %d \nfor component: %s' % (key, component))
+            query = 'ASK {?s my:%s_id ?id . FILTER ( ?id = %d ) }' % (component.lower(), key)
+        else:
+            logging.info('Key to identify: %s \nfor component: %s' % (key, component))
+            query = 'ASK {?s my:%s_id ?id . FILTER ( regex(?id, "%s" )) }' % (component.lower(), key)
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
