@@ -25,6 +25,8 @@ aa_name_3 = {
   'Tyrosine': 'TYR',
 }
 
+atom = ["C","H","N","N","O","S"]
+
 def from_1_to_3_letters(letter):
     try:
         return aa_1_3[letter].lower()

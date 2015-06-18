@@ -5,9 +5,11 @@ import logging
 import json
 
 from SPARQLWrapper import SPARQLWrapper, JSON
+from urlparse import urlparse
 
 from utils import center_of_mass
-from utils.aa_conversion import from_name_to_3_letters
+from utils.aa_conversion import from_name_to_3_letters, atom
+from utils.color_by_residue import aa_1_3, aa_3_1
 
 #logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
 
@@ -294,6 +296,10 @@ class RDF_Handler:
         logging.info('Key to identify: %s' % key)
         if from_name_to_3_letters(key):
             query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % from_name_to_3_letters(key)
+        elif aa_3_1.has_key(key.upper()):
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % key.lower()
+        elif key.upper() in atom:
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % key.lower()
         else:
             query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % key
         logging.info("QUERY: \n%s" % query)
@@ -317,7 +323,7 @@ class RDF_Handler:
 
     def is_color(self, key):
         logging.info('Key to identify: %s' % key)
-        query = 'ASK {my:%s rdfs:subClassOf my:Color}' % key
+        query = 'ASK {my:%s rdfs:subClassOf my:Colors}' % key
         logging.info("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -338,7 +344,52 @@ class RDF_Handler:
         return bool(qres['boolean'])
 
     def check_indiv_for_selection(self, component, id=None):
-        pass
+        if id:
+            logging.info('Key to identify: %s for component: %s' % (id, component))
+            if isinstance(id, int):
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ?r my:belongs_to ?s . ' \
+                        '?r my:%s_id ?num} limit 40' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+            else:
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
+                        '?s . ?r my:%s_id ?num} limit 40' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+        else:
+            logging.info('Component: %s' % (component))
+            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num} limit 40' % (self.uri, component.capitalize(), self.scale.lower())
+
+        logging.info('QUERY: %s' % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        indivs_ids = []
+        indivs_uri = []
+
+        for row in qres["results"]["bindings"]:
+            indivs_ids.append(int(row["num"]["value"]))
+            indivs_uri.append(row["r"]["value"])
+
+        indivs_set = set(indivs_ids)
+        indivs_ids = list(indivs_set)
+
+        indivs_set = set(indivs_uri)
+        indivs_uri = list(indivs_set)
+
+        return indivs_ids, indivs_uri
+
+    def check_indiv_for_property(self, property):
+        logging.info('Property: %s' % (property))
+        query = 'SELECT ?num FROM <%s> WHERE {?r a my:%s . ?r a my:%s . ?r my:%s_id ?num}' % (self.uri, self.scale.capitalize(),
+                                                                                  property.capitalize(), self.scale.lower())
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        indivs = []
+        for row in qres["results"]["bindings"]:
+            o = urlparse(row["num"]["value"])
+            indivs.append(o.fragment)
+
+        return indivs
 
     def is_id(self, key, component):
         if isinstance(key, int):
@@ -354,3 +405,39 @@ class RDF_Handler:
 
         logging.info(qres['boolean'])
         return bool(qres['boolean'])
+
+    def requirement_for_action(self, action):
+        logging.info('Requirement(s) for action: %s' % action)
+        query = 'SELECT DISTINCT ?req FROM <%s> WHERE {?a rdfs:subClassOf my:%s . ?a rdfs:subClassOf ?restriction . ?restriction ' \
+                'owl:someValuesFrom ?req}' % (self.uri, action.capitalize())
+
+        logging.info('QUERY: %s' % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        requirements = []
+        for row in qres['results']['bindings']:
+            o = urlparse(row["req"]["value"])
+            requirements.append(o.fragment)
+
+        return requirements
+
+    def are_equivalent(self, v, w):
+        logging.info("Are %s and %s equivalent?" % (v,w))
+        query = 'SELECT DISTINCT ?m WHERE {{?a rdfs:subClassOf my:%s . ?a owl:equivalentClass ?restriction . ' \
+                '?restriction owl:unionOf ?list . ?list rdf:rest*/rdf:first ?m} union {my:%s owl:equivalentClass ?m } ' \
+                'union {?m owl:equivalentClass my:%s} }' % (v, v, v)
+        logging.info('QUERY: %s' % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres)
+
+        for row in qres['results']['bindings']:
+            o = urlparse(row['m']['value'])
+            if o.fragment == w:
+                return True
+
+        return False

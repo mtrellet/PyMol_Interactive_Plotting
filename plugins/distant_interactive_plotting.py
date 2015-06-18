@@ -276,7 +276,7 @@ class Handler:
 
 
         # Send keyword command
-        keywords = ['select', 'chain', 'A', 'model', 254]
+        keywords = ['show', 'secondary_structure', 'residue', 284, 315, 'cartoon']
         keyword2command = Keyword2Cmd(keywords)
         keyword2command.translate()
 
