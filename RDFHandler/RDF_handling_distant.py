@@ -343,18 +343,30 @@ class RDF_Handler:
         logging.info(qres['boolean'])
         return bool(qres['boolean'])
 
-    def check_indiv_for_selection(self, component, id=None):
-        if id:
-            logging.info('Key to identify: %s for component: %s' % (id, component))
+    def check_indiv_for_selection(self, component, output, id=None, id2=None):
+        if id and not id2:
+            logging.info('Key to identify: %s for component: %s at scale: %s' % (id, component, self.scale))
+            # if self.scale.lower() == component.lower():
+            #     if isinstance(id, int):
+            #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ' \
+            #                 '?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+            #     else:
+            #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
+            #                 '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+            # else:
             if isinstance(id, int):
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ?r my:belongs_to ?s . ' \
-                        '?r my:%s_id ?num} limit 40' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+                        '?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
             else:
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
-                        '?s . ?r my:%s_id ?num} limit 40' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+                        '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+        elif id and id2:
+            logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id, id2, component, self.scale))
+            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
+                            '?r my:%s_id ?num}' % (self.uri, component.lower(), id, id2, self.scale.capitalize(), self.scale.lower())
         else:
             logging.info('Component: %s' % (component))
-            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num} limit 40' % (self.uri, component.capitalize(), self.scale.lower())
+            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
 
         logging.info('QUERY: %s' % query)
 
@@ -374,7 +386,10 @@ class RDF_Handler:
         indivs_set = set(indivs_uri)
         indivs_uri = list(indivs_set)
 
-        return indivs_ids, indivs_uri
+        if output == 'ids':
+            return indivs_ids
+        elif output == 'uri':
+            return indivs_uri
 
     def check_indiv_for_property(self, property):
         logging.info('Property: %s' % (property))
