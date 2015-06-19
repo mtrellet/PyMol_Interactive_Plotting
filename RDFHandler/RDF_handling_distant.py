@@ -393,16 +393,17 @@ class RDF_Handler:
 
     def check_indiv_for_property(self, property):
         logging.info('Property: %s' % (property))
-        query = 'SELECT ?num FROM <%s> WHERE {?r a my:%s . ?r a my:%s . ?r my:%s_id ?num}' % (self.uri, self.scale.capitalize(),
+        query = 'SELECT DISTINCT ?num FROM <%s> WHERE {?r a my:%s . ?r a my:%s . ?r my:%s_id ?num}' % (self.uri, self.scale.capitalize(),
                                                                                   property.capitalize(), self.scale.lower())
+
+        logging.info("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
         indivs = []
         for row in qres["results"]["bindings"]:
-            o = urlparse(row["num"]["value"])
-            indivs.append(o.fragment)
+            indivs.append(int(row["num"]["value"]))
 
         return indivs
 
@@ -443,12 +444,10 @@ class RDF_Handler:
         query = 'SELECT DISTINCT ?m WHERE {{?a rdfs:subClassOf my:%s . ?a owl:equivalentClass ?restriction . ' \
                 '?restriction owl:unionOf ?list . ?list rdf:rest*/rdf:first ?m} union {my:%s owl:equivalentClass ?m } ' \
                 'union {?m owl:equivalentClass my:%s} }' % (v, v, v)
-        logging.info('QUERY: %s' % query)
+        logging.debug('QUERY: %s' % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
-
-        logging.info(qres)
 
         for row in qres['results']['bindings']:
             o = urlparse(row['m']['value'])

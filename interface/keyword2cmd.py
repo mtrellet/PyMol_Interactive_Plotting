@@ -148,30 +148,37 @@ class Keyword2Cmd:
                             if self.rdf_handler.scale.lower() == selection[i][0].lower():
                                 indiv_ids_from_component.append(selection[j][0])
                             else:
-                                indiv_ids_from_component + self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids', selection[j][0])
+                                indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids', selection[j][0])
                 elif i+1 < len(selection) and selection[i+1][1] == 'from':
                     if self.rdf_handler.scale.lower() == selection[i][0].lower():
                         for j in range(selection[i+1][0], selection[i+2][0]+1):
                             indiv_ids_from_component.append(j)
                     else:
-                        indiv_ids_from_component + self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids',
+                        indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids',
                                                                                               selection[i+1][0],
                                                                                               selection[i+2][0])
                 else:
-                    indiv_ids_from_component + self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids')
+                    indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids')
             elif selection[i][1] == 'property':
-                indiv_from_property = self.rdf_handler.check_indiv_for_property(selection[i][0])
+                indiv_from_property += self.rdf_handler.check_indiv_for_property(selection[i][0])
+                print indiv_from_property
+                indivs_set = set(indiv_from_property)
+                print indivs_set
+                indiv_from_property = list(indivs_set)
+                print indiv_from_property
 
-        print indiv_ids_from_component
+        print "INDIVS from component: %s" % str(indiv_ids_from_component)
+        print "INDIVS from property: %s" % str(indiv_from_property)
 
-        if len(indiv_from_property) > 0:
+
+        if len(indiv_from_property) > 0 and len(indiv_ids_from_component) > 0:
             individuals = [ind for ind in indiv_ids_from_component if ind in indiv_from_property]
+            print individuals
+            return individuals
+        elif len(indiv_from_property) > 0:
+            return indiv_from_property
         else:
             return indiv_ids_from_component
-
-        print individuals
-
-        return individuals
 
     @staticmethod
     def convert_to_OWL_format(keywords):
