@@ -28,6 +28,7 @@ import json
 from pymol import cmd, util
 from pymol.wizard import Wizard
 from OSCHandler.osc_server import MyServer
+from interface.keyword2cmd import Keyword2Cmd
 
 from RDFHandler.RDF_handling_distant import RDF_Handler
 from utils import color_by_residue
@@ -268,10 +269,16 @@ class Handler:
         ##### NEW WINDOW FOR TEMPERATURE #####
         ######################################
 
-        if selection is not None:
-            self.start('time_frame', 'rmsd_to_reference')
-            self.start('time_frame', 'temperature')
+        # if selection is not None:
+        #     self.start('time_frame', 'rmsd_to_reference')
+        #     self.start('time_frame', 'temperature')
             #self.start(self.canvas[2], 'time_frame', 'energy')
+
+
+        # Send keyword command
+        keywords = ['show', 'positive', 'hydrophobic', 'residue', 'chain', 'A', 'ribbon']
+        keyword2command = Keyword2Cmd(keywords)
+        keyword2command.translate()
 
         #############################################
         ##### CREATE CANVAS ITEM IDs DICTIONARY #####

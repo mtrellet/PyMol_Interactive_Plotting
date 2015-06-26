@@ -2,10 +2,14 @@ import time
 import math
 import re
 import logging
+import json
 
 from SPARQLWrapper import SPARQLWrapper, JSON
+from urlparse import urlparse
 
 from utils import center_of_mass
+from utils.aa_conversion import from_name_to_3_letters, atom
+from utils.color_by_residue import aa_1_3, aa_3_1
 
 #logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
 
@@ -31,6 +35,47 @@ class RDF_Handler:
 
     def set_scale(self,scale):
         pass
+
+    def create_JSON(self, x_query_type, y_query_type):
+        # Query points to draw plot
+        """
+        Query points to draw plots
+        :param x_query_type: nature of x values
+        :param y_query_type: nature of y values
+        """
+        points = self.query_rdf(x_query_type, y_query_type, self.scale)
+
+        ### Create dictionary for json
+        all_models = set()
+        json_dic = []
+        for row in points:
+            if int(row[2]) not in all_models:
+                json_dic.append({'id': int(row[2]), "x": float(row[0]), "y": float(row[1])})
+                # res_dic[x_query_type] = float(row[0])
+                # res_dic[y_query_type] = float(row[1])
+                all_models.add(int(row[2]))
+        json_dic.append({'x_type': x_query_type, 'y_type': y_query_type})
+        json_dic.append({'nb_models': len(all_models)})
+
+        xmin, xmax, ymin, ymax = self.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
+        json_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
+
+        json_string = json.dumps(json_dic)
+        logging.debug("json dictionary: \n%s" % json_string)
+
+        import os.path
+        file_name = "%s_%s_%s.json" % (self.scale.lower(), x_query_type, y_query_type)
+        file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s" % file_name
+        # if not os.path.exists(file_path):
+        output = open(file_path, 'w')
+        output.write(json_string)
+        output.close()
+
+        return file_name
+
+        # logging.info("Send new plots information on server %s " % self.osc_sender.url)
+        # liblo.send(('chm6048.limsi.fr',8000), '/new_plots', x_query_type, y_query_type)
+
 
 
     def query_sub_rdf(self, canvas, xlow, xhigh, ylow, yhigh, scale=None):
@@ -235,3 +280,178 @@ class RDF_Handler:
         ymax = res[3]
 
         return xmin, xmax, ymin, ymax
+
+    def is_action(self, key):
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Action}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
+
+    def is_component(self, key):
+        logging.info('Key to identify: %s' % key)
+        if from_name_to_3_letters(key):
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % from_name_to_3_letters(key)
+        elif aa_3_1.has_key(key.upper()):
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % key.lower()
+        elif key.upper() in atom:
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % key.lower()
+        else:
+            query = 'ASK {my:%s rdfs:subClassOf my:Biological_component}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
+
+    def is_representation(self, key):
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Representation}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
+
+    def is_color(self, key):
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Colors}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
+
+    def is_property(self, key):
+        logging.info('Key to identify: %s' % key)
+        query = 'ASK {my:%s rdfs:subClassOf my:Property}' % key
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
+
+    def check_indiv_for_selection(self, component, output, id=None, id2=None):
+        if id and not id2:
+            logging.info('Key to identify: %s for component: %s at scale: %s' % (id, component, self.scale))
+            # if self.scale.lower() == component.lower():
+            #     if isinstance(id, int):
+            #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ' \
+            #                 '?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+            #     else:
+            #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
+            #                 '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+            # else:
+            if isinstance(id, int):
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ?r my:belongs_to ?s . ' \
+                        '?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+            else:
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
+                        '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+        elif id and id2:
+            logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id, id2, component, self.scale))
+            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
+                            '?r my:%s_id ?num}' % (self.uri, component.lower(), id, id2, self.scale.capitalize(), self.scale.lower())
+        else:
+            logging.info('Component: %s' % (component))
+            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
+
+        logging.info('QUERY: %s' % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        indivs_ids = []
+        indivs_uri = []
+
+        for row in qres["results"]["bindings"]:
+            indivs_ids.append(int(row["num"]["value"]))
+            indivs_uri.append(row["r"]["value"])
+
+        indivs_set = set(indivs_ids)
+        indivs_ids = list(indivs_set)
+
+        indivs_set = set(indivs_uri)
+        indivs_uri = list(indivs_set)
+
+        if output == 'ids':
+            return indivs_ids
+        elif output == 'uri':
+            return indivs_uri
+
+    def check_indiv_for_property(self, property):
+        logging.info('Property: %s' % (property))
+        query = 'SELECT DISTINCT ?num FROM <%s> WHERE {?r a my:%s . ?r a my:%s . ?r my:%s_id ?num}' % (self.uri, self.scale.capitalize(),
+                                                                                  property.capitalize(), self.scale.lower())
+
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        indivs = []
+        for row in qres["results"]["bindings"]:
+            indivs.append(int(row["num"]["value"]))
+
+        return indivs
+
+    def is_id(self, key, component):
+        if isinstance(key, int):
+            logging.info('Key to identify: %d \nfor component: %s' % (key, component))
+            query = 'ASK {?s my:%s_id ?id . FILTER ( ?id = %d ) }' % (component.lower(), key)
+        else:
+            logging.info('Key to identify: %s \nfor component: %s' % (key, component))
+            query = 'ASK {?s my:%s_id ?id . FILTER ( regex(?id, "%s" )) }' % (component.lower(), key)
+        logging.info("QUERY: \n%s" % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info(qres['boolean'])
+        return bool(qres['boolean'])
+
+    def requirement_for_action(self, action):
+        logging.info('Requirement(s) for action: %s' % action)
+        query = 'SELECT DISTINCT ?req FROM <%s> WHERE {?a rdfs:subClassOf my:%s . ?a rdfs:subClassOf ?restriction . ?restriction ' \
+                'owl:someValuesFrom ?req}' % (self.uri, action.capitalize())
+
+        logging.info('QUERY: %s' % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        requirements = []
+        for row in qres['results']['bindings']:
+            o = urlparse(row["req"]["value"])
+            requirements.append(o.fragment)
+
+        return requirements
+
+    def are_equivalent(self, v, w):
+        logging.info("Are %s and %s equivalent?" % (v,w))
+        query = 'SELECT DISTINCT ?m WHERE {{?a rdfs:subClassOf my:%s . ?a owl:equivalentClass ?restriction . ' \
+                '?restriction owl:unionOf ?list . ?list rdf:rest*/rdf:first ?m} union {my:%s owl:equivalentClass ?m } ' \
+                'union {?m owl:equivalentClass my:%s} }' % (v, v, v)
+        logging.debug('QUERY: %s' % query)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        for row in qres['results']['bindings']:
+            o = urlparse(row['m']['value'])
+            if o.fragment == w:
+                return True
+
+        return False
