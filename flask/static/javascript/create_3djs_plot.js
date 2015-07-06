@@ -52,7 +52,7 @@ function create_3djs_plot(filename, counter) {
       svg.selectAll(".temp").data(data).enter()
        .append("circle")
        .attr("r", 4)
-       .attr("class", 'temp')
+//       .attr("class", 'temp')
        .attr("id", function(d) { return getID(d) })
        .attr("cx", function(d) { return x(getX(d)) })
        .attr("cy", function(d) { return y(getY(d)) })
@@ -283,9 +283,11 @@ function create_3djs_plot(filename, counter) {
 function checkSelected() {
   var list = [];
   d3.selectAll('circle').each(function(data) {
-    if(d3.select(this).classed('selected_'+counter)){
+    console.log(d3.select(this).classed("selected_"+counter.toString()))
+    if(d3.select(this).classed('selected_0')){
+      console.log(d3.select(this).attr("id"))
       list.push(d3.select(this).attr("id"))
-      d3.select(this).style("fill","blue")
+//      d3.select(this).style("fill","blue")
     }
   });
   $.getJSON('/_array2python', {

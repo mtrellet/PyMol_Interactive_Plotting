@@ -15,12 +15,12 @@ class MyServer(ServerThread):
         logging.info("Initialization of OSC server on port: %d " % port)
         ServerThread.__init__(self, port)
         logging.info("Server running on %s " % self.url)
+        print self.url
         logging.info("***************")
         #self.target = Address(port)
         self.selected_models = []
         self.pymol_handler = pymol_handler
         self.flask_server = flask_server
-
 
     @make_method('/selected', 'b')
     def selected_callback(self, path, args, types, src, data):
@@ -35,6 +35,14 @@ class MyServer(ServerThread):
     def new_plots_callback(self, path, args):
         logging.info(args)
 
+    @make_method('/ids', 'b')
+    def new_ids_callback(self, path, args, types, src, data):
+        print args
+        if self.pymol_handler:
+            ids = args[0]
+            logging.info("received message '%s' with arguments: %s" % (path, args))
+            self.pymol_handler.set_new_ids(ids)
+
     @make_method(None, None)
     def fallback(self, path, args):
-        logging.info("received unknown message '%s'" % path)
+        logging.info("received unknown message '%s' on '%s'" % (args, path))

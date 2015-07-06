@@ -29,6 +29,7 @@ cors = CORS(app, resources=r'/*', allow_headers='Content-Type')
 socketio = SocketIO(app)
 
 osc_client = None
+osc_port = None
 target = None
 
 rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com", "http://peptide_traj.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
@@ -63,7 +64,14 @@ def array2python():
         # conn.close()
 
         ######## LIBLO ##########
-        liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
+        # LIMSI wired connection
+        #liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
+        # EDUROAM
+        #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
+        # USER DEFINED
+        # liblo.send((osc_client, osc_port), "/selected", selected)
+
+        liblo.send(target, "/selected", selected)
         return jsonify(result=wordlist)
     else:
         liblo.send(target, "/selected", False )
@@ -88,8 +96,16 @@ def get_plot_values(message):
     global rdf_handler
     print message['data']
     for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
+        # Create json file with required information
         json_file = rdf_handler.create_JSON(x_type, y_type)
+        # Send json file to webserver
         socketio.emit('new_plot', {'data' : json_file}, namespace='/socketio')
+        # Get data ids
+        ids = rdf_handler.get_ids(x_type, y_type)
+        list_ids = [int(id) for id in ids]
+        logging.info("List of ids: %s" % list_ids)
+        # Send data ids to PyMol
+        liblo.send((osc_client, osc_port), "/ids", list_ids)
 
     #socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
 
@@ -138,12 +154,14 @@ if __name__ == "__main__":
     try:
         target = liblo.Address(args.client_port)
         logging.info("Initialization of sender adress on %s" % target.url)
+        logging.info(target.url)
     except liblo.AddressError, err:
         print str(err)
         sys.exit()
 
-    logging.info(target.url)
-
+    osc_client = args.client_ip
+    osc_port = args.client_port
+    print osc_client, osc_port
     # osc_thread = threading.Thread(target=create_osc_server, args=(args.server_port,))
     # osc_thread.start()
 

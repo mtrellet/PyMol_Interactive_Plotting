@@ -276,9 +276,9 @@ class Handler:
 
 
         # Send keyword command
-        keywords = ['show', 'positive', 'hydrophobic', 'residue', 'chain', 'A', 'ribbon']
-        keyword2command = Keyword2Cmd(keywords)
-        keyword2command.translate()
+        # keywords = ['show', 'positive', 'hydrophobic', 'residue', 'chain', 'A', 'ribbon']
+        # keyword2command = Keyword2Cmd(keywords)
+        # keyword2command.translate()
 
         #############################################
         ##### CREATE CANVAS ITEM IDs DICTIONARY #####
@@ -339,6 +339,13 @@ class Handler:
             to_display.add(m)
         self.update_plot_multiple(1, to_display)
 
+    def set_new_ids(self, ids):
+        """
+        Define new object ids represented in the analysis space
+        :param ids: list of int
+        """
+        self.all_models = set(ids)
+        print self.all_models
 
     def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
         """ Check for updated selections data in all plots simultaneously"""

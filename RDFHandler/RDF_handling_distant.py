@@ -130,6 +130,27 @@ class RDF_Handler:
 
         return points
 
+    def get_ids(self, x_query_type, y_query_type, scale=None):
+        """
+        :param x_query_type: type of values to plot on the abscissa
+        :param y_query_type: type of values to plot on the ordered
+        :param scale: hierarchical level of query
+        :return: list of ids
+        """
+        scale = scale or self.scale
+        query = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
+
+        logging.info("QUERY: \n%s" % query)
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        ids = []
+
+        for i in qres["results"]["bindings"]:
+            ids.append(i["id"]["value"])
+
+        return ids
+
     def get_analyses(self, scale=None):
         """ Get which analyses already exist for specific scale """
         scale = scale or self.scale
