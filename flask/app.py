@@ -70,11 +70,11 @@ def array2python():
         #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
         # USER DEFINED
         # liblo.send((osc_client, osc_port), "/selected", selected)
-
         liblo.send(target, "/selected", selected)
+        logging.info("Selected models sent on: %s" % target.url)
         return jsonify(result=wordlist)
     else:
-        liblo.send(target, "/selected", False )
+        liblo.send(target, "/selected", 0 )
         return jsonify(result=wordlist)
 
 @socketio.on('connected', namespace='/socketio')
@@ -152,7 +152,8 @@ if __name__ == "__main__":
 
     # send all messages to port client_port on the local machine
     try:
-        target = liblo.Address(args.client_port)
+        # target = liblo.Address(args.client_port)
+        target = liblo.Address('chm6048.limsi.fr', args.client_port)
         logging.info("Initialization of sender adress on %s" % target.url)
         logging.info(target.url)
     except liblo.AddressError, err:
