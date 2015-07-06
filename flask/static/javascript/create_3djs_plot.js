@@ -31,7 +31,7 @@ function create_3djs_plot(filename, counter) {
       // .append("g")
         .attr("transform",
               "translate("+margin.left + "," + margin.top + ")")
-        .attr("class", "id"+counter)
+        .attr("class", counter)
         .attr("id", "svg_"+counter)
 
     // Define the axes
@@ -99,7 +99,7 @@ function create_3djs_plot(filename, counter) {
     d3.select("#svg_"+counter).on( "mousedown", function() {
         var p = d3.mouse( this);
         console.log("DOWN")
-
+        var selected = [];
         d3.select("#plot_"+counter).selectAll( 'circle').classed( "selected_"+counter, false);
         d3.select("#plot_"+counter).selectAll('circle').style('fill', 'grey');
         // console.log(test[0].length)
@@ -165,20 +165,59 @@ function create_3djs_plot(filename, counter) {
             d.height = move.y - start_select.y;
           }
 
-          d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
-            var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
-            //console.log(circle)
-            if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
-              d3.select(this)
-                .classed("selected_"+counter, true)
-                .style("fill", "blue")
-            }
-            else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
-              d3.select(this)
-                .classed("selected_"+counter, false)
-                .style("fill", "grey")
-            }
-          })
+          if(document.getElementById("sync").checked) {
+              var svgs = document.getElementsByTagName("svg");
+              console.log(svgs.length);
+              for(var i = 0; i < svgs.length; i++){
+                console.log(svgs[i].id);
+                d3.select("#"+svgs[i].id).selectAll("circle").each(function(data) {
+                    var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
+                    console.log(svgs[i].id)
+                    if(!d3.select(this).classed("selected_"+i) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+                      d3.select(this)
+                        .classed("selected_"+i, true)
+                        .style("fill", "blue")
+                    }
+                    else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
+                      d3.select(this)
+                        .classed("selected_"+i, false)
+                        .style("fill", "grey")
+                    }
+                })
+              }
+          }
+          else{
+              d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
+                var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
+                //console.log(circle)
+                if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+                  d3.select(this)
+                    .classed("selected_"+counter, true)
+                    .style("fill", "blue")
+                }
+                else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
+                  d3.select(this)
+                    .classed("selected_"+counter, false)
+                    .style("fill", "grey")
+                }
+              })
+          }
+
+
+//          d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
+//            var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
+//            //console.log(circle)
+//            if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+//              d3.select(this)
+//                .classed("selected_"+counter, true)
+//                .style("fill", "blue")
+//            }
+//            else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
+//              d3.select(this)
+//                .classed("selected_"+counter, false)
+//                .style("fill", "grey")
+//            }
+//          })
 
           s.attr( d);
           //console.log( d);
@@ -258,20 +297,43 @@ function create_3djs_plot(filename, counter) {
             d.height = move.y - start_select.y;
           }
 
-          d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
-            var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
-            //console.log(circle)
-            if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
-              d3.select(this)
-                .classed("selected_"+counter, true)
-                .style("fill", "blue")
-            }
-            else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
-              d3.select(this)
-                .classed("selected_"+counter, false)
-                .style("fill", "grey")
-            }
-          })
+          if(document.getElementById("sync").checked) {
+              var svgs = document.getElementsByTagName("svg");
+              for(var i = 0; i < svgs.length; i++){
+                id = svgs[i].class;
+                console.log(id);
+                svgs[i].selectAll("circle").each(function(data) {
+                    var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
+                    //console.log(circle)
+                    if(!d3.select(this).classed("selected_"+id) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+                      d3.select(this)
+                        .classed("selected_"+id, true)
+                        .style("fill", "blue")
+                    }
+                    else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
+                      d3.select(this)
+                        .classed("selected_"+id, false)
+                        .style("fill", "grey")
+                    }
+                })
+              }
+          }
+          else{
+              d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
+                var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
+                //console.log(circle)
+                if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+                  d3.select(this)
+                    .classed("selected_"+counter, true)
+                    .style("fill", "blue")
+                }
+                else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
+                  d3.select(this)
+                    .classed("selected_"+counter, false)
+                    .style("fill", "grey")
+                }
+              })
+          }
 
           s.attr( d);
           //console.log( d);

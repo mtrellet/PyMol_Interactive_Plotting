@@ -9,6 +9,9 @@ $(document).ready(function() {
     var to_hide = document.getElementById("analysis_buttons");
     to_hide.style.display = 'none';
 
+    to_hide = document.getElementById("synchro");
+    to_hide.style.display = 'none';
+
     var url = "http://" + document.domain + ":" + location.port;
     console.log(url);
     var socket = io.connect(url + "/socketio");
@@ -88,6 +91,8 @@ $(document).ready(function() {
 //        body.insertBefore(script, body.firstChild);
         create_3djs_plot(msg.data, counter)
         counter += 1;
+        var to_show = document.getElementById("synchro");
+        to_show.style.display = '';
 //        location.reload(true);
     });
 });
