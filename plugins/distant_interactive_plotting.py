@@ -236,7 +236,7 @@ class Handler:
         self.options_button = None
         self.main_button = None
         self.osc_ip = "127.0.0.1"
-        self.server_port = 8000
+        self.server_port = 1234
         self.client_port = 8100
         self.multi_port = 6000
         self.osc_receiver = []
@@ -250,11 +250,24 @@ class Handler:
         #     print str(err)
         #     sys.exit()
 
-        # for t in threading.enumerate():
-        #     print t
+        for t in threading.enumerate():
+            print t
 
         osc_thread = threading.Thread(target=self.create_osc_server, args=(self.server_port,))
         osc_thread.start()
+
+        # for t in threading.enumerate():
+        #     print t
+        #
+        # while True:
+        #     for t in threading.enumerate():
+        #         print t
+        #     time.sleep(2)
+
+        # osc_manager = OSCManager()
+        # print "OSC manager initialized"
+        # osc_manager.run()
+
         #
         # osc_thread2 = threading.Thread(target=self.create_osc_server, args=(self.client_port,))
         # osc_thread2.start()
@@ -307,13 +320,13 @@ class Handler:
         # create server, listening on port 1234
         try:
             print port
-            self.osc_receiver.append(MyServer(port, pymol_handler=self))
-            # self.osc_receiver = liblo.Server(self.server_port)
+            # self.osc_receiver.append(MyServer(port, pymol_handler=self))
+            self.osc_receiver = MyServer(port, pymol_handler=self)
         except liblo.ServerError, err:
             print str(err)
             sys.exit()
 
-        self.osc_receiver[-1].start()
+        self.osc_receiver.start()
 
         # register method taking a blob, and passing user data to the callback
         #self.osc_receiver.add_method("/selected", 'b', self.selected_callback, "user")
