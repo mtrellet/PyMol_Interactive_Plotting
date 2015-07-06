@@ -32,6 +32,7 @@ function create_3djs_plot(filename, counter) {
         .attr("transform",
               "translate("+margin.left + "," + margin.top + ")")
         .attr("class", "id"+counter)
+        .attr("id", "svg_"+counter)
 
     // Define the axes
     var xAxis = d3.svg.axis().scale(x)
@@ -80,14 +81,16 @@ function create_3djs_plot(filename, counter) {
 
 
       // Add the X Axis
-      svg.append("g")
+      d3.select("#svg_"+counter).append("g")
           .attr("class", "x axis")
+          .attr("id", "plot_"+counter)
           .attr("transform", "translate(0," + height + ")")
           .call(xAxis);
 
       // Add the Y Axis
-      svg.append("g")
+      d3.select("#svg_"+counter).append("g")
           .attr("class", "y axis")
+          .attr("id", "plot_"+counter)
           .call(yAxis);
     })
 
@@ -97,8 +100,8 @@ function create_3djs_plot(filename, counter) {
         var p = d3.mouse( this);
         console.log("DOWN")
 
-        d3.selectAll( 'circle').classed( "selected_"+counter, false);
-        d3.selectAll('circle').style('fill', 'grey');
+        d3.select("#plot_"+counter).selectAll( 'circle').classed( "selected_"+counter, false);
+        d3.select("#plot_"+counter).selectAll('circle').style('fill', 'grey');
         // console.log(test[0].length)
         // test.each(function(data) {
         //   console.log(d3.select(this).classed("selected"))
@@ -162,7 +165,7 @@ function create_3djs_plot(filename, counter) {
             d.height = move.y - start_select.y;
           }
 
-          d3.selectAll("circle").each(function(data) {
+          d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
             var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
             //console.log(circle)
             if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
@@ -183,15 +186,15 @@ function create_3djs_plot(filename, counter) {
     })
     .on( "mouseup", function() {
         svg.select( ".selection_"+counter).remove();
-        checkSelected();
+        checkSelected(counter);
     });
 
     svg.on( "touchstart", function() {
         var p = d3.mouse( this);
         console.log("DOWN")
 
-        d3.selectAll( 'circle').classed( "selected_"+counter, false);
-        d3.selectAll('circle').style('fill', 'grey');
+        d3.select("#plot_"+counter).selectAll( 'circle').classed( "selected_"+counter, false);
+        d3.select("#plot_"+counter).selectAll('circle').style('fill', 'grey');
         // console.log(test[0].length)
         // test.each(function(data) {
         //   console.log(d3.select(this).classed("selected"))
@@ -255,7 +258,7 @@ function create_3djs_plot(filename, counter) {
             d.height = move.y - start_select.y;
           }
 
-          d3.selectAll("circle").each(function(data) {
+          d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
             var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
             //console.log(circle)
             if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
@@ -276,16 +279,18 @@ function create_3djs_plot(filename, counter) {
     })
     .on( "touchend", function() {
         svg.select( ".selection_"+counter).remove();
-        checkSelected();
+        checkSelected(counter);
     });
 }
 
-function checkSelected() {
+function checkSelected(c) {
   var list = [];
   d3.selectAll('circle').each(function(data) {
-    console.log(d3.select(this).classed("selected_"+counter.toString()))
-    if(d3.select(this).classed('selected_0')){
-      console.log(d3.select(this).attr("id"))
+    //console.log(d3.select(this).classed("selected_"+counter.toString()))
+    var str = 'selected_'+c;
+    console.log(str);
+    if(d3.select(this).classed(str)){
+      //console.log(d3.select(this).attr("id"))
       list.push(d3.select(this).attr("id"))
 //      d3.select(this).style("fill","blue")
     }
