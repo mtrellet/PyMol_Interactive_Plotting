@@ -96,7 +96,7 @@ function create_3djs_plot(filename, counter) {
 
     var start_select = {x : 0, y : 0}
 
-    svg.on( "mousedown", function() {
+    d3.select("#svg_"+counter).on( "mousedown", function() {
         var p = d3.mouse( this);
         console.log("DOWN")
 
@@ -107,13 +107,13 @@ function create_3djs_plot(filename, counter) {
         //   console.log(d3.select(this).classed("selected"))
         // });
 
-        var re = svg.select("rect.selection_"+counter)
+        var re = d3.select("#svg_"+counter).select("rect.selection_"+counter)
         if(re.empty()){
           start_select.x = p[0];
           start_select.y = p[1];
           console.log("Selection started");
           // console.log(p)
-          svg.append( "rect")
+          d3.select("#svg_"+counter).append( "rect")
           .attr({
               rx      : 6,
               ry      : 6,
@@ -126,7 +126,7 @@ function create_3djs_plot(filename, counter) {
         }
       })
     .on( "mousemove", function() {
-      var s = svg.select( "rect.selection_"+counter);
+      var s = d3.select("#svg_"+counter).select( "rect.selection_"+counter);
 
       if( !s.empty()) {
           var p = d3.mouse( this),
@@ -185,7 +185,7 @@ function create_3djs_plot(filename, counter) {
       }
     })
     .on( "mouseup", function() {
-        svg.select( ".selection_"+counter).remove();
+        d3.select("#svg_"+counter).select( ".selection_"+counter).remove();
         checkSelected(counter);
     });
 
