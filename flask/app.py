@@ -4,6 +4,7 @@ from flask import request
 from flask import jsonify
 from flask_cors import CORS, cross_origin
 from flask.ext.socketio import SocketIO
+from nocache import nocache
 import json
 
 import argparse
@@ -40,6 +41,7 @@ rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com
 
 @app.route("/",methods=['GET', 'POST'])
 @cross_origin() # allow all origins all methods.
+@nocache
 def index():
     return render_template("ajax_test.html")
 
@@ -49,6 +51,7 @@ def index():
 # From http://stackoverflow.com/questions/23949395/how-to-pass-a-javascript-array-to-a-python-script-using-flask-using-flask-examp
 @app.route('/_array2python', methods=['GET', 'POST'])
 @cross_origin() # allow all origins all methods.
+@nocache
 def array2python():
     global target
     wordlist = json.loads(request.args.get('wordlist'))

@@ -42,42 +42,41 @@ function create_3djs_plot(filename, counter) {
       .orient("left").ticks(5);
 
     // var createGraph = function() {
-    var data = d3.json("../static/json/"+filename, function(error, data) {
+    d3.json("../static/json/"+filename, function(error, data) {
         if (error){
             console.log(error);
         }
-        var x_type = getXtype(data)
-        var y_type = getYtype(data)
-        x.domain(d3.extent(data, getX))
-        y.domain(d3.extent(data, getY))
-        svg.selectAll(".temp").data(data).enter()
-        .append("circle")
-        .attr("r", 4)
-        //       .attr("class", 'temp')
-        .attr("id", function(d) { return getID(d) })
-        .attr("cx", function(d) { return x(getX(d)) })
-        .attr("cy", function(d) { return y(getY(d)) })
-        .classed("selected_"+counter, false)
-        // .attr("style", "cursor: pointer;")
-        .style("fill", "grey")
-        .on("click", function(d) {
-          d3.select("#plot_"+counter+" .value").text("Id: " + d.id + " "+d.x_type+" " + d.x +": "+d.y_type+": " + d.y);
-          var isSelected = d3.select(this).classed( "selected_"+counter);
-          d3.select(this)
-            .classed( "selected_"+counter, !isSelected);
-        })
-        .on("mouseover", function(d) {
-            if(!d3.select(this).classed("selected_"+counter)){
-                d3.select(this)
-                  .style("fill", "blue");
-            }
-        })
-        .on("mouseout", function(d) {
-            if(!d3.select(this).classed("selected_"+counter)){
-                d3.select(this)
-                  .style("fill", "grey");
-            }
-        })
+        var x_type = data.type[0].x_type
+        var y_type = data.type[0].y_type
+        console.log(data.type);
+        x.domain(d3.extent(data.values, getX))
+        y.domain(d3.extent(data.values, getY))
+        svg.selectAll(".temp").data(data.values).enter()
+          .append("circle")
+          .attr("r", 4)
+          .attr("id", function(d) { return getID(d) })
+          .attr("cx", function(d) { return x(getX(d)) })
+          .attr("cy", function(d) { return y(getY(d)) })
+          .classed("selected_"+counter, false)
+          .style("fill", "grey")
+          .on("click", function(d) {
+              d3.select("#plot_"+counter+" .value").text("Id: " + d.id + "  "+x_type+": " + d.x +"  "+y_type+": " + d.y);
+              var isSelected = d3.select(this).classed( "selected_"+counter);
+              d3.select(this)
+                .classed( "selected_"+counter, !isSelected);
+          })
+          .on("mouseover", function(d) {
+              if(!d3.select(this).classed("selected_"+counter)){
+                  d3.select(this)
+                    .style("fill", "blue");
+              }
+          })
+          .on("mouseout", function(d) {
+              if(!d3.select(this).classed("selected_"+counter)){
+                  d3.select(this)
+                    .style("fill", "grey");
+              }
+          })
 
 
         // Add the X Axis
@@ -100,8 +99,20 @@ function create_3djs_plot(filename, counter) {
         var p = d3.mouse( this);
         console.log("DOWN")
         var selected = [];
-        d3.select("#plot_"+counter).selectAll( 'circle').classed( "selected_"+counter, false);
-        d3.select("#plot_"+counter).selectAll('circle').style('fill', 'grey');
+
+        if(document.getElementById("sync").checked){
+            var svgs = document.getElementsByTagName("svg");
+            for(var i = 0; i < svgs.length; i++){
+                d3.selectAll("svg").selectAll('circle.selected_'+i)
+                  .classed("selected_"+i, false)
+                  .style('fill', 'grey')
+            }
+        }
+        else{
+            d3.select("#plot_"+counter).selectAll('circle.selected_'+counter)
+              .classed( "selected_"+counter, false)
+              .style('fill', 'grey')
+        }
         // console.log(test[0].length)
         // test.each(function(data) {
         //   console.log(d3.select(this).classed("selected"))

@@ -47,18 +47,22 @@ class RDF_Handler:
 
         ### Create dictionary for json
         all_models = set()
-        json_dic = []
+        json_dic = {}
+        json_dic['values'] = []
         for row in points:
             if int(row[2]) not in all_models:
-                json_dic.append({'id': int(row[2]), "x": float(row[0]), "y": float(row[1])})
+                json_dic['values'].append({'id': int(row[2]), "x": float(row[0]), "y": float(row[1])})
                 # res_dic[x_query_type] = float(row[0])
                 # res_dic[y_query_type] = float(row[1])
                 all_models.add(int(row[2]))
-        json_dic.append({'x_type': x_query_type, 'y_type': y_query_type})
-        json_dic.append({'nb_models': len(all_models)})
+        json_dic['type'] = []
+        json_dic['type'].append({'x_type': x_query_type, 'y_type': y_query_type})
+        json_dic['nb'] = []
+        json_dic['nb'].append({'nb_models': len(all_models)})
 
         xmin, xmax, ymin, ymax = self.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
-        json_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
+        json_dic['dim'] = []
+        json_dic['dim'].append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
 
         json_string = json.dumps(json_dic)
         logging.debug("json dictionary: \n%s" % json_string)
