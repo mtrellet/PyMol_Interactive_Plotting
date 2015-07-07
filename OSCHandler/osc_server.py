@@ -1,4 +1,4 @@
-from liblo import ServerThread, make_method, Address, ServerError
+from liblo import ServerThread, make_method, Address, ServerError, Server
 import logging
 # logging.basicConfig(filename="osc_server_session.log", filemode="w", level=logging.INFO)
 import sys
@@ -13,7 +13,15 @@ class MyServer(ServerThread):
         :param flask_server: Flask web server
         """
         logging.info("***************")
-        logging.info("Initialization of OSC server on port: %d " % port)
+        logging.info("1) Free the desired port")
+        try:
+            server = Server(port)
+            server.free()
+        except ServerError, err:
+            logging.info(str(err))
+            sys.exit()
+        logging.info("Port %s now free" % port)
+        logging.info("2) Initialization of OSC server on port: %d " % port)
         try:
             ServerThread.__init__(self, port)
         except ServerError, err:

@@ -358,7 +358,6 @@ class Handler:
         :param ids: list of int
         """
         self.all_models = set(ids)
-        print self.all_models
 
     def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
         """ Check for updated selections data in all plots simultaneously"""
