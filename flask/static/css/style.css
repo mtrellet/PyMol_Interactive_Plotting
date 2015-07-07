@@ -26,7 +26,7 @@ path {
     shape-rendering: crispEdges;
 }
 
-rect.selection {
+rect {
     stroke          : gray;
     stroke-width    : 1px;
     stroke-dasharray: 4px;
@@ -107,12 +107,23 @@ h3 {
     clear:both;
 }
 
-div[id="plot_0"] {
+#synchro {
     float:left;
     clear:both;
 }
 
+div[id="plot_0"] {
+    float:left;
+}
+
 div[id="plot_1"] {
     float:right;
-    clear:both;
+}
+
+text {
+  font: 10px sans-serif;
+}
+
+.label {
+  fill: #777;
 }

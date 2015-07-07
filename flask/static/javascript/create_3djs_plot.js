@@ -51,33 +51,47 @@ function create_3djs_plot(filename, counter) {
         console.log(data.type);
         x.domain(d3.extent(data.values, getX))
         y.domain(d3.extent(data.values, getY))
+
+        d3.select("#svg_"+counter).append("text")
+            .attr("class", "x_label")
+            .attr("text-anchor", "end")
+            .attr("x", width)
+            .attr("y", height - 6)
+            .text(x_type)
+        d3.select("#svg_"+counter).append("text")
+            .attr("class", "y_label")
+            .attr("text-anchor", "end")
+            .attr("y", 6)
+            .attr("dy", "0.75em")
+            .attr("transform", "rotate(-90)")
+            .text(y_type)
+
         svg.selectAll(".temp").data(data.values).enter()
           .append("circle")
-          .attr("r", 4)
-          .attr("id", function(d) { return getID(d) })
-          .attr("cx", function(d) { return x(getX(d)) })
-          .attr("cy", function(d) { return y(getY(d)) })
-          .classed("selected_"+counter, false)
-          .style("fill", "grey")
-          .on("click", function(d) {
-              d3.select("#plot_"+counter+" .value").text("Id: " + d.id + "  "+x_type+": " + d.x +"  "+y_type+": " + d.y);
-              var isSelected = d3.select(this).classed( "selected_"+counter);
-              d3.select(this)
-                .classed( "selected_"+counter, !isSelected);
-          })
-          .on("mouseover", function(d) {
-              if(!d3.select(this).classed("selected_"+counter)){
-                  d3.select(this)
-                    .style("fill", "blue");
-              }
-          })
-          .on("mouseout", function(d) {
-              if(!d3.select(this).classed("selected_"+counter)){
-                  d3.select(this)
-                    .style("fill", "grey");
-              }
-          })
-
+            .attr("r", 4)
+            .attr("id", function(d) { return getID(d) })
+            .attr("cx", function(d) { return x(getX(d)) })
+            .attr("cy", function(d) { return y(getY(d)) })
+            .classed("selected_"+counter, false)
+            .style("fill", "grey")
+            .on("click", function(d) {
+                d3.select("#plot_"+counter+" .value").text("Id: " + d.id + "  "+x_type+": " + d.x +"  "+y_type+": " + d.y);
+                var isSelected = d3.select(this).classed( "selected_"+counter);
+                d3.select(this)
+                  .classed( "selected_"+counter, !isSelected);
+            })
+            .on("mouseover", function(d) {
+                if(!d3.select(this).classed("selected_"+counter)){
+                    d3.select(this)
+                      .style("fill", "blue");
+                }
+            })
+            .on("mouseout", function(d) {
+                if(!d3.select(this).classed("selected_"+counter)){
+                    d3.select(this)
+                      .style("fill", "grey");
+                }
+            })
 
         // Add the X Axis
         d3.select("#svg_"+counter).append("g")
@@ -217,12 +231,19 @@ function create_3djs_plot(filename, counter) {
         var p = d3.mouse( this);
         console.log("DOWN")
 
-        d3.select("#plot_"+counter).selectAll( 'circle').classed( "selected_"+counter, false);
-        d3.select("#plot_"+counter).selectAll('circle').style('fill', 'grey');
-        // console.log(test[0].length)
-        // test.each(function(data) {
-        //   console.log(d3.select(this).classed("selected"))
-        // });
+        if(document.getElementById("sync").checked){
+            var svgs = document.getElementsByTagName("svg");
+            for(var i = 0; i < svgs.length; i++){
+                d3.selectAll("svg").selectAll('circle.selected_'+i)
+                  .classed("selected_"+i, false)
+                  .style('fill', 'grey')
+            }
+        }
+        else{
+            d3.select("#plot_"+counter).selectAll('circle.selected_'+counter)
+              .classed( "selected_"+counter, false)
+              .style('fill', 'grey')
+        }
 
         var re = svg.select("rect.selection_"+counter)
         if(re.empty()){
@@ -323,11 +344,6 @@ function checkSelected(c) {
     var list = [];
     d3.selectAll('circle.selected_'+c).each(function(data) {
         list.push(d3.select(this).attr("id").match(/id(\d+)/)[1])
-        // console.log(d3.select(this).classed("selected_"+counter.toString()))
-        // var str = 'selected_'+c;
-        // if(d3.select(this).classed(str)){
-        // console.log(d3.select(this).attr("id"))
-        //}
     });
     $.getJSON('/_array2python', {
         wordlist: JSON.stringify(list)
