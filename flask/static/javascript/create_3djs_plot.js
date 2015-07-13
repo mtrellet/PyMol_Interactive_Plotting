@@ -79,6 +79,7 @@ function create_3djs_plot(filename, counter) {
                 var isSelected = d3.select(this).classed( "selected_"+counter);
                 d3.select(this)
                   .classed( "selected_"+counter, !isSelected);
+                checkSelected(counter, d.id);
             })
             .on("mouseover", function(d) {
                 if(!d3.select(this).classed("selected_"+counter)){
@@ -223,6 +224,7 @@ function create_3djs_plot(filename, counter) {
         }
     })
     .on( "mouseup", function() {
+        console.log("UP")
         d3.select("#svg_"+counter).select( ".selection_"+counter).remove();
         checkSelected(counter);
     });
@@ -340,17 +342,29 @@ function create_3djs_plot(filename, counter) {
     });
 }
 
-function checkSelected(c) {
-    var list = [];
-    d3.selectAll('circle.selected_'+c).each(function(data) {
-        list.push(d3.select(this).attr("id").match(/id(\d+)/)[1])
-    });
-    $.getJSON('/_array2python', {
-        wordlist: JSON.stringify(list)
-    }, function(data){
-        console.log(data.result)
-        $( "#result" ).text(data.result);
-    });
+function checkSelected(c, id) {
+    id = typeof id !== 'undefined' ? id : false;
+    if (id){
+        console.log(id);
+        $.getJSON('/_uniq_selection', {
+            selected: JSON.stringify(id)
+        }, function(data){
+            console.log(data.result)
+            $( "#result").text(data.result);
+        });
+    }
+    else{
+        var list = [];
+        d3.selectAll('circle.selected_'+c).each(function(data) {
+            list.push(d3.select(this).attr("id").match(/id(\d+)/)[1])
+        });
+        $.getJSON('/_array2python', {
+            wordlist: JSON.stringify(list)
+        }, function(data){
+            console.log(data.result)
+            $( "#result" ).text(data.result);
+        });
+    }
     return false;
 }
 //

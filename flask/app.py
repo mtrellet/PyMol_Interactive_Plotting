@@ -59,13 +59,6 @@ def array2python():
         selected = [ int(s) for s in wordlist]
         logging.info("Selected models: "+str(selected))
 
-        ######## MULTIPROC #######
-        # print conn
-        # conn.send(selected)
-        # can also send arbitrary objects:
-        # conn.send(['a', 2.5, None, int, sum])
-        # conn.close()
-
         ######## LIBLO ##########
         # LIMSI wired connection
         #liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
@@ -79,6 +72,16 @@ def array2python():
     else:
         liblo.send(target, "/selected", 0 )
         return jsonify(result=wordlist)
+
+@app.route('/_uniq_selection', methods=['GET', 'POST'])
+@cross_origin() # allow all origins all methods.
+@nocache
+def uniq_selection():
+    global target, rdf_handler
+    selected = json.loads(request.args.get('selected'))
+    info = rdf_handler.get_info_uniq(selected)
+    print info
+    return jsonify(result=selected)
 
 @socketio.on('connected', namespace='/socketio')
 def connected(message):
@@ -155,8 +158,8 @@ if __name__ == "__main__":
 
     # send all messages to port client_port on the local machine
     try:
-        # target = liblo.Address(args.client_port)
-        target = liblo.Address('chm6048.limsi.fr', args.client_port)
+        target = liblo.Address(args.client_port)
+        #target = liblo.Address('chm6048.limsi.fr', args.client_port)
         logging.info("Initialization of sender adress on %s" % target.url)
         logging.info(target.url)
     except liblo.AddressError, err:

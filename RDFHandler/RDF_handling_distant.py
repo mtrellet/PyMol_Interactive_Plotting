@@ -155,6 +155,29 @@ class RDF_Handler:
 
         return ids
 
+    def get_info_uniq(self, uniq_id, scale=None):
+        """ Get all literal information for a specific individual """
+        scale = scale or self.scale
+        query = 'SELECT DISTINCT ?param ?val FROM <%s> WHERE { ?model my:%s_id ?id . FILTER ( ?id = %s ) . ' \
+                '?model ?param ?o . filter (isLiteral(?o)) . ?model ?param ?val}'\
+                % (self.uri, scale.lower(), uniq_id)
+        logging.info("QUERY: \n%s" % query)
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+        res = {}
+        print qres
+        import re
+        for row in qres["results"]["bindings"]:
+            parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
+            try:
+                res[parsed] = int(row["val"]["value"])
+            except ValueError:
+                res[parsed] = float(row["val"]["value"])
+
+        return res
+
     def get_analyses(self, scale=None):
         """ Get which analyses already exist for specific scale """
         scale = scale or self.scale

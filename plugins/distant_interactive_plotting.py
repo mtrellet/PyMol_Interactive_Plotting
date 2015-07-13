@@ -147,7 +147,7 @@ def check_selections(queue):
         if int(cmd.get("mouse_selection_mode")) == 5 and len(cmd.get_names("selections")) > 0:
             #logging.debug(cmd.get_names("selections")[1])
             nb_selected_objects = cmd.count_atoms('sele')
-            if(nb_selected_objects > 0):
+            if nb_selected_objects > 0:
                 logging.info("--- Selection made by the user ---")
                 logging.info(nb_selected_objects)
                 cmd.iterate('(sele)', 'models.add(model)', space=myspace)
@@ -168,7 +168,7 @@ def check_selections(queue):
             #logging.debug(cmd.get_names("selections")[0])
 
             nb_selected_objects = cmd.count_atoms('sele')
-            if(nb_selected_objects > 0):
+            if nb_selected_objects > 0:
                 logging.info("--- Selection made by the user ---")
                 cmd.iterate('(sele)', 'residues.add(resv)', space=myspace)
                 logging.info(myspace['residues'])
