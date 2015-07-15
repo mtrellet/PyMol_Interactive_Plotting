@@ -26,9 +26,19 @@
             <button type="submit">Create plots</button>
         </form>
     </div>
-    <div id="synchro">
-        <input type="checkbox" id="sync"> Synchronize plots </input>
+    <div id="synchro"></br></br>
+        <b>Synchronisation: </b>
+        <input type="checkbox" id="sync_plots" checked> Synchronize plots </input>
+        <input type="checkbox" id="sync_visu" checked> Synchronize visualisation </input>
+        <div id="context_lvl_choices"></br>
+            <b>Contextualization: </b>
+            <form id="update_context_lvl">
+                <input type="radio" name="context_lvl" value="none">No context</input>
+                <input type="radio" name="context_lvl" value="weak" checked>Weak context</input>
+                <input type="radio" name="context_lvl" value="strong">Strong context</input>
+            </form>
+        </div>
     </div>
-    <div id='demo'></div>
+    <div id='demo'></br></br></div>
 </body>
 </html>

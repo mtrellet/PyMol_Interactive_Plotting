@@ -28,6 +28,11 @@ $(document).ready(function() {
         return false;
     });
 
+    $('input[type=radio][name=context_lvl]').change(function() {
+        console.log($('input[name="context_lvl"]:checked').val());
+        socket.emit('update_context', {data: $('input[name="context_lvl"]:checked').val()});
+    });
+
     socket.on('list_ana', function(msg){
         console.log(msg);
         $("#current_plots").append('<h3>Current selection: <h3>')
@@ -77,6 +82,7 @@ $(document).ready(function() {
         y_select.selectedIndex = 0;
         console.log(request_ana)
         socket.emit('create', {data: request_ana});
+        request_ana = [];
         return false;
     });
 

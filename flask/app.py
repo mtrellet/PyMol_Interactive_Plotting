@@ -32,6 +32,7 @@ socketio = SocketIO(app)
 osc_client = None
 osc_port = None
 target = None
+context = "weak"
 
 rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com", "http://peptide_traj.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
 
@@ -113,6 +114,12 @@ def get_plot_values(message):
         # Send data ids to PyMol
         liblo.send((osc_client, osc_port), "/ids", list_ids)
 
+@socketio.on('update_context', namespace='/socketio')
+def change_scale(message):
+    global context
+    logging.info("Update current context level to: "+message['data'])
+    context = message['data']
+
     #socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
 
 # def new_plot_callback(path, args):
@@ -158,8 +165,8 @@ if __name__ == "__main__":
 
     # send all messages to port client_port on the local machine
     try:
-        target = liblo.Address(args.client_port)
-        #target = liblo.Address('chm6048.limsi.fr', args.client_port)
+        #target = liblo.Address(args.client_port)
+        target = liblo.Address('chm6048.limsi.fr', args.client_port)
         logging.info("Initialization of sender adress on %s" % target.url)
         logging.info(target.url)
     except liblo.AddressError, err:

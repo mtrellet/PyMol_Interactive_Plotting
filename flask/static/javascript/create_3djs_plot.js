@@ -1,3 +1,9 @@
+var context_colors={
+     "none":["white","aliceblue"],
+     "weak":["grey","grey"],
+     "strong":["black", "black"]
+};
+
 function create_3djs_plot(filename, counter) {
 
     $("#demo").append('<div id="plot_'+counter+'"></div>');
@@ -73,7 +79,8 @@ function create_3djs_plot(filename, counter) {
             .attr("cx", function(d) { return x(getX(d)) })
             .attr("cy", function(d) { return y(getY(d)) })
             .classed("selected_"+counter, false)
-            .style("fill", "grey")
+            .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
+            .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1])
             .on("click", function(d) {
                 d3.select("#plot_"+counter+" .value").text("Id: " + d.id + "  "+x_type+": " + d.x +"  "+y_type+": " + d.y);
                 var isSelected = d3.select(this).classed( "selected_"+counter);
@@ -90,7 +97,8 @@ function create_3djs_plot(filename, counter) {
             .on("mouseout", function(d) {
                 if(!d3.select(this).classed("selected_"+counter)){
                     d3.select(this)
-                      .style("fill", "grey");
+                      .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
+                      .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
                 }
             })
 
@@ -115,18 +123,20 @@ function create_3djs_plot(filename, counter) {
         console.log("DOWN")
         var selected = [];
 
-        if(document.getElementById("sync").checked){
+        if(document.getElementById("sync_plots").checked){
             var svgs = document.getElementsByTagName("svg");
             for(var i = 0; i < svgs.length; i++){
                 d3.selectAll("svg").selectAll('circle.selected_'+i)
                   .classed("selected_"+i, false)
-                  .style('fill', 'grey')
+                  .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
+                  .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
             }
         }
         else{
             d3.select("#plot_"+counter).selectAll('circle.selected_'+counter)
               .classed( "selected_"+counter, false)
-              .style('fill', 'grey')
+              .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
+              .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
         }
         // console.log(test[0].length)
         // test.each(function(data) {
@@ -197,15 +207,17 @@ function create_3djs_plot(filename, counter) {
                     d3.select(this)
                       .classed("selected_"+counter, true)
                       .style("fill", "blue")
+                      .style("stroke", "blue")
                 }
                 else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
                     d3.select(this)
                       .classed("selected_"+counter, false)
-                      .style("fill", "grey")
+                      .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
+                      .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
                 }
             })
 
-            if (document.getElementById("sync").checked){
+            if (document.getElementById("sync_plots").checked){
                 var svgs = document.getElementsByTagName("svg");
                 for(var i = 0; i < svgs.length; i++){
                     if (i != counter){
@@ -215,6 +227,7 @@ function create_3djs_plot(filename, counter) {
                             d3.select("#plot_"+i).select("#"+id)
                               .classed("selected_"+i, true)
                               .style("fill", "blue")
+                              .style("stroke", "blue")
                         })
                     }
                 }
@@ -226,25 +239,29 @@ function create_3djs_plot(filename, counter) {
     .on( "mouseup", function() {
         console.log("UP")
         d3.select("#svg_"+counter).select( ".selection_"+counter).remove();
-        checkSelected(counter);
+        if(document.getElementById("sync_visu").checked){
+            checkSelected(counter);
+        }
     });
 
     svg.on( "touchstart", function() {
         var p = d3.mouse( this);
         console.log("DOWN")
 
-        if(document.getElementById("sync").checked){
+        if(document.getElementById("sync_plots").checked){
             var svgs = document.getElementsByTagName("svg");
             for(var i = 0; i < svgs.length; i++){
                 d3.selectAll("svg").selectAll('circle.selected_'+i)
                   .classed("selected_"+i, false)
-                  .style('fill', 'grey')
+                  .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
+                  .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
             }
         }
         else{
             d3.select("#plot_"+counter).selectAll('circle.selected_'+counter)
               .classed( "selected_"+counter, false)
-              .style('fill', 'grey')
+              .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
+              .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
         }
 
         var re = svg.select("rect.selection_"+counter)
@@ -310,15 +327,17 @@ function create_3djs_plot(filename, counter) {
                     d3.select(this)
                       .classed("selected_"+counter, true)
                       .style("fill", "blue")
+                      .style("stroke", "blue")
                 }
                 else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
                     d3.select(this)
                       .classed("selected_"+counter, false)
-                      .style("fill", "grey")
+                      .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
+                      .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
                 }
             })
 
-            if (document.getElementById("sync").checked){
+            if (document.getElementById("sync_plots").checked){
                 var svgs = document.getElementsByTagName("svg");
                 for(var i = 0; i < svgs.length; i++){
                     if (i != counter){
@@ -328,6 +347,7 @@ function create_3djs_plot(filename, counter) {
                             d3.select("#plot_"+i).select("#"+id)
                               .classed("selected_"+i, true)
                               .style("fill", "blue")
+                              .style("stroke", "blue")
                         })
                     }
                 }
@@ -338,7 +358,9 @@ function create_3djs_plot(filename, counter) {
     })
     .on( "touchend", function() {
         svg.select( ".selection_"+counter).remove();
-        checkSelected(counter);
+        if(document.getElementById("sync_visu").checked){
+            checkSelected(counter);
+        }
     });
 }
 
