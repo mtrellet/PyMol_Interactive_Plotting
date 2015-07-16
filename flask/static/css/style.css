@@ -72,11 +72,12 @@ svg *::-webkit-selection {
     background:transparent;
 }
 
-#two_column {
+div[id*="_two_column"] {
    left: 10px;
    width:300px;
    clear:both;
 }
+
 #left_col {
    float:left;
    width:150px;
@@ -87,13 +88,32 @@ svg *::-webkit-selection {
    width:150px;
 }
 
-#analysis_buttons {
+div[id*="_buttons"] {
    float: left;
    clear: both;
    margin:0 auto;
 }
 
-#current_plots {
+div[id*="_current_plots"] {
+    float: left;
+    clear:both;
+}
+
+div[id*="_lvl"] {
+    float: left;
+    clear:both;
+}
+
+div[id*="_plot_"] {
+    float:left;
+}
+
+#sync_all {
+    float: left;
+    clear:both;
+}
+
+#context_lvl_choices {
     float: left;
     clear:both;
 }
@@ -110,14 +130,6 @@ h3 {
 #synchro {
     float:left;
     clear:both;
-}
-
-div[id="plot_0"] {
-    float:left;
-}
-
-div[id="plot_1"] {
-    float:right;
 }
 
 text {

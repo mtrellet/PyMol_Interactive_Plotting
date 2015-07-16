@@ -4,13 +4,14 @@ var context_colors={
      "strong":["black", "black"]
 };
 
-function create_3djs_plot(filename, counter) {
+function create_3djs_plot(filename, counter, level) {
 
-    $("#demo").append('<div id="plot_'+counter+'"></div>');
-    $("#plot_"+counter).append('<p class="value">Hint: You can click on the dots.</p>');
+    $("#"+level+"_lvl").append('<div id='+level+'_plot_'+counter+'></div>');
+    $("#"+level+"_plot_"+counter).append('<p class="value">Hint: You can click on the dots.</p>');
 
     console.log(filename);
     console.log(counter);
+    console.log(level);
 
     var getID = function(d) { return "id"+d.id }
     var getX = function(d) { return d.x }
@@ -30,7 +31,7 @@ function create_3djs_plot(filename, counter) {
       .range([height, 0])
 
 
-    window.svg = d3.select("#plot_"+counter)
+    window.svg = d3.select("#"+level+"_plot_"+counter)
       .append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
@@ -38,7 +39,7 @@ function create_3djs_plot(filename, counter) {
         .attr("transform",
               "translate("+margin.left + "," + margin.top + ")")
         .attr("class", counter)
-        .attr("id", "svg_"+counter)
+        .attr("id", level+"_svg_"+counter)
 
     // Define the axes
     var xAxis = d3.svg.axis().scale(x)
@@ -58,13 +59,13 @@ function create_3djs_plot(filename, counter) {
         x.domain(d3.extent(data.values, getX))
         y.domain(d3.extent(data.values, getY))
 
-        d3.select("#svg_"+counter).append("text")
+        d3.select("#"+level+"_svg_"+counter).append("text")
             .attr("class", "x_label")
             .attr("text-anchor", "end")
             .attr("x", width)
             .attr("y", height - 6)
             .text(x_type)
-        d3.select("#svg_"+counter).append("text")
+        d3.select("#"+level+"_svg_"+counter).append("text")
             .attr("class", "y_label")
             .attr("text-anchor", "end")
             .attr("y", 6)
@@ -82,7 +83,7 @@ function create_3djs_plot(filename, counter) {
             .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
             .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1])
             .on("click", function(d) {
-                d3.select("#plot_"+counter+" .value").text("Id: " + d.id + "  "+x_type+": " + d.x +"  "+y_type+": " + d.y);
+                d3.select("#"+level+"_plot_"+counter+" .value").text("Id: " + d.id + "  "+x_type+": " + d.x +"  "+y_type+": " + d.y);
                 var isSelected = d3.select(this).classed( "selected_"+counter);
                 d3.select(this)
                   .classed( "selected_"+counter, !isSelected);
@@ -103,14 +104,14 @@ function create_3djs_plot(filename, counter) {
             })
 
         // Add the X Axis
-        d3.select("#svg_"+counter).append("g")
+        d3.select("#"+level+"_svg_"+counter).append("g")
           .attr("class", "x axis")
           .attr("id", "plot_"+counter)
           .attr("transform", "translate(0," + height + ")")
           .call(xAxis);
 
         // Add the Y Axis
-        d3.select("#svg_"+counter).append("g")
+        d3.select("#"+level+"_svg_"+counter).append("g")
           .attr("class", "y axis")
           .attr("id", "plot_"+counter)
           .call(yAxis);
@@ -118,7 +119,7 @@ function create_3djs_plot(filename, counter) {
 
     var start_select = {x : 0, y : 0}
 
-    d3.select("#svg_"+counter).on( "mousedown", function() {
+    d3.select("#"+level+"_svg_"+counter).on( "mousedown", function() {
         var p = d3.mouse( this);
         console.log("DOWN")
         var selected = [];
@@ -133,7 +134,7 @@ function create_3djs_plot(filename, counter) {
             }
         }
         else{
-            d3.select("#plot_"+counter).selectAll('circle.selected_'+counter)
+            d3.select("#"+level+"_plot_"+counter).selectAll('circle.selected_'+counter)
               .classed( "selected_"+counter, false)
               .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
               .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
@@ -143,13 +144,13 @@ function create_3djs_plot(filename, counter) {
         //   console.log(d3.select(this).classed("selected"))
         // });
 
-        var re = d3.select("#svg_"+counter).select("rect.selection_"+counter)
+        var re = d3.select("#"+level+"_svg_"+counter).select("rect.selection_"+counter)
         if(re.empty()){
             start_select.x = p[0];
             start_select.y = p[1];
             console.log("Selection started");
             // console.log(p)
-            d3.select("#svg_"+counter).append( "rect")
+            d3.select("#"+level+"_svg_"+counter).append( "rect")
             .attr({
               rx      : 6,
               ry      : 6,
@@ -162,7 +163,7 @@ function create_3djs_plot(filename, counter) {
         }
     })
     .on( "mousemove", function() {
-        var s = d3.select("#svg_"+counter).select( "rect.selection_"+counter);
+        var s = d3.select("#"+level+"_svg_"+counter).select( "rect.selection_"+counter);
 
         if( !s.empty()) {
             var p = d3.mouse( this),
@@ -200,7 +201,7 @@ function create_3djs_plot(filename, counter) {
                 d.height = move.y - start_select.y;
             }
 
-            d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
+            d3.select("#"+level+"_plot_"+counter).selectAll("circle").each(function(data) {
                 var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
                 //console.log(circle)
                 if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
@@ -221,10 +222,10 @@ function create_3djs_plot(filename, counter) {
                 var svgs = document.getElementsByTagName("svg");
                 for(var i = 0; i < svgs.length; i++){
                     if (i != counter){
-                        d3.select("#plot_"+counter).selectAll("circle.selected_"+counter).each(function(data) {
+                        d3.select("#"+level+"_plot_"+counter).selectAll("circle.selected_"+counter).each(function(data) {
                             var id = d3.select(this).attr("id");
                             console.log(id);
-                            d3.select("#plot_"+i).select("#"+id)
+                            d3.select("#"+level+"_plot_"+i).select("#"+id)
                               .classed("selected_"+i, true)
                               .style("fill", "blue")
                               .style("stroke", "blue")
@@ -238,7 +239,7 @@ function create_3djs_plot(filename, counter) {
     })
     .on( "mouseup", function() {
         console.log("UP")
-        d3.select("#svg_"+counter).select( ".selection_"+counter).remove();
+        d3.select("#"+level+"_svg_"+counter).select( ".selection_"+counter).remove();
         if(document.getElementById("sync_visu").checked){
             checkSelected(counter);
         }

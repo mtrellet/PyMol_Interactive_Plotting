@@ -96,17 +96,20 @@ def get_available_analyses(message):
     print message['data']
     ava_ana = rdf_handler.get_analyses()
     logging.info("Available analyses: %s" % ava_ana)
-    socketio.emit('list_ana', {'data': [ana for ana in ava_ana]}, namespace='/socketio')
+    socketio.emit('list_model_ana', {'data': [ana for ana in ava_ana['Model']]}, namespace='/socketio')
+    socketio.emit('list_chain_ana', {'data': [ana for ana in ava_ana['Chain']]}, namespace='/socketio')
+    socketio.emit('list_residue_ana', {'data': [ana for ana in ava_ana['Residue']]}, namespace='/socketio')
+    socketio.emit('list_atom_ana', {'data': [ana for ana in ava_ana['Atom']]}, namespace='/socketio')
 
 @socketio.on('create', namespace='/socketio')
 def get_plot_values(message):
     global rdf_handler
-    print message['data']
+    print message
     for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
         # Create json file with required information
-        json_file = rdf_handler.create_JSON(x_type, y_type)
+        json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
         # Send json file to webserver
-        socketio.emit('new_plot', {'data' : json_file}, namespace='/socketio')
+        socketio.emit('new_plot', {'data' : json_file, 'lvl': message['lvl']}, namespace='/socketio')
         # Get data ids
         ids = rdf_handler.get_ids(x_type, y_type)
         list_ids = [int(id) for id in ids]

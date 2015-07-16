@@ -18,6 +18,7 @@ class RDF_Handler:
         #self.main_handler = main_handler
         # self.rdf_graph = Graph()
         self.scale = scale
+        self.scales = ["Model", "Chain", "Residue", "Atom"]
         self.distant_server = server
         self.uri = uri
         self.rules_name = rules
@@ -36,19 +37,19 @@ class RDF_Handler:
     def set_scale(self,scale):
         pass
 
-    def create_JSON(self, x_query_type, y_query_type):
+    def create_JSON(self, x_query_type, y_query_type, scale):
         # Query points to draw plot
         """
         Query points to draw plots
         :param x_query_type: nature of x values
         :param y_query_type: nature of y values
         """
-        points = self.query_rdf(x_query_type, y_query_type, self.scale)
+        scale = scale or self.scale
+        points = self.query_rdf(x_query_type, y_query_type, scale.capitalize())
 
         ### Create dictionary for json
         all_models = set()
-        json_dic = {}
-        json_dic['values'] = []
+        json_dic = {'values': []}
         for row in points:
             if int(row[2]) not in all_models:
                 json_dic['values'].append({'id': int(row[2]), "x": float(row[0]), "y": float(row[1])})
@@ -60,7 +61,7 @@ class RDF_Handler:
         json_dic['nb'] = []
         json_dic['nb'].append({'nb_models': len(all_models)})
 
-        xmin, xmax, ymin, ymax = self.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
+        xmin, xmax, ymin, ymax = self.get_mini_maxi_values(x_query_type, y_query_type, scale.capitalize())
         json_dic['dim'] = []
         json_dic['dim'].append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
 
@@ -68,7 +69,7 @@ class RDF_Handler:
         logging.debug("json dictionary: \n%s" % json_string)
 
         import os.path
-        file_name = "%s_%s_%s.json" % (self.scale.lower(), x_query_type, y_query_type)
+        file_name = "%s_%s_%s.json" % (scale.lower(), x_query_type, y_query_type)
         file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s" % file_name
         # if not os.path.exists(file_path):
         output = open(file_path, 'w')
@@ -180,22 +181,40 @@ class RDF_Handler:
 
     def get_analyses(self, scale=None):
         """ Get which analyses already exist for specific scale """
-        scale = scale or self.scale
-        #query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
-        query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
-                % (self.uri, scale)
-        logging.info("QUERY: \n%s" % query)
-        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
-        qres = self.sparql_wrapper.query().convert()
+        scale = scale or self.scales
 
-        logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
-        res = []
-        import re
-        for row in qres["results"]["bindings"]:
-            parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
-            res.append(parsed)
+        if type(scale) is list:
+            results = {}
+            for s in scale:
+                query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
+                % (self.uri, s)
+                logging.info("QUERY: \n%s" % query)
+                self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+                qres = self.sparql_wrapper.query().convert()
 
-        return res
+                logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+                results[s] = []
+                import re
+                for row in qres["results"]["bindings"]:
+                    parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
+                    results[s].append(parsed)
+            return results
+        else:
+            #query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
+            query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
+                    % (self.uri, scale)
+            logging.info("QUERY: \n%s" % query)
+            self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+            qres = self.sparql_wrapper.query().convert()
+
+            logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+            res = []
+            import re
+            for row in qres["results"]["bindings"]:
+                parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
+                res.append(parsed)
+
+            return res
 
     def add_distance_points(self, item_selected, model_selected, scale=None):
         scale = scale or self.scale
