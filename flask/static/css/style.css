@@ -104,6 +104,11 @@ div[id*="_lvl"] {
     clear:both;
 }
 
+div[id*="_plots"] {
+    float:left;
+    clear:both;
+}
+
 div[id*="_plot_"] {
     float:left;
 }

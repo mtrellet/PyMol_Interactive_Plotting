@@ -6,8 +6,16 @@ var context_colors={
 
 function create_3djs_plot(filename, counter, level) {
 
-    $("#"+level+"_lvl").append('<div id='+level+'_plot_'+counter+'></div>');
+    $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+'></div>');
     $("#"+level+"_plot_"+counter).append('<p class="value">Hint: You can click on the dots.</p>');
+    $("#"+level+"_plot_"+counter).append('<form id="destroy" name="'+level+'_plot_'+counter+'"><button type="submit">Destroy</button>')
+
+    $('form#destroy').submit(function(event) {
+        var plot = event.target.name;
+        document.getElementById(plot).remove();
+        document.getElementById(level+"_current_plots").innerHTML = "";
+        document.getElementById(level+"_buttons").style.display = "none";
+    });
 
     console.log(filename);
     console.log(counter);

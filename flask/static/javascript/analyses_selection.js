@@ -175,6 +175,8 @@ $(document).ready(function() {
         $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" / ");
         $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+"<br>");
 
+        document.getElementById(struct_lvl+"_buttons").style.display = "none"
+
         request_ana[struct_lvl] = [];
         return false;
     });
