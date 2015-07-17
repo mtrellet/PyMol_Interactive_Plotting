@@ -30,6 +30,7 @@ $(document).ready(function() {
     });
 
     $('form#get_ana').submit(function(event) {
+        document.getElementById("ana_button").style.display = 'none';
         socket.emit('get', {data: 'request'});
         return false;
     });
@@ -43,10 +44,10 @@ $(document).ready(function() {
 
     socket.on('list_model_ana', function(msg){
         console.log(msg);
-        $("#model_current_plots").append('<h3>Current selection: <h3>')
+        $("#model_current_plots").append('<b>Current selection: </b>')
         // X AXIS
-        var html = '<div id="left_col">\n<h3> X-axis type: </h3>\n';
-        html+='<select id="model_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select>';
+        var html = '<div id="left_col">\n <p align="left"> X-axis type: \n';
+        html+='<select id="model_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         //$("#model_two_column").append('<div id="left_col">\n<h3> X-axis type: </h3> <br>');
         $("#model_two_column").append(html);
         var list_x = document.getElementById("model_ana_choice_x")
@@ -56,8 +57,8 @@ $(document).ready(function() {
         }
 
         // Y AXIS
-        html = '<div id="right_col">\n<h3> Y-axis type: </h3>\n';
-        html+= '<select id="model_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option>></select>';
+        var html = '<div id="right_col">\n <p align="left"> Y-axis type: \n';
+        html+='<select id="model_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         $("#model_two_column").append(html);
         var list_y = document.getElementById("model_ana_choice_y")
         for (i=0; i < msg.data.length; i++) {
@@ -72,10 +73,10 @@ $(document).ready(function() {
 
     socket.on('list_chain_ana', function(msg){
         console.log(msg);
-        $("#chain_current_plots").append('<h3>Current selection: <h3>')
+        $("#chain_current_plots").append('<b>Current selection: </b>')
         // X AXIS
-        var html = '<div id="left_col">\n<h3> X-axis type: </h3>\n';
-        html+='<select id="chain_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select>';
+        var html = '<div id="left_col">\n <p align="left"> X-axis type: \n';
+        html+='<select id="chain_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         //$("#chain_two_column").append('<div id="left_col">\n<h3> X-axis type: </h3> <br>');
         $("#chain_two_column").append(html);
         var list_x = document.getElementById("chain_ana_choice_x")
@@ -85,8 +86,8 @@ $(document).ready(function() {
         }
 
         // Y AXIS
-        html = '<div id="right_col">\n<h3> Y-axis type: </h3>\n';
-        html+= '<select id="chain_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option>></select>';
+        var html = '<div id="right_col">\n <p align="left"> Y-axis type: \n';
+        html+='<select id="chain_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         $("#chain_two_column").append(html);
         var list_y = document.getElementById("chain_ana_choice_y")
         for (i=0; i < msg.data.length; i++) {
@@ -101,10 +102,10 @@ $(document).ready(function() {
 
     socket.on('list_residue_ana', function(msg){
         console.log(msg);
-        $("#residue_current_plots").append('<h3>Current selection: <h3>')
+        $("#residue_current_plots").append('<b>Current selection: </b>')
         // X AXIS
-        var html = '<div id="left_col">\n<h3> X-axis type: </h3>\n';
-        html+='<select id="residue_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select>';
+        var html = '<div id="left_col">\n <p align="left"> X-axis type: \n';
+        html+='<select id="residue_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         //$("#residue_two_column").append('<div id="left_col">\n<h3> X-axis type: </h3> <br>');
         $("#residue_two_column").append(html);
         var list_x = document.getElementById("residue_ana_choice_x")
@@ -114,8 +115,8 @@ $(document).ready(function() {
         }
 
         // Y AXIS
-        html = '<div id="right_col">\n<h3> Y-axis type: </h3>\n';
-        html+= '<select id="residue_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option>></select>';
+        var html = '<div id="right_col">\n <p align="left"> Y-axis type: \n';
+        html+='<select id="residue_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         $("#residue_two_column").append(html);
         var list_y = document.getElementById("residue_ana_choice_y")
         for (i=0; i < msg.data.length; i++) {
@@ -130,10 +131,10 @@ $(document).ready(function() {
 
     socket.on('list_atom_ana', function(msg){
         console.log(msg);
-        $("#atom_current_plots").append('<h3>Current selection: <h3>')
+        $("#atom_current_plots").append('<b>Current selection: </b>')
         // X AXIS
-        var html = '<div id="left_col">\n<h3> X-axis type: </h3>\n';
-        html+='<select id="atom_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select>';
+        var html = '<div id="left_col">\n <p align="left"> X-axis type: \n';
+        html+='<select id="atom_ana_choice_x" onchange="check_x(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         //$("#atom_two_column").append('<div id="left_col">\n<h3> X-axis type: </h3> <br>');
         $("#atom_two_column").append(html);
         var list_x = document.getElementById("atom_ana_choice_x")
@@ -143,8 +144,8 @@ $(document).ready(function() {
         }
 
         // Y AXIS
-        html = '<div id="right_col">\n<h3> Y-axis type: </h3>\n';
-        html+= '<select id="atom_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option>></select>';
+        var html = '<div id="right_col">\n <p align="left"> Y-axis type: \n';
+        html+='<select id="atom_ana_choice_y" onchange="check_y(this);">\n<option value="None" selected>Choose a type</option></select></p>';
         $("#atom_two_column").append(html);
         var list_y = document.getElementById("atom_ana_choice_y")
         for (i=0; i < msg.data.length; i++) {
@@ -172,8 +173,8 @@ $(document).ready(function() {
         console.log(request_ana[struct_lvl])
         socket.emit('create', {data: request_ana[struct_lvl], lvl: struct_lvl});
 
-        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" / ");
-        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+"<br>");
+        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+"/");
+        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ");
 
         document.getElementById(struct_lvl+"_buttons").style.display = "none"
 
@@ -197,6 +198,14 @@ $(document).ready(function() {
 //        location.reload(true);
     });
 });
+
+function expand(elmt){
+    to_expand = elmt.nextElementSibling.id;
+    if (elmt.nextElementSibling.style.display == "none")
+        elmt.nextElementSibling.style.display = ""
+    else
+        elmt.nextElementSibling.style.display = "none"
+}
 
 function check_x(choice){
     var struct_lvl = choice.id.substring(0,choice.id.indexOf('_'));
@@ -232,7 +241,7 @@ function new_ana_lists(choice){
     var y_select = document.getElementById(struct_lvl+"_ana_choice_y")
     request_ana[struct_lvl].push(y_select.value)
     y_select.selectedIndex = 0;
-    $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+"<br>")
+    $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ")
     console.log(request_ana[struct_lvl]);
 }
 

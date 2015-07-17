@@ -74,18 +74,18 @@ svg *::-webkit-selection {
 
 div[id*="_two_column"] {
    left: 10px;
-   width:300px;
+   width:500px;
    clear:both;
 }
 
 #left_col {
    float:left;
-   width:150px;
+   width:250px;
 }
 
 #right_col {
    float:right;
-   width:150px;
+   width:250px;
 }
 
 div[id*="_buttons"] {
@@ -125,6 +125,25 @@ div[id*="_plot_"] {
 
 h3 {
     text-align:center;
+}
+
+h2 {
+    clear: both;
+}
+
+hr {
+    clear: both;
+    border: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}
+
+div br{
+    clear: both;
+}
+
+.inline br {
+    display: none;
 }
 
 #demo {

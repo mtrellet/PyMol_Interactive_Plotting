@@ -4,6 +4,8 @@ var context_colors={
      "strong":["black", "black"]
 };
 
+var plots = {"model": [], "chain": [], "residue": [], "atom": []};
+
 function create_3djs_plot(filename, counter, level) {
 
     $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+'></div>');
@@ -11,10 +13,21 @@ function create_3djs_plot(filename, counter, level) {
     $("#"+level+"_plot_"+counter).append('<form id="destroy" name="'+level+'_plot_'+counter+'"><button type="submit">Destroy</button>')
 
     $('form#destroy').submit(function(event) {
+        console.log(plots);
         var plot = event.target.name;
         document.getElementById(plot).remove();
         document.getElementById(level+"_current_plots").innerHTML = "";
         document.getElementById(level+"_buttons").style.display = "none";
+        cur_plot = level+"_plot_"+counter;
+        for(var p = 0; p < plots[level].length; p++){
+            console.log(plots[level][p]);
+            console.log(cur_plot);
+            if (plots[level][p] == cur_plot){
+                delete plots[level][p];
+                p = p-1;
+            }
+        }
+        console.log(plots);
     });
 
     console.log(filename);
@@ -371,6 +384,8 @@ function create_3djs_plot(filename, counter, level) {
             checkSelected(counter);
         }
     });
+
+    plots[level].push(level+"_plot_"+counter);
 }
 
 function checkSelected(c, id) {
