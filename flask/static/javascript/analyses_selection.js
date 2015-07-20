@@ -173,7 +173,7 @@ $(document).ready(function() {
         console.log(request_ana[struct_lvl])
         socket.emit('create', {data: request_ana[struct_lvl], lvl: struct_lvl});
 
-        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+"/");
+        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-2]+"/");
         $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ");
 
         document.getElementById(struct_lvl+"_buttons").style.display = "none"

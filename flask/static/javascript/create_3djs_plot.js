@@ -6,9 +6,13 @@ var context_colors={
 
 var plots = {"model": [], "chain": [], "residue": [], "atom": []};
 
+var lvl_equivalence = {0: "model", 1: "chain", 2: "residue", 3: "atom"};
+
 function create_3djs_plot(filename, counter, level) {
 
-    $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+'></div>');
+    var lvl_num = lvl_equivalence[level];
+
+    $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+' class="plot" class="'+level+'"></div>');
     $("#"+level+"_plot_"+counter).append('<p class="value">Hint: You can click on the dots.</p>');
     $("#"+level+"_plot_"+counter).append('<form id="destroy" name="'+level+'_plot_'+counter+'"><button type="submit">Destroy</button>')
 
@@ -184,6 +188,8 @@ function create_3djs_plot(filename, counter, level) {
         }
     })
     .on( "mousemove", function() {
+        var start = new Date().getTime();
+
         var s = d3.select("#"+level+"_svg_"+counter).select( "rect.selection_"+counter);
 
         if( !s.empty()) {
@@ -239,24 +245,36 @@ function create_3djs_plot(filename, counter, level) {
                 }
             })
 
-            if (document.getElementById("sync_plots").checked){
-                var svgs = document.getElementsByTagName("svg");
-                for(var i = 0; i < svgs.length; i++){
-                    if (i != counter){
-                        d3.select("#"+level+"_plot_"+counter).selectAll("circle.selected_"+counter).each(function(data) {
-                            var id = d3.select(this).attr("id");
-                            console.log(id);
-                            d3.select("#"+level+"_plot_"+i).select("#"+id)
-                              .classed("selected_"+i, true)
-                              .style("fill", "blue")
-                              .style("stroke", "blue")
-                        })
-                    }
-                }
-            }
+//            if (document.getElementById("sync_plots").checked){
+//                var svgs = document.getElementsByTagName("svg");
+//                for(var i = 0; i < svgs.length; i++){
+//                    if (i != counter){
+//                        d3.select("#"+level+"_plot_"+counter).selectAll("circle.selected_"+counter).each(function(data) {
+//                            var id = d3.select(this).attr("id");
+//                            d3.select("#"+level+"_plot_"+i).select("#"+id)
+//                              .classed("selected_"+i, true)
+//                              .style("fill", "blue")
+//                              .style("stroke", "blue")
+//                        })
+//                    }
+//                }
+//            }
 
-            s.attr( d);
+            d3.selectAll("div."+level).selectAll("circle.selected_"+counter).each(function(data) {
+                var id = d3.select(this).attr("id");
+                d3.select("#"+id)
+                  .classed("selected_"+i, true)
+                  .style("fill", "blue")
+                  .style("stroke", "blue")
+            })
+
+
+//            s.attr( d);
         }
+
+        var end = new Date().getTime();
+        var time = end - start;
+        console.log('Execution time: ' + time);
     })
     .on( "mouseup", function() {
         console.log("UP")
