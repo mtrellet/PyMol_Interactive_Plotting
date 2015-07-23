@@ -37,7 +37,7 @@ class RDF_Handler:
     def set_scale(self,scale):
         pass
 
-    def create_JSON(self, x_query_type, y_query_type, scale):
+    def create_JSON(self, x_query_type, y_query_type, scale, filter= None, filter_lvl = None):
         # Query points to draw plot
         """
         Query points to draw plots
@@ -45,7 +45,13 @@ class RDF_Handler:
         :param y_query_type: nature of y values
         """
         scale = scale or self.scale
-        points = self.query_rdf(x_query_type, y_query_type, scale.capitalize())
+
+        if not filter:
+            print "NO FILTER"
+            points = self.query_rdf(x_query_type, y_query_type, scale.capitalize())
+        else:
+            print "FILTER"
+            points = self.query_rdf_filtered(x_query_type, y_query_type, scale.capitalize(), filter, filter_lvl)
 
         ### Create dictionary for json
         all_models = set()
@@ -103,6 +109,42 @@ class RDF_Handler:
 
         return models
 
+    def query_rdf_filtered(self, x_query_type, y_query_type, scale=None, filter = None, filter_lvl = None):
+        """ Query the RDF graph to build complete plot with a filter"""
+        scale = scale or self.scale
+        logging.info(scale)
+
+        ids = tuple([int(i) for i in filter])
+        # Remove the final comma when only one id is in the tuple
+        if len(ids) == 1:
+            ids_str = str(ids).replace(',','')
+        else:
+            ids_str = str(ids)
+
+        print ids_str
+        query = 'SELECT ?x ?y FROM <%s> WHERE { ?ind my:%s ?x . ?ind my:%s ?y . ?ind a my:%s . ?ind my:belongs_to ?parent ' \
+                '. ?parent a my:%s . ?parent my:uniq_id ?id . filter(?id in %s)}'\
+                % (self.uri, x_query_type, y_query_type, scale, filter_lvl.capitalize(), ids_str)
+        query2 = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?id . ?ind my:belongs_to ?parent ' \
+                '. ?parent a my:%s . ?parent my:uniq_id ?uniq . filter(?uniq in %s)}' % (self.uri, scale, filter_lvl.capitalize(), ids_str)
+
+        logging.info("QUERY: \n%s" % query)
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+        logging.info("QUERY 2: \n%s" % query2)
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
+        qres2 = self.sparql_wrapper.query().convert()
+
+        logging.info("Number of queried entities: %d %d" % (len(qres["results"]["bindings"]), len(qres2["results"]["bindings"])))
+
+        points = []
+        for i in range(0,len(qres["results"]["bindings"])):
+            points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
+            points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
+
+        return points
+
+
     def query_rdf(self, x_query_type, y_query_type, scale=None):
         """ Query the RDF graph to build complete plot """
         scale = scale or self.scale
@@ -112,7 +154,8 @@ class RDF_Handler:
 
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}'\
                 % (self.uri, x_query_type, y_query_type, scale, scale.lower())
-        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
+        # query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
+        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:uniq_id ?id}' % (self.uri, scale)
         
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -121,17 +164,12 @@ class RDF_Handler:
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
         qres2 = self.sparql_wrapper.query().convert()
 
-        logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+        logging.info("Number of queried entities: %d %d" % (len(qres["results"]["bindings"]), len(qres2["results"]["bindings"])))
 
         points = []
-
         for i in range(0,len(qres["results"]["bindings"])):
             points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
             points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
-        # for res in qres["results"]["bindings"]:
-        #     points.append( [res["x"]["value"], res["y"]["value"], res["id"]["value"]])
-        # in qres["results"]["bindings"]:
-        #     points.append([ res["x"]["value"], res["y"]["value"] ])
 
         return points
 

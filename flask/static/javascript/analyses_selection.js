@@ -2,7 +2,10 @@ var x_analyses_list = [];
 var y_analyses_list = [];
 var ana_list = [];
 var request_ana = {'model':[], 'chain':[], 'residue':[], 'atom':[]};
+var stored_plots = {'model':[], 'chain':[], 'residue':[], 'atom':[]};
 var counter = 0;
+var url = "http://" + document.domain + ":" + location.port;
+var socket = io.connect(url + "/socketio");
 
 $(document).ready(function() {
 
@@ -18,9 +21,9 @@ $(document).ready(function() {
     to_hide = document.getElementById("synchro");
     to_hide.style.display = 'none';
 
-    var url = "http://" + document.domain + ":" + location.port;
+//    var url = "http://" + document.domain + ":" + location.port;
     console.log(url);
-    var socket = io.connect(url + "/socketio");
+//    var socket = io.connect(url + "/socketio");
     socket.on('connect', function() {
         socket.emit('connected',{data: 'I\'m connected!'});
     });
@@ -157,40 +160,8 @@ $(document).ready(function() {
     });
 
 
-    $('form#send_ana').submit(function(event) {
-        var struct_lvl = event.target.name;
-        var x_select = document.getElementById(struct_lvl+"_ana_choice_x")
-        if (x_select.value != "None"){
-            request_ana[struct_lvl].push(x_select.value)
-        }
-        x_select.selectedIndex = 0;
-
-        var y_select = document.getElementById(struct_lvl+"_ana_choice_y")
-        if (y_select.value != "None"){
-            request_ana[struct_lvl].push(y_select.value)
-        }
-        y_select.selectedIndex = 0;
-        console.log(request_ana[struct_lvl])
-        socket.emit('create', {data: request_ana[struct_lvl], lvl: struct_lvl});
-
-        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-2]+"/");
-        $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ");
-
-        document.getElementById(struct_lvl+"_buttons").style.display = "none"
-
-        request_ana[struct_lvl] = [];
-        return false;
-    });
-
     socket.on('new_plot', function(msg){
         console.log(msg);
-//        var body = document.getElementsByTagName('body')[0];
-//        var script = document.createElement('script');
-//        script.type = 'text/javascript';
-//        script.src = 'static/javascript/analyses_selection.js';
-//        // To pass arguments: http://stackoverflow.com/questions/9642205/how-to-force-a-script-reload-and-re-execute
-//        script.class = msg.data[0];
-//        body.insertBefore(script, body.firstChild);
         create_3djs_plot(msg.data, counter, msg.lvl)
         counter += 1;
         var to_show = document.getElementById("synchro");
@@ -198,6 +169,35 @@ $(document).ready(function() {
 //        location.reload(true);
     });
 });
+
+function update_ana(struct_lvl, filters, filters_lvl){
+    socket.emit('update', {data: stored_plots[struct_lvl], lvl: struct_lvl, filter: filters, filter_lvl: filters_lvl});
+}
+
+function send_ana(event){
+    var struct_lvl = event.name;
+    var x_select = document.getElementById(struct_lvl+"_ana_choice_x")
+    if (x_select.value != "None"){
+        request_ana[struct_lvl].push(x_select.value)
+        stored_plots[struct_lvl].push(x_select.value)
+    }
+    x_select.selectedIndex = 0;
+
+    var y_select = document.getElementById(struct_lvl+"_ana_choice_y")
+    if (y_select.value != "None"){
+        request_ana[struct_lvl].push(y_select.value)
+        stored_plots[struct_lvl].push(y_select.value)
+    }
+    y_select.selectedIndex = 0;
+    console.log(request_ana[struct_lvl])
+    socket.emit('create', {data: request_ana[struct_lvl], lvl: struct_lvl});
+
+    $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-2]+" / ");
+    $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ");
+
+    document.getElementById(struct_lvl+"_buttons").style.display = "none"
+    request_ana[struct_lvl] = [];
+}
 
 function expand(elmt){
     to_expand = elmt.nextElementSibling.id;

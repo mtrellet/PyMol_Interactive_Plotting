@@ -132,6 +132,8 @@ h2 {
 }
 
 hr {
+    width:500px;
+    margin-left:10px;
     clear: both;
     border: 0;
     height: 1px;

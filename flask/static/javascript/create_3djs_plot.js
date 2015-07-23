@@ -10,29 +10,29 @@ var lvl_equivalence = {0: "model", 1: "chain", 2: "residue", 3: "atom"};
 
 function create_3djs_plot(filename, counter, level) {
 
-    var lvl_num = lvl_equivalence[level];
-
-    $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+' class="plot" class="'+level+'"></div>');
+    $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+' class="plot '+level+'"></div>');
     $("#"+level+"_plot_"+counter).append('<p class="value">Hint: You can click on the dots.</p>');
-    $("#"+level+"_plot_"+counter).append('<form id="destroy" name="'+level+'_plot_'+counter+'"><button type="submit">Destroy</button>')
+//    $("#"+level+"_plot_"+counter).append('<form id="destroy" name="'+level+'_plot_'+counter+'" onclick="destroy_plot(this,'+level+','+counter+');"><button type="submit">Destroy</button>')
+    var button = '<button name="'+level+'_plot_'+counter+'" onclick="destroy_plot(this.name,\''+level+'\','+counter+')">Destroy</button>';
+    $("#"+level+"_plot_"+counter).append(button);
 
-    $('form#destroy').submit(function(event) {
-        console.log(plots);
-        var plot = event.target.name;
-        document.getElementById(plot).remove();
-        document.getElementById(level+"_current_plots").innerHTML = "";
-        document.getElementById(level+"_buttons").style.display = "none";
-        cur_plot = level+"_plot_"+counter;
-        for(var p = 0; p < plots[level].length; p++){
-            console.log(plots[level][p]);
-            console.log(cur_plot);
-            if (plots[level][p] == cur_plot){
-                delete plots[level][p];
-                p = p-1;
-            }
-        }
-        console.log(plots);
-    });
+//    $('form#destroy').submit(function(event) {
+//        console.log(plots);
+//        var plot = event.target.name;
+//        document.getElementById(plot).remove();
+//        document.getElementById(level+"_current_plots").innerHTML = "";
+//        document.getElementById(level+"_buttons").style.display = "none";
+//        cur_plot = level+"_plot_"+counter;
+//        for(var p = 0; p < plots[level].length; p++){
+//            console.log(plots[level][p]);
+//            console.log(cur_plot);
+//            if (plots[level][p] == cur_plot){
+//                delete plots[level][p];
+//                p = p-1;
+//            }
+//        }
+//        console.log(plots);
+//    });
 
     console.log(filename);
     console.log(counter);
@@ -63,7 +63,7 @@ function create_3djs_plot(filename, counter, level) {
       // .append("g")
         .attr("transform",
               "translate("+margin.left + "," + margin.top + ")")
-        .attr("class", counter)
+//        .attr("class", counter)
         .attr("id", level+"_svg_"+counter)
 
     // Define the axes
@@ -74,7 +74,7 @@ function create_3djs_plot(filename, counter, level) {
       .orient("left").ticks(5);
 
     // var createGraph = function() {
-    d3.json("../static/json/"+filename, function(error, data) {
+    d3.json("../static/json/"+filename+'?nocache=' + (new Date()).getTime(), function(error, data) {
         if (error){
             console.log(error);
         }
@@ -98,30 +98,32 @@ function create_3djs_plot(filename, counter, level) {
             .attr("transform", "rotate(-90)")
             .text(y_type)
 
+        svg.attr("class", filename)
+
         svg.selectAll(".temp").data(data.values).enter()
           .append("circle")
             .attr("r", 4)
             .attr("id", function(d) { return getID(d) })
             .attr("cx", function(d) { return x(getX(d)) })
             .attr("cy", function(d) { return y(getY(d)) })
-            .classed("selected_"+counter, false)
+            .classed("selected", false)
             .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
             .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1])
             .on("click", function(d) {
                 d3.select("#"+level+"_plot_"+counter+" .value").text("Id: " + d.id + "  "+x_type+": " + d.x +"  "+y_type+": " + d.y);
-                var isSelected = d3.select(this).classed( "selected_"+counter);
+                var isSelected = d3.select(this).classed("selected");
                 d3.select(this)
-                  .classed( "selected_"+counter, !isSelected);
-                checkSelected(counter, d.id);
+                  .classed( "selected", !isSelected);
+                checkSelected(counter, level, d.id);
             })
             .on("mouseover", function(d) {
-                if(!d3.select(this).classed("selected_"+counter)){
+                if(!d3.select(this).classed("selected")){
                     d3.select(this)
                       .style("fill", "blue");
                 }
             })
             .on("mouseout", function(d) {
-                if(!d3.select(this).classed("selected_"+counter)){
+                if(!d3.select(this).classed("selected")){
                     d3.select(this)
                       .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
                       .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
@@ -150,17 +152,16 @@ function create_3djs_plot(filename, counter, level) {
         var selected = [];
 
         if(document.getElementById("sync_plots").checked){
-            var svgs = document.getElementsByTagName("svg");
-            for(var i = 0; i < svgs.length; i++){
-                d3.selectAll("svg").selectAll('circle.selected_'+i)
-                  .classed("selected_"+i, false)
-                  .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
-                  .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
-            }
+//            var svgs = document.getElementsByTagName("svg");
+//            for(var i = 0; i < svgs.length; i++){
+            d3.selectAll("svg").selectAll('circle.selected')
+              .classed("selected", false)
+              .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
+              .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
         }
         else{
-            d3.select("#"+level+"_plot_"+counter).selectAll('circle.selected_'+counter)
-              .classed( "selected_"+counter, false)
+            d3.select("#"+level+"_plot_"+counter).selectAll('circle.selected')
+              .classed( "selected", false)
               .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
               .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
         }
@@ -231,56 +232,77 @@ function create_3djs_plot(filename, counter, level) {
             d3.select("#"+level+"_plot_"+counter).selectAll("circle").each(function(data) {
                 var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
                 //console.log(circle)
-                if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+                if(!d3.select(this).classed("selected") && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
                     d3.select(this)
-                      .classed("selected_"+counter, true)
+                      .classed("selected", true)
                       .style("fill", "blue")
                       .style("stroke", "blue")
                 }
                 else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
                     d3.select(this)
-                      .classed("selected_"+counter, false)
+                      .classed("selected", false)
                       .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
                       .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
                 }
             })
 
+            if (document.getElementById("sync_plots").checked){
+                var svgs = d3.selectAll("div."+level);
+                for(var i = 0; i < svgs.length; i++){
+                    if (i != counter){
+                        d3.select("#"+level+"_plot_"+counter).selectAll("circle.selected").each(function(data) {
+                            var id = d3.select(this).attr("id");
+                            d3.select("#"+level+"_plot_"+i).select("#"+id)
+                              .classed("selected", true)
+                              .style("fill", "blue")
+                              .style("stroke", "blue")
+                        })
+                    }
+                }
+            }
+
 //            if (document.getElementById("sync_plots").checked){
-//                var svgs = document.getElementsByTagName("svg");
-//                for(var i = 0; i < svgs.length; i++){
-//                    if (i != counter){
-//                        d3.select("#"+level+"_plot_"+counter).selectAll("circle.selected_"+counter).each(function(data) {
-//                            var id = d3.select(this).attr("id");
-//                            d3.select("#"+level+"_plot_"+i).select("#"+id)
-//                              .classed("selected_"+i, true)
-//                              .style("fill", "blue")
-//                              .style("stroke", "blue")
-//                        })
+//                d3.selectAll("div."+level).selectAll("circle").each(function(data) {
+//                    var id = d3.select(this).attr("id");
+//                    if(!d3.select(this).classed("selected"){
+//                        d3.select("#"+id)
+//                          .classed("selected", true)
+//                          .style("fill", "blue")
+//                          .style("stroke", "blue")
 //                    }
-//                }
+//
+//                })
 //            }
 
-            d3.selectAll("div."+level).selectAll("circle.selected_"+counter).each(function(data) {
-                var id = d3.select(this).attr("id");
-                d3.select("#"+id)
-                  .classed("selected_"+i, true)
-                  .style("fill", "blue")
-                  .style("stroke", "blue")
-            })
 
-
-//            s.attr( d);
+            s.attr( d);
         }
 
         var end = new Date().getTime();
         var time = end - start;
         console.log('Execution time: ' + time);
     })
+
     .on( "mouseup", function() {
         console.log("UP")
         d3.select("#"+level+"_svg_"+counter).select( ".selection_"+counter).remove();
-        if(document.getElementById("sync_visu").checked){
-            checkSelected(counter);
+        selected = checkSelected(counter, level);
+        if(document.getElementById("sync_plots").checked){
+            for (var key in lvl_equivalence){
+                if (lvl_equivalence[key] == level)
+                    lvl_num = Number(key);
+            }
+            for(var j = lvl_num+1; j< 4; j++){
+                console.log(j+" "+plots[lvl_equivalence[j]].length)
+                for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
+                    name = plots[lvl_equivalence[j]][k]
+                    lvl = name.substring(0,name.indexOf('_'));
+                    c = Number(name.substr(name.length - 1));
+                    console.log(name+" "+lvl+" "+c);
+                    destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
+                    update_plots(lvl, selected, level);
+                }
+            }
         }
     });
 
@@ -289,17 +311,16 @@ function create_3djs_plot(filename, counter, level) {
         console.log("DOWN")
 
         if(document.getElementById("sync_plots").checked){
-            var svgs = document.getElementsByTagName("svg");
-            for(var i = 0; i < svgs.length; i++){
-                d3.selectAll("svg").selectAll('circle.selected_'+i)
-                  .classed("selected_"+i, false)
-                  .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
-                  .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
-            }
+//            var svgs = document.getElementsByTagName("svg");
+//            for(var i = 0; i < svgs.length; i++){
+            d3.selectAll("svg").selectAll('circle.selected')
+              .classed("selected", false)
+              .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
+              .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
         }
         else{
-            d3.select("#plot_"+counter).selectAll('circle.selected_'+counter)
-              .classed( "selected_"+counter, false)
+            d3.select("#"+level+"_plot_"+counter).selectAll('circle.selected')
+              .classed( "selected", false)
               .style('fill', context_colors[$('input[name="context_lvl"]:checked').val()][0])
               .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
         }
@@ -360,37 +381,31 @@ function create_3djs_plot(filename, counter, level) {
                 d.height = move.y - start_select.y;
             }
 
-            d3.select("#plot_"+counter).selectAll("circle").each(function(data) {
+            d3.select("#"+level+"_plot_"+counter).selectAll("circle").each(function(data) {
                 var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
                 //console.log(circle)
-                if(!d3.select(this).classed("selected_"+counter) && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+                if(!d3.select(this).classed("selected") && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
                     d3.select(this)
-                      .classed("selected_"+counter, true)
+                      .classed("selected", true)
                       .style("fill", "blue")
                       .style("stroke", "blue")
                 }
                 else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
                     d3.select(this)
-                      .classed("selected_"+counter, false)
+                      .classed("selected", false)
                       .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
                       .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
                 }
             })
 
             if (document.getElementById("sync_plots").checked){
-                var svgs = document.getElementsByTagName("svg");
-                for(var i = 0; i < svgs.length; i++){
-                    if (i != counter){
-                        d3.select("#plot_"+counter).selectAll("circle.selected_"+counter).each(function(data) {
-                            var id = d3.select(this).attr("id");
-                            console.log(id);
-                            d3.select("#plot_"+i).select("#"+id)
-                              .classed("selected_"+i, true)
-                              .style("fill", "blue")
-                              .style("stroke", "blue")
-                        })
-                    }
-                }
+                d3.selectAll("div."+level).selectAll("circle.selected").each(function(data) {
+                    var id = d3.select(this).attr("id");
+                    d3.select("#"+id)
+                      .classed("selected", true)
+                      .style("fill", "blue")
+                      .style("stroke", "blue")
+                })
             }
 
             s.attr( d);
@@ -399,14 +414,42 @@ function create_3djs_plot(filename, counter, level) {
     .on( "touchend", function() {
         svg.select( ".selection_"+counter).remove();
         if(document.getElementById("sync_visu").checked){
-            checkSelected(counter);
+            checkSelected(counter, level);
         }
     });
 
     plots[level].push(level+"_plot_"+counter);
 }
 
-function checkSelected(c, id) {
+function destroy_plot(name,level,counter) {
+    console.log(plots);
+    var plot = name;
+    document.getElementById(plot).remove();
+    console.log(level+"_current_plots");
+    document.getElementById(level+"_current_plots").innerHTML = "";
+    document.getElementById(level+"_buttons").style.display = "none";
+    cur_plot = level+"_plot_"+counter;
+    idx = plots[level].indexOf(cur_plot);
+    if(idx > -1)
+        plots[level].splice(idx, 1);
+//    for(var p = 0; p < plots[level].length; p++){
+//        console.log(plots[level][p]);
+//        console.log(cur_plot);
+//        if (plots[level][p] == cur_plot){
+//            delete plots[level][p];
+//            p = p-1;
+//        }
+//    }
+    console.log(plots);
+}
+
+function update_plots(lvl, filter, filter_lvl) {
+    console.log(lvl+" "+String(filter)+" "+filter_lvl);
+    update_ana(lvl, filter, filter_lvl);
+}
+
+
+function checkSelected(c, level, id) {
     id = typeof id !== 'undefined' ? id : false;
     if (id){
         console.log(id);
@@ -419,9 +462,10 @@ function checkSelected(c, id) {
     }
     else{
         var list = [];
-        d3.selectAll('circle.selected_'+c).each(function(data) {
+        d3.select("#"+level+"_plot_"+c).selectAll('circle.selected').each(function(data) {
             list.push(d3.select(this).attr("id").match(/id(\d+)/)[1])
         });
+        console.log(list);
         $.getJSON('/_array2python', {
             wordlist: JSON.stringify(list)
         }, function(data){
@@ -429,8 +473,12 @@ function checkSelected(c, id) {
             $( "#result" ).text(data.result);
         });
     }
-    return false;
+    console.log("CHECKSELECTED "+list);
+    return list;
 }
+
+
+
 //
 //function refreshGraph() {
 //  d3.json("../static/json/temperature.json", function(error, data) {

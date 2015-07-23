@@ -34,7 +34,7 @@ osc_port = None
 target = None
 context = "weak"
 
-rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj.com", "http://peptide_traj.com/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj_21072015.com", "http://peptide_traj_21072015/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
 
 # address = ('localhost', 6000)
 # conn = Client(address)
@@ -108,6 +108,22 @@ def get_plot_values(message):
     for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
         # Create json file with required information
         json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
+        # Send json file to webserver
+        socketio.emit('new_plot', {'data' : json_file, 'lvl': message['lvl']}, namespace='/socketio')
+        # Get data ids
+        ids = rdf_handler.get_ids(x_type, y_type)
+        list_ids = [int(id) for id in ids]
+        logging.info("List of ids: %s" % list_ids)
+        # Send data ids to PyMol
+        liblo.send((osc_client, osc_port), "/ids", list_ids)
+
+@socketio.on('update', namespace='/socketio')
+def update_plot_values(message):
+    global rdf_handler
+    print message
+    for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
+        # Create json file with required information
+        json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], message['filter'], message['filter_lvl'])
         # Send json file to webserver
         socketio.emit('new_plot', {'data' : json_file, 'lvl': message['lvl']}, namespace='/socketio')
         # Get data ids
