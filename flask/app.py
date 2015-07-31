@@ -113,7 +113,7 @@ def get_plot_values(message):
         # Get data ids
         ids = rdf_handler.get_ids(x_type, y_type)
         list_ids = [int(id) for id in ids]
-        logging.info("List of ids: %s" % list_ids)
+        logging.warning("List of ids: %s" % list_ids)
         # Send data ids to PyMol
         liblo.send((osc_client, osc_port), "/ids", list_ids)
 

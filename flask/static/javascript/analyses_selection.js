@@ -6,6 +6,8 @@ var stored_plots = {'model':[], 'chain':[], 'residue':[], 'atom':[]};
 var counter = 0;
 var url = "http://" + document.domain + ":" + location.port;
 var socket = io.connect(url + "/socketio");
+var start = 0;
+var stop = 0;
 
 $(document).ready(function() {
 
@@ -21,9 +23,7 @@ $(document).ready(function() {
     to_hide = document.getElementById("synchro");
     to_hide.style.display = 'none';
 
-//    var url = "http://" + document.domain + ":" + location.port;
     console.log(url);
-//    var socket = io.connect(url + "/socketio");
     socket.on('connect', function() {
         socket.emit('connected',{data: 'I\'m connected!'});
     });
@@ -33,6 +33,7 @@ $(document).ready(function() {
     });
 
     $('form#get_ana').submit(function(event) {
+        start = new Date().getTime();
         document.getElementById("ana_button").style.display = 'none';
         socket.emit('get', {data: 'request'});
         return false;
@@ -157,6 +158,11 @@ $(document).ready(function() {
             ana_list.push(msg.data[i])
         }
         $("body").append('<br>');
+
+        stop = new Date().getTime();
+        var time = stop - start;
+        console.log('Execution time: ' + time);
+
     });
 
 
@@ -167,6 +173,9 @@ $(document).ready(function() {
         var to_show = document.getElementById("synchro");
         to_show.style.display = '';
 //        location.reload(true);
+        stop = new Date().getTime();
+        var time = stop - start;
+        console.log('Execution time: ' + time);
     });
 });
 
@@ -175,6 +184,7 @@ function update_ana(struct_lvl, filters, filters_lvl){
 }
 
 function send_ana(event){
+    start = new Date().getTime();
     var struct_lvl = event.name;
     var x_select = document.getElementById(struct_lvl+"_ana_choice_x")
     if (x_select.value != "None"){
@@ -209,7 +219,6 @@ function expand(elmt){
 
 function check_x(choice){
     var struct_lvl = choice.id.substring(0,choice.id.indexOf('_'));
-    console.log(struct_lvl);
     var y_choice = document.getElementById(struct_lvl+"_ana_choice_y").value;
     if (choice.value != "None" && y_choice != "None") {
         var to_show = document.getElementById(struct_lvl+"_buttons");
@@ -219,7 +228,6 @@ function check_x(choice){
 
 function check_y(choice){
     var struct_lvl = choice.id.substring(0,choice.id.indexOf('_'));
-    console.log(struct_lvl);
     var x_choice = document.getElementById(struct_lvl+"_ana_choice_x").value;
     if (choice.value != "None" && x_choice != "None") {
         var to_show = document.getElementById(struct_lvl+"_buttons");
