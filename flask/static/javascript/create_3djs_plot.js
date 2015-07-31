@@ -468,6 +468,7 @@ function update_plots(lvl, filter, filter_lvl) {
 
 function checkSelected(c, level, id) {
     id = typeof id !== 'undefined' ? id : false;
+    var list = [];
     if (id){
         console.log(id);
         $.getJSON('/_uniq_selection', {
@@ -476,19 +477,21 @@ function checkSelected(c, level, id) {
             console.log(data.result)
             $( "#result").text(data.result);
         });
+        list.push(id);
     }
     else{
-        var list = [];
         d3.select("#"+level+"_plot_"+c).selectAll('circle.selected').each(function(data) {
             list.push(d3.select(this).attr("id").match(/id(\d+)/)[1])
         });
         console.log(list);
-        $.getJSON('/_array2python', {
-            wordlist: JSON.stringify(list)
-        }, function(data){
-            console.log(data.result)
-            $( "#result" ).text(data.result);
-        });
+        if (list.length > 1){
+            $.getJSON('/_array2python', {
+                wordlist: JSON.stringify(list)
+            }, function(data){
+                console.log(data.result)
+                $( "#result" ).text(data.result);
+            });
+        }
     }
     console.log("CHECKSELECTED "+list);
     return list;

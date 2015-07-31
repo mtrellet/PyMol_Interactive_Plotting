@@ -345,8 +345,10 @@ class Handler:
 
     def new_selected_models(self, selected_models):
         to_display = set()
+        logging.info(selected_models)
         for m in selected_models:
             to_display.add(m)
+        logging.info("to display %s " % to_display)
         self.update_plot_multiple(1, to_display)
 
     def set_new_ids(self, ids):

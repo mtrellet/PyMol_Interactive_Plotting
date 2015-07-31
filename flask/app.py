@@ -82,6 +82,8 @@ def uniq_selection():
     selected = json.loads(request.args.get('selected'))
     info = rdf_handler.get_info_uniq(selected)
     print info
+    liblo.send(target, "/selected", selected)
+    logging.info("Selected models sent on: %s" % target.url)
     return jsonify(result=selected)
 
 @socketio.on('connected', namespace='/socketio')

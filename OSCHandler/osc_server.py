@@ -41,14 +41,14 @@ class MyServer(Server):
     def selected_callback(self, path, args, types, src, data):
         if self.pymol_handler:
             selected = args[0]
-            logging.info("received message '%s' with arguments: %s" % (path, args))
+            logging.info("/selected blob received message '%s' with arguments: %s" % (path, args))
             self.selected_models = selected
             self.pymol_handler.new_selected_models(self.selected_models)
 
     @make_method('/selected', 'i')
     def no_selected_callback(self, path, args):
-        logging.info("received message '%s' with arguments: %s" % (path, args))
-        self.selected_models = []
+        logging.info("/selected int received message '%s' with arguments: %s" % (path, args))
+        self.selected_models = [args[0]]
         self.pymol_handler.new_selected_models(self.selected_models)
 
     @make_method('/new_plots', 'ss')
