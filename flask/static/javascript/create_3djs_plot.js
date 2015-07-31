@@ -114,7 +114,24 @@ function create_3djs_plot(filename, counter, level) {
                 var isSelected = d3.select(this).classed("selected");
                 d3.select(this)
                   .classed( "selected", !isSelected);
-                checkSelected(counter, level, d.id);
+                selected = checkSelected(counter, level, d.id);
+                if(document.getElementById("sync_plots").checked){
+                    for (var key in lvl_equivalence){
+                        if (lvl_equivalence[key] == level)
+                            lvl_num = Number(key);
+                    }
+                    for(var j = lvl_num+1; j< 4; j++){
+                        console.log(j+" "+plots[lvl_equivalence[j]].length)
+                        for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
+                            name = plots[lvl_equivalence[j]][k]
+                            lvl = name.substring(0,name.indexOf('_'));
+                            c = Number(name.substr(name.length - 1));
+                            console.log(name+" "+lvl+" "+c);
+                            destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
+                            update_plots(lvl, selected, level);
+                        }
+                    }
+                }
             })
             .on("mouseover", function(d) {
                 if(!d3.select(this).classed("selected")){
@@ -189,7 +206,7 @@ function create_3djs_plot(filename, counter, level) {
         }
     })
     .on( "mousemove", function() {
-        var start = new Date().getTime();
+//        var start = new Date().getTime();
 
         var s = d3.select("#"+level+"_svg_"+counter).select( "rect.selection_"+counter);
 
@@ -278,9 +295,9 @@ function create_3djs_plot(filename, counter, level) {
             s.attr( d);
         }
 
-        var end = new Date().getTime();
-        var time = end - start;
-        console.log('Execution time: ' + time);
+//        var end = new Date().getTime();
+//        var time = end - start;
+
     })
 
     .on( "mouseup", function() {
@@ -297,7 +314,7 @@ function create_3djs_plot(filename, counter, level) {
                 for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
                     name = plots[lvl_equivalence[j]][k]
                     lvl = name.substring(0,name.indexOf('_'));
-                    c = Number(name.substr(name.length - 1));
+                    c = Number(name.substr(name.length - 1)); // Won't work for more than 9 plots
                     console.log(name+" "+lvl+" "+c);
                     destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
                     update_plots(lvl, selected, level);
