@@ -17,28 +17,75 @@
             <button type="submit">Available Analyses</button>
         </form>
     </div>
-    <br>
-    <div id="current_plots"></div>
-    <div id="two_column"></div>
-    <div id="analysis_buttons"> </br></br>
-        <button onclick="new_ana_lists();">More plot</button>
-        <form id="send_ana">
-            <button type="submit">Create plots</button>
-        </form>
-    </div>
-    <div id="synchro"></br></br>
-        <b>Synchronisation: </b>
-        <input type="checkbox" id="sync_plots" checked> Synchronize plots </input>
-        <input type="checkbox" id="sync_visu" checked> Synchronize visualisation </input>
-        <div id="context_lvl_choices"></br>
+    <div id="synchro">
+        <div id="sync_all">
+            <b>Synchronisation: </b>
+            <input type="checkbox" id="sync_plots" checked> Synchronize plots </input>
+            <input type="checkbox" id="sync_visu" checked> Synchronize visualisation </input>
+        </div>
+        <div id="context_lvl_choices">
             <b>Contextualization: </b>
             <form id="update_context_lvl">
                 <input type="radio" name="context_lvl" value="none">No context</input>
                 <input type="radio" name="context_lvl" value="weak" checked>Weak context</input>
                 <input type="radio" name="context_lvl" value="strong">Strong context</input>
             </form>
+            </br>
         </div>
     </div>
-    <div id='demo'></br></br></div>
+
+
+    <div id="plots">
+        <h2 onclick="expand(this);"> MODEL </h2>
+        <div id='model_lvl'>
+            <div id="model_two_column"></div>
+            <div id="model_current_plots" class="inline"></div>
+            <div id="model_buttons"> </br></br>
+                <button id='model_more_btn' onclick="new_ana_lists(this);">More plot</button>
+                <!--<form id="send_ana" name="model">-->
+                <button type="submit" name="model" onclick="send_ana(this);">Create plots</button>
+                <!--</form>-->
+            </div>
+            <div id="model_plots"></div>
+        </div>
+        <br>
+        <hr>
+        <h2 onclick="expand(this);"> CHAIN </h2>
+        <div id='chain_lvl'>
+            <div id="chain_two_column"></div>
+            <div id="chain_current_plots" class="inline"></div>
+            <div id="chain_buttons"> </br></br>
+                <button id='chain_more_btn' onclick="new_ana_lists(this);">More plot</button>
+                <button type="submit" name="chain" onclick="send_ana(this);">Create plots</button>
+            </div>
+            <div id="chain_plots"></div>
+        </div>
+        </br>
+        <hr>
+        <h2 onclick="expand(this);"> RESIDUE </h2>
+        <div id='residue_lvl'>
+            <div id="residue_two_column"></div>
+            <div id="residue_current_plots" class="inline"></div>
+            <div id="residue_buttons"> </br></br>
+                <button id='residue_more_btn' onclick="new_ana_lists(this);">More plot</button>
+                <button type="submit" name="residue" onclick="send_ana(this);">Create plots</button>
+            </div>
+            <div id="residue_plots"></div>
+        </div>
+        </br>
+        <hr>
+        <h2 onclick="expand(this);"> ATOM </h2>
+        <div id='atom_lvl'>
+            <div id="atom_two_column"></div>
+            <div id="atom_current_plots" class="inline"></div>
+            <div id="atom_buttons"> </br></br>
+                <button id='atom_more_btn' onclick="new_ana_lists(this);">More plot</button>
+                <button type="submit" name="atom" onclick="send_ana(this);">Create plots</button>
+            </div>
+            <div id="atom_plots"></div>
+        </div>
+        </br>
+        <hr>
+    </div>
 </body>
 </html>

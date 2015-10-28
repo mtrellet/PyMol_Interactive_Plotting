@@ -2,9 +2,10 @@ from liblo import ServerThread, make_method, Address, ServerError, Server
 import logging
 # logging.basicConfig(filename="osc_server_session.log", filemode="w", level=logging.INFO)
 import sys
+import threading
 
 
-class MyServer(ServerThread):
+class MyServer(Server):
     def __init__(self, port, pymol_handler = None, flask_server = None):
         """
         Initialize an OSC server to listen to specific port
@@ -23,13 +24,14 @@ class MyServer(ServerThread):
         logging.info("Port %s now free" % port)
         logging.info("2) Initialization of OSC server on port: %d " % port)
         try:
-            ServerThread.__init__(self, port)
+            Server.__init__(self, port)
         except ServerError, err:
             logging.info(str(err))
             sys.exit()
         logging.info("Server running on %s " % self.url)
-        print self.url
         logging.info("***************")
+        for t in threading.enumerate():
+            print t
         #self.target = Address(port)
         self.selected_models = []
         self.pymol_handler = pymol_handler
@@ -39,14 +41,14 @@ class MyServer(ServerThread):
     def selected_callback(self, path, args, types, src, data):
         if self.pymol_handler:
             selected = args[0]
-            logging.info("received message '%s' with arguments: %s" % (path, args))
+            logging.info("/selected blob received message '%s' with arguments: %s" % (path, args))
             self.selected_models = selected
             self.pymol_handler.new_selected_models(self.selected_models)
 
     @make_method('/selected', 'i')
     def no_selected_callback(self, path, args):
-        logging.info("received message '%s' with arguments: %s" % (path, args))
-        self.selected_models = []
+        logging.info("/selected int received message '%s' with arguments: %s" % (path, args))
+        self.selected_models = [args[0]]
         self.pymol_handler.new_selected_models(self.selected_models)
 
     @make_method('/new_plots', 'ss')

@@ -1,7 +1,10 @@
 from RDFHandler.RDF_handling_distant import RDF_Handler
+from utils.aa_conversion import aa_name_3
 
 import logging
 import sys
+import time
+
 
 __author__ = 'trellet'
 
@@ -10,8 +13,8 @@ class Keyword2Cmd:
 
     def __init__(self, keywords, sub_selection=None):
         self.keywords = self.convert_to_OWL_format(keywords)
-        self.rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj_18062015.com",
-                                     "http://peptide_traj_18062015.com/rules", "my",
+        self.rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj_21072015.com",
+                                     "http://peptide_traj_21072015.com/rules", "my",
                                      "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
         self.sub_selection = sub_selection
         self.rdf_handler.scale = 'Residue'
@@ -30,6 +33,7 @@ class Keyword2Cmd:
             for l in self.keywords:
                 if k != l and isinstance(k, str) and isinstance(l, str):
                     if self.rdf_handler.are_equivalent(k,l):
+                        print "The keyword %s has been removed because equivalent to %s" % (l,k)
                         self.keywords.remove(l)
 
         # We identify each keyword type and family
@@ -148,7 +152,12 @@ class Keyword2Cmd:
                             if self.rdf_handler.scale.lower() == selection[i][0].lower():
                                 indiv_ids_from_component.append(selection[j][0])
                             else:
-                                indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids', selection[j][0])
+                                print selection[i][0]
+                                if selection[i][0] in aa_name_3:
+                                    indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(aa_name_3[selection[i][0]].lower(), 'ids', selection[j][0])
+                                else:
+                                    indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids', selection[j][0])
+                                # indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(aa_name_3['selection[i][0]'], 'ids', selection[j][0])
                 elif i+1 < len(selection) and selection[i+1][1] == 'from':
                     if self.rdf_handler.scale.lower() == selection[i][0].lower():
                         for j in range(selection[i+1][0], selection[i+2][0]+1):
@@ -158,7 +167,13 @@ class Keyword2Cmd:
                                                                                               selection[i+1][0],
                                                                                               selection[i+2][0])
                 else:
-                    indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids')
+                    print selection[i][0]
+                    if selection[i][0] in aa_name_3:
+                        res = aa_name_3[selection[i][0]].lower()
+                        indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(res, 'ids')
+                    else:
+                        indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids')
+                    # indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids')
             elif selection[i][1] == 'property':
                 indiv_from_property += self.rdf_handler.check_indiv_for_property(selection[i][0])
                 print indiv_from_property
@@ -189,4 +204,20 @@ class Keyword2Cmd:
             else:
                 converted.append(k)
         return converted
+
+
+if len(sys.argv) > 1:
+    # Manual keywords
+    keywords = sys.argv[1:]
+else:
+    # Send keyword command
+    keywords = ['positive', 'hydrophobic', 'show', 'residue', 'chain', 'A', 'ribbon']
+    #keywords = ['show', 'secondary_structure', 'residue', [2,5], 'cartoon']
+
+print keywords
+start_time = time.time()
+keyword2command = Keyword2Cmd(keywords)
+keyword2command.translate()
+stop_time = time.time() - start_time
+print("--- %s seconds ---" % stop_time)
 
