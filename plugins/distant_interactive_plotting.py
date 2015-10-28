@@ -147,7 +147,7 @@ def check_selections(queue):
         if int(cmd.get("mouse_selection_mode")) == 5 and len(cmd.get_names("selections")) > 0:
             #logging.debug(cmd.get_names("selections")[1])
             nb_selected_objects = cmd.count_atoms('sele')
-            if(nb_selected_objects > 0):
+            if nb_selected_objects > 0:
                 logging.info("--- Selection made by the user ---")
                 logging.info(nb_selected_objects)
                 cmd.iterate('(sele)', 'models.add(model)', space=myspace)
@@ -168,7 +168,7 @@ def check_selections(queue):
             #logging.debug(cmd.get_names("selections")[0])
 
             nb_selected_objects = cmd.count_atoms('sele')
-            if(nb_selected_objects > 0):
+            if nb_selected_objects > 0:
                 logging.info("--- Selection made by the user ---")
                 cmd.iterate('(sele)', 'residues.add(resv)', space=myspace)
                 logging.info(myspace['residues'])
@@ -236,7 +236,7 @@ class Handler:
         self.options_button = None
         self.main_button = None
         self.osc_ip = "127.0.0.1"
-        self.server_port = 8000
+        self.server_port = 5555
         self.client_port = 8100
         self.multi_port = 6000
         self.osc_receiver = []
@@ -250,11 +250,30 @@ class Handler:
         #     print str(err)
         #     sys.exit()
 
-        # for t in threading.enumerate():
-        #     print t
+        for t in threading.enumerate():
+            print t
 
         osc_thread = threading.Thread(target=self.create_osc_server, args=(self.server_port,))
         osc_thread.start()
+
+        for t in threading.enumerate():
+            print t
+
+
+
+
+        # for t in threading.enumerate():
+        #     print t
+        #
+        # while True:
+        #     for t in threading.enumerate():
+        #         print t
+        #     time.sleep(2)
+
+        # osc_manager = OSCManager()
+        # print "OSC manager initialized"
+        # osc_manager.run()
+
         #
         # osc_thread2 = threading.Thread(target=self.create_osc_server, args=(self.client_port,))
         # osc_thread2.start()
@@ -276,30 +295,14 @@ class Handler:
 
 
         # Send keyword command
-        keywords = ['show', 'positive', 'hydrophobic', 'residue', 'chain', 'A', 'ribbon']
-        keyword2command = Keyword2Cmd(keywords)
-        keyword2command.translate()
+        # keywords = ['show', 'positive', 'hydrophobic', 'residue', 'chain', 'A', 'ribbon']
+        # keyword2command = Keyword2Cmd(keywords)
+        # keyword2command.translate()
 
         #############################################
         ##### CREATE CANVAS ITEM IDs DICTIONARY #####
         #############################################
         # self.create_ids_equivalent_dict()
-
-    def create_multiproc_server(self, port=6000):
-
-        logging.info("Create OSC receiver and sender")
-        # create server, listening on port 1234
-        address = ('localhost', port)
-        listener = Listener(address)
-        conn = listener.accept()
-
-        while True:
-            msg = conn.recv()
-            print msg
-            if msg == 'close':
-                conn.close()
-                break
-        #listener.close()
 
 
     def create_osc_server(self, port):
@@ -307,38 +310,53 @@ class Handler:
         # create server, listening on port 1234
         try:
             print port
-            self.osc_receiver.append(MyServer(port, pymol_handler=self))
-            # self.osc_receiver = liblo.Server(self.server_port)
+            # self.osc_receiver.append(MyServer(port, pymol_handler=self))
+            self.osc_receiver = MyServer(port, pymol_handler=self)
         except liblo.ServerError, err:
             print str(err)
             sys.exit()
 
-        self.osc_receiver[-1].start()
+        # self.osc_receiver.start()
 
         # register method taking a blob, and passing user data to the callback
         #self.osc_receiver.add_method("/selected", 'b', self.selected_callback, "user")
 
         # loop and dispatch messages every 100ms
-        # while True:
-        #     self.osc_receiver.recv(100)
+        while True:
+            self.osc_receiver.recv(100)
 
+
+
+    # def create_multiproc_server(self, port=6000):
     #
-    # def selected_callback(self, path, args, types, src, data):
-    #     print "received message '%s'" % path
-    #     print "blob contains %d bytes, user data was '%s'" % (len(args[0]), data)
-    #     print "data: %s" % (str(args[0]))
-    #     to_display = set()
-    #     if args[0]:
-    #         for s in args[0]:
-    #             to_display.add(s)
-    #     self.update_plot_multiple(1,to_display)
+    #     logging.info("Create OSC receiver and sender")
+    #     # create server, listening on port 1234
+    #     address = ('localhost', port)
+    #     listener = Listener(address)
+    #     conn = listener.accept()
+    #
+    #     while True:
+    #         msg = conn.recv()
+    #         print msg
+    #         if msg == 'close':
+    #             conn.close()
+    #             break
+    #     #listener.close()
 
     def new_selected_models(self, selected_models):
         to_display = set()
+        logging.info(selected_models)
         for m in selected_models:
             to_display.add(m)
+        logging.info("to display %s " % to_display)
         self.update_plot_multiple(1, to_display)
 
+    def set_new_ids(self, ids):
+        """
+        Define new object ids represented in the analysis space
+        :param ids: list of int
+        """
+        self.all_models = set(ids)
 
     def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
         """ Check for updated selections data in all plots simultaneously"""
@@ -605,6 +623,7 @@ class Handler:
             cmd.show('lines', 'all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
+        print time.time()
         try:
             self.rootframe.after(500, self.update_plot_multiple)
         except:

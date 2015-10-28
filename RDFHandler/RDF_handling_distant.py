@@ -18,6 +18,7 @@ class RDF_Handler:
         #self.main_handler = main_handler
         # self.rdf_graph = Graph()
         self.scale = scale
+        self.scales = ["Model", "Chain", "Residue", "Atom"]
         self.distant_server = server
         self.uri = uri
         self.rules_name = rules
@@ -36,35 +37,45 @@ class RDF_Handler:
     def set_scale(self,scale):
         pass
 
-    def create_JSON(self, x_query_type, y_query_type):
+    def create_JSON(self, x_query_type, y_query_type, scale, filter= None, filter_lvl = None):
         # Query points to draw plot
         """
         Query points to draw plots
         :param x_query_type: nature of x values
         :param y_query_type: nature of y values
         """
-        points = self.query_rdf(x_query_type, y_query_type, self.scale)
+        scale = scale or self.scale
+
+        if not filter:
+            print "NO FILTER"
+            points = self.query_rdf(x_query_type, y_query_type, scale.capitalize())
+        else:
+            print "FILTER"
+            points = self.query_rdf_filtered(x_query_type, y_query_type, scale.capitalize(), filter, filter_lvl)
 
         ### Create dictionary for json
         all_models = set()
-        json_dic = []
+        json_dic = {'values': []}
         for row in points:
             if int(row[2]) not in all_models:
-                json_dic.append({'id': int(row[2]), "x": float(row[0]), "y": float(row[1])})
+                json_dic['values'].append({'id': int(row[2]), "x": float(row[0]), "y": float(row[1])})
                 # res_dic[x_query_type] = float(row[0])
                 # res_dic[y_query_type] = float(row[1])
                 all_models.add(int(row[2]))
-        json_dic.append({'x_type': x_query_type, 'y_type': y_query_type})
-        json_dic.append({'nb_models': len(all_models)})
+        json_dic['type'] = []
+        json_dic['type'].append({'x_type': x_query_type, 'y_type': y_query_type})
+        json_dic['nb'] = []
+        json_dic['nb'].append({'nb_models': len(all_models)})
 
-        xmin, xmax, ymin, ymax = self.get_mini_maxi_values(x_query_type, y_query_type, self.scale)
-        json_dic.append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
+        xmin, xmax, ymin, ymax = self.get_mini_maxi_values(x_query_type, y_query_type, scale.capitalize())
+        json_dic['dim'] = []
+        json_dic['dim'].append({'xmin': float(xmin), 'xmax': float(xmax), 'ymin': float(ymin), 'ymax': float(ymax)})
 
         json_string = json.dumps(json_dic)
         logging.debug("json dictionary: \n%s" % json_string)
 
         import os.path
-        file_name = "%s_%s_%s.json" % (self.scale.lower(), x_query_type, y_query_type)
+        file_name = "%s_%s_%s.json" % (scale.lower(), x_query_type, y_query_type)
         file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s" % file_name
         # if not os.path.exists(file_path):
         output = open(file_path, 'w')
@@ -98,6 +109,42 @@ class RDF_Handler:
 
         return models
 
+    def query_rdf_filtered(self, x_query_type, y_query_type, scale=None, filter = None, filter_lvl = None):
+        """ Query the RDF graph to build complete plot with a filter"""
+        scale = scale or self.scale
+        logging.info(scale)
+
+        ids = tuple([int(i) for i in filter])
+        # Remove the final comma when only one id is in the tuple
+        if len(ids) == 1:
+            ids_str = str(ids).replace(',','')
+        else:
+            ids_str = str(ids)
+
+        print ids_str
+        query = 'SELECT ?x ?y FROM <%s> WHERE { ?ind my:%s ?x . ?ind my:%s ?y . ?ind a my:%s . ?ind my:belongs_to ?parent ' \
+                '. ?parent a my:%s . ?parent my:uniq_id ?id . filter(?id in %s)}'\
+                % (self.uri, x_query_type, y_query_type, scale, filter_lvl.capitalize(), ids_str)
+        query2 = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?id . ?ind my:belongs_to ?parent ' \
+                '. ?parent a my:%s . ?parent my:uniq_id ?uniq . filter(?uniq in %s)}' % (self.uri, scale, filter_lvl.capitalize(), ids_str)
+
+        logging.info("QUERY: \n%s" % query)
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+        logging.info("QUERY 2: \n%s" % query2)
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
+        qres2 = self.sparql_wrapper.query().convert()
+
+        logging.info("Number of queried entities: %d %d" % (len(qres["results"]["bindings"]), len(qres2["results"]["bindings"])))
+
+        points = []
+        for i in range(0,len(qres["results"]["bindings"])):
+            points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
+            points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
+
+        return points
+
+
     def query_rdf(self, x_query_type, y_query_type, scale=None):
         """ Query the RDF graph to build complete plot """
         scale = scale or self.scale
@@ -107,7 +154,8 @@ class RDF_Handler:
 
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}'\
                 % (self.uri, x_query_type, y_query_type, scale, scale.lower())
-        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
+        # query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
+        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:uniq_id ?id}' % (self.uri, scale)
         
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -116,38 +164,95 @@ class RDF_Handler:
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
         qres2 = self.sparql_wrapper.query().convert()
 
-        logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+        logging.info("Number of queried entities: %d %d" % (len(qres["results"]["bindings"]), len(qres2["results"]["bindings"])))
 
         points = []
-
         for i in range(0,len(qres["results"]["bindings"])):
             points.append([ qres["results"]["bindings"][i]["x"]["value"], qres["results"]["bindings"][i]["y"]["value"] ])
             points[i].append(qres2["results"]["bindings"][i]["id"]["value"])
-        # for res in qres["results"]["bindings"]:
-        #     points.append( [res["x"]["value"], res["y"]["value"], res["id"]["value"]])
-        # in qres["results"]["bindings"]:
-        #     points.append([ res["x"]["value"], res["y"]["value"] ])
 
         return points
 
-    def get_analyses(self, scale=None):
-        """ Get which analyses already exist for specific scale """
+    def get_ids(self, x_query_type, y_query_type, scale=None):
+        """
+        :param x_query_type: type of values to plot on the abscissa
+        :param y_query_type: type of values to plot on the ordered
+        :param scale: hierarchical level of query
+        :return: list of ids
+        """
         scale = scale or self.scale
-        #query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
-        query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
-                % (self.uri, scale)
+        query = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
+
+        logging.info("QUERY: \n%s" % query)
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        ids = []
+
+        for i in qres["results"]["bindings"]:
+            ids.append(i["id"]["value"])
+
+        return ids
+
+    def get_info_uniq(self, uniq_id, scale=None):
+        """ Get all literal information for a specific individual """
+        scale = scale or self.scale
+        query = 'SELECT DISTINCT ?param ?val FROM <%s> WHERE { ?model my:%s_id ?id . FILTER ( ?id = %s ) . ' \
+                '?model ?param ?o . filter (isLiteral(?o)) . ?model ?param ?val}'\
+                % (self.uri, scale.lower(), uniq_id)
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
         logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
-        res = []
+        res = {}
+        print qres
         import re
         for row in qres["results"]["bindings"]:
             parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
-            res.append(parsed)
+            try:
+                res[parsed] = int(row["val"]["value"])
+            except ValueError:
+                res[parsed] = float(row["val"]["value"])
 
         return res
+
+    def get_analyses(self, scale=None):
+        """ Get which analyses already exist for specific scale """
+        scale = scale or self.scales
+
+        if type(scale) is list:
+            results = {}
+            for s in scale:
+                query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
+                % (self.uri, s)
+                logging.info("QUERY: \n%s" % query)
+                self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+                qres = self.sparql_wrapper.query().convert()
+
+                logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+                results[s] = []
+                import re
+                for row in qres["results"]["bindings"]:
+                    parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
+                    results[s].append(parsed)
+            return results
+        else:
+            #query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
+            query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
+                    % (self.uri, scale)
+            logging.info("QUERY: \n%s" % query)
+            self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+            qres = self.sparql_wrapper.query().convert()
+
+            logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+            res = []
+            import re
+            for row in qres["results"]["bindings"]:
+                parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
+                res.append(parsed)
+
+            return res
 
     def add_distance_points(self, item_selected, model_selected, scale=None):
         scale = scale or self.scale
@@ -343,9 +448,10 @@ class RDF_Handler:
         logging.info(qres['boolean'])
         return bool(qres['boolean'])
 
-    def check_indiv_for_selection(self, component, output, id=None, id2=None):
-        if id and not id2:
-            logging.info('Key to identify: %s for component: %s at scale: %s' % (id, component, self.scale))
+    def check_indiv_for_selection(self, component, output, id1=None, id2=None):
+        if id1 and not id2:
+            print "1 id"
+            logging.info('Key to identify: %s for component: %s at scale: %s' % (id1, component, self.scale))
             # if self.scale.lower() == component.lower():
             #     if isinstance(id, int):
             #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ' \
@@ -354,21 +460,24 @@ class RDF_Handler:
             #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
             #                 '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
             # else:
-            if isinstance(id, int):
+            if isinstance(id1, int):
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ?r my:belongs_to ?s . ' \
-                        '?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+                        '?r my:%s_id ?num}' % (self.uri, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
             else:
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
-                        '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
-        elif id and id2:
-            logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id, id2, component, self.scale))
+                        '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
+        elif id1 and id2:
+            print "2 ids"
+            logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id1, id2, component, self.scale))
             query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
-                            '?r my:%s_id ?num}' % (self.uri, component.lower(), id, id2, self.scale.capitalize(), self.scale.lower())
+                            '?r my:%s_id ?num}' % (self.uri, component.lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
         else:
+            print "No id"
             logging.info('Component: %s' % (component))
             query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
 
         logging.info('QUERY: %s' % query)
+        print self.rules+self.prefix+query
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()

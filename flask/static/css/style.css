@@ -26,7 +26,11 @@ path {
     shape-rendering: crispEdges;
 }
 
+<<<<<<< HEAD
 rect.selection_0 {
+=======
+rect {
+>>>>>>> master
     stroke          : gray;
     stroke-width    : 1px;
     stroke-dasharray: 4px;
@@ -81,28 +85,53 @@ svg *::-webkit-selection {
     background:transparent;
 }
 
-#two_column {
+div[id*="_two_column"] {
    left: 10px;
-   width:300px;
+   width:500px;
    clear:both;
 }
+
 #left_col {
    float:left;
-   width:150px;
+   width:250px;
 }
 
 #right_col {
    float:right;
-   width:150px;
+   width:250px;
 }
 
-#analysis_buttons {
+div[id*="_buttons"] {
    float: left;
    clear: both;
    margin:0 auto;
 }
 
-#current_plots {
+div[id*="_current_plots"] {
+    float: left;
+    clear:both;
+}
+
+div[id*="_lvl"] {
+    float: left;
+    clear:both;
+}
+
+div[id*="_plots"] {
+    float:left;
+    clear:both;
+}
+
+div[id*="_plot_"] {
+    float:left;
+}
+
+#sync_all {
+    float: left;
+    clear:both;
+}
+
+#context_lvl_choices {
     float: left;
     clear:both;
 }
@@ -111,17 +140,41 @@ h3 {
     text-align:center;
 }
 
+h2 {
+    clear: both;
+}
+
+hr {
+    width:500px;
+    margin-left:10px;
+    clear: both;
+    border: 0;
+    height: 1px;
+    background-image: linear-gradient(to right, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+}
+
+div br{
+    clear: both;
+}
+
+.inline br {
+    display: none;
+}
+
 #demo {
     float:left;
     clear:both;
 }
 
-div[id="plot_0"] {
+#synchro {
     float:left;
     clear:both;
 }
 
-div[id="plot_1"] {
-    float:right;
-    clear:both;
+text {
+  font: 10px sans-serif;
+}
+
+.label {
+  fill: #777;
 }
