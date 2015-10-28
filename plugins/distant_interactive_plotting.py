@@ -623,6 +623,7 @@ class Handler:
             cmd.show('lines', 'all')
 
         logging.debug("---- %s seconds ----" % str(time.time()-start_time))
+        print time.time()
         try:
             self.rootframe.after(500, self.update_plot_multiple)
         except:

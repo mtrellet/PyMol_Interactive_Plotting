@@ -448,9 +448,10 @@ class RDF_Handler:
         logging.info(qres['boolean'])
         return bool(qres['boolean'])
 
-    def check_indiv_for_selection(self, component, output, id=None, id2=None):
-        if id and not id2:
-            logging.info('Key to identify: %s for component: %s at scale: %s' % (id, component, self.scale))
+    def check_indiv_for_selection(self, component, output, id1=None, id2=None):
+        if id1 and not id2:
+            print "1 id"
+            logging.info('Key to identify: %s for component: %s at scale: %s' % (id1, component, self.scale))
             # if self.scale.lower() == component.lower():
             #     if isinstance(id, int):
             #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ' \
@@ -459,21 +460,24 @@ class RDF_Handler:
             #         query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
             #                 '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
             # else:
-            if isinstance(id, int):
+            if isinstance(id1, int):
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ?r my:belongs_to ?s . ' \
-                        '?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
+                        '?r my:%s_id ?num}' % (self.uri, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
             else:
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
-                        '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id, self.scale.capitalize(), self.scale.lower())
-        elif id and id2:
-            logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id, id2, component, self.scale))
+                        '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
+        elif id1 and id2:
+            print "2 ids"
+            logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id1, id2, component, self.scale))
             query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
-                            '?r my:%s_id ?num}' % (self.uri, component.lower(), id, id2, self.scale.capitalize(), self.scale.lower())
+                            '?r my:%s_id ?num}' % (self.uri, component.lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
         else:
+            print "No id"
             logging.info('Component: %s' % (component))
             query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
 
         logging.info('QUERY: %s' % query)
+        print self.rules+self.prefix+query
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()

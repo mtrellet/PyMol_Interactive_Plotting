@@ -23,7 +23,7 @@ FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 
 app = Flask('Visual Analytics')
-app.debug = True
+app.debug = False
 
 cors = CORS(app, resources=r'/*', allow_headers='Content-Type')
 
