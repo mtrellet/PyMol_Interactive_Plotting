@@ -13,6 +13,18 @@ __author__ = 'trellet'
 
 component_hierarchical_level = {"Model":4, "Chain":3, "Residue":2, "Atom": 1}
 
+class output_color:
+   PURPLE = '\033[95m'
+   CYAN = '\033[96m'
+   DARKCYAN = '\033[36m'
+   BLUE = '\033[94m'
+   GREEN = '\033[92m'
+   YELLOW = '\033[93m'
+   RED = '\033[91m'
+   BOLD = '\033[1m'
+   UNDERLINE = '\033[4m'
+   END = '\033[0m'
+
 class Keyword2Cmd:
 
     def __init__(self, keywords, sub_selection=None):
@@ -48,9 +60,16 @@ class Keyword2Cmd:
                 logging.info("CASE 1: Component + Range of ids")
                 if not isinstance(key[0], int) or not isinstance(key[1], int):
                     logging.error('You cannot have non integer values for a range of ids')
+                # We check for each values of the list wether the id is well associated to the component
+                for i in range(key[0], key[1]+1):
+                    logging.info("i: %d" % i)
+                    if not self.rdf_handler.is_id(i, selection[previous_component_index][0]):
+                        logging.error('Id "%s" in the list is not an id of the component "%s" requested' %
+                                      (i,selection[previous_component_index][0]))
+                        sys.exit(0)
                 selection.append((key[0], 'from'))
                 selection.append((key[1], 'to'))
-                previous = types[3]
+                previous = types[5]
                 previous_component_index = len(selection)-1
             # elif previous == 'id' and self.rdf_handler.is_id(key, selection[previous_component_index][0]):
             #     logging.info("CASE 2: Component + Id + Another Id")
@@ -61,19 +80,24 @@ class Keyword2Cmd:
                 selection.append((key, 'id'))
                 # previous = types[5]
             elif self.rdf_handler.is_action(key):
+                logging.info("CASE 3: Action")
                 action.append(key)
                 previous = types[0]
             elif isinstance(key, str) and self.rdf_handler.is_component(key):
+                logging.info("CASE 4: Component")
                 selection.append((key, 'component'))
                 previous = types[3]
                 previous_component_index = len(selection)-1
             elif self.rdf_handler.is_representation(key):
+                logging.info("CASE 5: Representation")
                 representation.append(key)
                 previous = types[1]
             elif self.rdf_handler.is_color(key):
+                logging.info("CASE 6: Color")
                 color.append(key)
                 previous = types[2]
             elif self.rdf_handler.is_property(key):
+                logging.info("CASE 7: Property")
                 selection.append((key, 'property'))
                 previous = types[4]
             else:
@@ -104,7 +128,7 @@ class Keyword2Cmd:
         # COMPONENT
         logging.info("Selection: " + str(selection))
         number_of_components = len([c for c in selection if c[1]=="component"])
-        components = [c for c in selection if c[1]=="component" or c[1]=="id"]
+        components = [c for c in selection if c[1]=="component" or c[1]=="id" or c[1]=="from" or c[1]=="to"]
         logging.info(components)
         if number_of_components > 0:
             ids, selection_filter = self.from_component_to_indivs(components, number_of_components)
@@ -174,7 +198,7 @@ class Keyword2Cmd:
                 elif s[1] == "id":
                     command += ' '+s[0]
 
-        logging.info(command)
+        logging.info(output_color.BOLD +  command + output_color.END)
 
 
     def order_selection(self, selection):
@@ -253,10 +277,7 @@ class Keyword2Cmd:
                                             logging.info("Filter(s) for now: %s" % str(selection_filter))
                                             break
                                         else:
-                                            if components[i][0] in aa_name_3:
-                                                indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(aa_name_3[components[i][0]].lower(), 'ids', components[j][0])
-                                            else:
-                                                indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(components[i][0], 'ids', components[j][0])
+                                            indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(components[i][0], 'ids', components[j][0])
                                 else:
                                     break
 
@@ -264,7 +285,8 @@ class Keyword2Cmd:
                         else:
                             break
                 elif i+1 < len(components) and components[i+1][1] == 'from':
-                    if self.rdf_handler.scale.lower() == components[i][0].lower():
+                    logging.info("There is a list of id")
+                    if self.rdf_handler.scale.lower() == components[i][0].lower() or components[i][0].capitalize() in aa_name_3:
                         for j in range(components[i+1][0], components[i+2][0]+1):
                             indiv_ids_from_component.append(j)
                     else:
@@ -274,11 +296,7 @@ class Keyword2Cmd:
                 # Component is not associated to a specific id
                 else:
                     logging.info("No id for %s " % str(components[i][0]))
-                    if components[i][0] in aa_name_3:
-                        res = aa_name_3[components[i][0]].lower()
-                        indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(res, 'ids')
-                    else:
-                        indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(components[i][0], 'ids')
+                    indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(components[i][0], 'ids')
 
                 logging.info("INDIVS LIST UPDATE: %s" % str(indiv_ids_from_component))
                     # indiv_ids_from_component += self.rdf_handler.check_indiv_for_selection(selection[i][0], 'ids')
@@ -381,19 +399,24 @@ class Keyword2Cmd:
                 converted.append(k)
         return converted
 
-
+keywords = []
 if len(sys.argv) > 1:
     # Manual keywords
-    keywords = sys.argv[1:]
+    keywords.append(sys.argv[1:])
 else:
     # Send keyword command
-    keywords = ['show', 'hydrophobic', 'chain', 'A', 'B', 'residue', 1,2,3,24, 'ribbon']
-    #keywords = ['show', 'secondary_structure', 'residue', [2,5], 'cartoon']
+    # keywords.append(['show', 'alanine', 'chain', 'A', 'B', 'histidine', 'ribbon'])
+    # keywords.append(['hide', 'lines', 'model', 128])
+    # keywords.append(['color', 'alanine', 'blue'])
+    # keywords.append(['show', 'secondary_structure', 'residue', [2,5], 'cartoon'])
+    # keywords.append(['show', 'positive', 'residue', 'hydrophobic', 'ribbon', 'chain', 'A'])
+    keywords.append(['show', 'alanine', [4,6], 'cartoon'])
 
 print keywords
-start_time = time.time()
-keyword2command = Keyword2Cmd(keywords)
-keyword2command.translate()
-stop_time = time.time() - start_time
-print("--- %s seconds ---" % stop_time)
+for k in keywords:
+    start_time = time.time()
+    keyword2command = Keyword2Cmd(k)
+    keyword2command.translate()
+    stop_time = time.time() - start_time
+    print("--- %s seconds ---" % stop_time)
 

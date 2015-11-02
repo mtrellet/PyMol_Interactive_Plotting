@@ -8,7 +8,7 @@ from SPARQLWrapper import SPARQLWrapper, JSON
 from urlparse import urlparse
 
 from utils import center_of_mass
-from utils.aa_conversion import from_name_to_3_letters, atom
+from utils.aa_conversion import from_name_to_3_letters, atom, aa_name_3
 from utils.color_by_residue import aa_1_3, aa_3_1
 
 #logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
@@ -450,17 +450,22 @@ class RDF_Handler:
 
     def is_id(self, key, component):
         if isinstance(key, int):
-            logging.debug('Key to identify: %d \nfor component: %s' % (key, component))
-            query = 'ASK {?s my:%s_id ?id . FILTER ( ?id = %d ) }' % (component.lower(), key)
+            logging.info('Key to identify: %d \nfor component: %s' % (key, component))
+            if component.capitalize() in aa_name_3:
+                logging.info("SPECIFIC AMINO-ACID")
+                query = 'ASK {?s a my:%s . ?s my:residue_id ?id . FILTER ( ?id = %d ) }' % (from_name_to_3_letters(component.capitalize()).lower(), key)
+            else:
+                query = 'ASK {?s my:%s_id ?id . FILTER ( ?id = %d ) }' % (component.lower(), key)
+
         else:
-            logging.debug('Key to identify: %s \nfor component: %s' % (key, component))
+            logging.info('Key to identify: %s \nfor component: %s' % (key, component))
             query = 'ASK {?s my:%s_id ?id . FILTER ( regex(?id, "%s" )) }' % (component.lower(), key)
-        logging.debug("QUERY: \n%s" % query)
+        logging.info("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
-        logging.debug(qres['boolean'])
+        logging.info(qres['boolean'])
         return bool(qres['boolean'])
 
     def check_indiv_for_selection(self, component, output, id1=None, id2=None):
@@ -484,12 +489,19 @@ class RDF_Handler:
         elif id1 and id2:
             logging.info("SPARQL step - 2 ids")
             logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id1, id2, component, self.scale))
-            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
+            if component.capitalize() in aa_name_3:
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s a my:%s . ?s my:residue_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
+                            '?r my:%s_id ?num}' % (self.uri, from_name_to_3_letters(component.capitalize()).lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
+            else:
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
                             '?r my:%s_id ?num}' % (self.uri, component.lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
         else:
             logging.info("SPARQL step - No id")
-            logging.info('Component: %s' % (component))
-            query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
+            logging.info('Component: %s' % component)
+            if component.capitalize() in aa_name_3:
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, from_name_to_3_letters(component.capitalize()).lower(), self.scale.lower())
+            else:
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
 
         logging.info('QUERY: %s' % query)
         print self.rules+self.prefix+query
