@@ -450,22 +450,22 @@ class RDF_Handler:
 
     def is_id(self, key, component):
         if isinstance(key, int):
-            logging.info('Key to identify: %d \nfor component: %s' % (key, component))
+            logging.debug('Key to identify: %d \nfor component: %s' % (key, component))
             if component.capitalize() in aa_name_3:
-                logging.info("SPECIFIC AMINO-ACID")
+                logging.debug("SPECIFIC AMINO-ACID")
                 query = 'ASK {?s a my:%s . ?s my:residue_id ?id . FILTER ( ?id = %d ) }' % (from_name_to_3_letters(component.capitalize()).lower(), key)
             else:
                 query = 'ASK {?s my:%s_id ?id . FILTER ( ?id = %d ) }' % (component.lower(), key)
 
         else:
-            logging.info('Key to identify: %s \nfor component: %s' % (key, component))
+            logging.debug('Key to identify: %s \nfor component: %s' % (key, component))
             query = 'ASK {?s my:%s_id ?id . FILTER ( regex(?id, "%s" )) }' % (component.lower(), key)
-        logging.info("QUERY: \n%s" % query)
+        logging.debug("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
-        logging.info(qres['boolean'])
+        logging.debug(qres['boolean'])
         return bool(qres['boolean'])
 
     def check_indiv_for_selection(self, component, output, id1=None, id2=None):
