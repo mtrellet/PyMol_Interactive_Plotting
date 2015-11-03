@@ -167,9 +167,9 @@ if __name__ == "__main__":
     logging.info("Parsing OSC client params...")
     parser = argparse.ArgumentParser()
     parser.add_argument("--client_ip", default="127.0.0.1",
-        help="The ip of the OSC server")
+        help="The ip of the OSC client")
     parser.add_argument("--client_port", type=int, default=8000,
-        help="The port the OSC server is listening on")
+        help="The port the OSC client is listening on")
     parser.add_argument("--server_ip", default="127.0.0.1",
         help="The ip of the OSC server")
     parser.add_argument("--server_port", type=int, default=8100,

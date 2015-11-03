@@ -399,24 +399,24 @@ class Keyword2Cmd:
                 converted.append(k)
         return converted
 
-keywords = []
-if len(sys.argv) > 1:
-    # Manual keywords
-    keywords.append(sys.argv[1:])
-else:
-    # Send keyword command
-    # keywords.append(['show', 'alanine', 'chain', 'A', 'B', 'histidine', 'ribbon'])
-    # keywords.append(['hide', 'lines', 'model', 128])
-    # keywords.append(['color', 'alanine', 'blue'])
-    # keywords.append(['show', 'secondary_structure', 'residue', [2,5], 'cartoon'])
-    # keywords.append(['show', 'positive', 'residue', 'hydrophobic', 'ribbon', 'chain', 'A'])
-    keywords.append(['show', 'alanine', [4,6], 'cartoon'])
-
-print keywords
-for k in keywords:
-    start_time = time.time()
-    keyword2command = Keyword2Cmd(k)
-    keyword2command.translate()
-    stop_time = time.time() - start_time
-    print("--- %s seconds ---" % stop_time)
+# keywords = []
+# if len(sys.argv) > 1:
+#     # Manual keywords
+#     keywords.append(sys.argv[1:])
+# else:
+#     # Send keyword command
+#     # keywords.append(['show', 'alanine', 'chain', 'A', 'B', 'histidine', 'ribbon'])
+#     # keywords.append(['hide', 'lines', 'model', 128])
+#     # keywords.append(['color', 'alanine', 'blue'])
+#     # keywords.append(['show', 'secondary_structure', 'residue', [2,5], 'cartoon'])
+#     # keywords.append(['show', 'positive', 'residue', 'hydrophobic', 'ribbon', 'chain', 'A'])
+#     keywords.append(['show', 'alanine', [4,6], 'cartoon'])
+#
+# print keywords
+# for k in keywords:
+#     start_time = time.time()
+#     keyword2command = Keyword2Cmd(k)
+#     keyword2command.translate()
+#     stop_time = time.time() - start_time
+#     print("--- %s seconds ---" % stop_time)
 

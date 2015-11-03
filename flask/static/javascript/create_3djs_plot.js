@@ -192,7 +192,6 @@ function create_3djs_plot(filename, counter, level) {
             start_select.x = p[0];
             start_select.y = p[1];
             console.log("Selection started");
-            // console.log(p)
             d3.select("#"+level+"_svg_"+counter).append( "rect")
             .attr({
               rx      : 6,
@@ -265,7 +264,8 @@ function create_3djs_plot(filename, counter, level) {
 
             if (document.getElementById("sync_plots").checked){
                 var svgs = d3.selectAll("div."+level);
-                for(var i = 0; i < svgs.length; i++){
+                console.log("LEVEL: "+level)
+                for(var i = 0; i < svgs[0].length; i++){
                     if (i != counter){
                         d3.select("#"+level+"_plot_"+counter).selectAll("circle.selected").each(function(data) {
                             var id = d3.select(this).attr("id");
@@ -460,17 +460,18 @@ function destroy_plot(name,level,counter) {
     console.log(plots);
 }
 
-<<<<<<< Updated upstream
-=======
-// <<<<<<< Updated upstream
+
 function checkSelected() {
   var list = [];
   d3.selectAll('circle').each(function(data) {
     if(d3.select(this).classed('selected_'+counter)){
-      list.push(d3.select(this).attr("id"))
-      d3.select(this).style("fill","blue")
-// =======
->>>>>>> Stashed changes
+      list.push(d3.select(this).attr("id"));
+      d3.select(this).style("fill","blue");
+    };
+  });
+}
+
+
 function update_plots(lvl, filter, filter_lvl) {
     console.log(lvl+" "+String(filter)+" "+filter_lvl);
     update_ana(lvl, filter, filter_lvl);
@@ -480,11 +481,8 @@ function update_plots(lvl, filter, filter_lvl) {
 function checkSelected(c, level, id) {
     id = typeof id !== 'undefined' ? id : false;
     var list = [];
-<<<<<<< Updated upstream
-=======
     var time = new Date().getTime();
 //    alert(time);
->>>>>>> Stashed changes
     if (id){
         console.log(id);
         $.getJSON('/_uniq_selection', {
@@ -494,24 +492,20 @@ function checkSelected(c, level, id) {
             $( "#result").text(data.result);
         });
         list.push(id);
-<<<<<<< Updated upstream
-=======
-// >>>>>>> Stashed changes
->>>>>>> Stashed changes
     }
     else{
         d3.select("#"+level+"_plot_"+c).selectAll('circle.selected').each(function(data) {
             list.push(d3.select(this).attr("id").match(/id(\d+)/)[1])
         });
         console.log(list);
-        if (list.length > 1){
-            $.getJSON('/_array2python', {
-                wordlist: JSON.stringify(list)
-            }, function(data){
-                console.log(data.result)
-                $( "#result" ).text(data.result);
+//        if (list.length > 1){
+        $.getJSON('/_array2python', {
+            wordlist: JSON.stringify(list)
+        }, function(data){
+            console.log(data.result)
+            $( "#result" ).text(data.result);
             });
-        }
+//        }
     }
     console.log("CHECKSELECTED "+list);
     return list;

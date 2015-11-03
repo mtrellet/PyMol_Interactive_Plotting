@@ -117,7 +117,6 @@ $(document).ready(function() {
             var length = list_x.length;
             list_x[length] = new Option (msg.data[i]);
         }
-<<<<<<< Updated upstream
 
         // Y AXIS
         var html = '<div id="right_col">\n <p align="left"> Y-axis type: \n';
@@ -160,21 +159,20 @@ $(document).ready(function() {
         }
         $("body").append('<br>');
 
-        stop = new Date().getTime();
-        var time = stop - start;
-        console.log('Execution time: ' + time);
-=======
-        y_select.selectedIndex = 0;
-        console.log(request_ana)
-        socket.emit('create', {data: request_ana});
-        return false;
+//        stop = new Date().getTime();
+//        var time = stop - start;
+//        console.log('Execution time: ' + time);
+//
+//        y_select.selectedIndex = 0;
+//        console.log(request_ana)
+//        socket.emit('create', {data: request_ana});
+//        return false;
         
         // $("body").append('<br>');
 
         // stop = new Date().getTime();
         // var time = stop - start;
 //        alert('Execution time: ' + time);
->>>>>>> Stashed changes
 
     });
 
@@ -186,18 +184,10 @@ $(document).ready(function() {
         var to_show = document.getElementById("synchro");
         to_show.style.display = '';
 //        location.reload(true);
-<<<<<<< Updated upstream
-        stop = new Date().getTime();
-        var time = stop - start;
-        console.log('Execution time: ' + time);
-=======
-// <<<<<<< Updated upstream
-// =======
 //         stop = new Date().getTime();
 //         var time = stop - start;
 // //        alert('Execution time: ' + time);
-// >>>>>>> Stashed changes
->>>>>>> Stashed changes
+
     });
 });
 

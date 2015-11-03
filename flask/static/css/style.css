@@ -26,11 +26,7 @@ path {
     shape-rendering: crispEdges;
 }
 
-<<<<<<< HEAD
 rect.selection_0 {
-=======
-rect {
->>>>>>> master
     stroke          : gray;
     stroke-width    : 1px;
     stroke-dasharray: 4px;
