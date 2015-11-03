@@ -26,13 +26,26 @@ path {
     shape-rendering: crispEdges;
 }
 
+<<<<<<< HEAD
+rect.selection_0 {
+=======
 rect {
+>>>>>>> master
     stroke          : gray;
     stroke-width    : 1px;
     stroke-dasharray: 4px;
     stroke-opacity  : 0.5;
     fill            : transparent;
 }
+
+rect.selection_1 {
+    stroke          : gray;
+    stroke-width    : 1px;
+    stroke-dasharray: 4px;
+    stroke-opacity  : 0.5;
+    fill            : transparent;
+}
+
 
 g.state circle {
     stroke  : gray;
