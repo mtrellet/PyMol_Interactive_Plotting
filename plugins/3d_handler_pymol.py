@@ -1,8 +1,3 @@
-import argparse
-
-__author__ = 'trellet'
-
-
 ###############################################
 #  File:          interactive_plotting.py
 #  Author:        Dan Kulp
@@ -18,8 +13,11 @@ __author__ = 'trellet'
 #   RMSD plot shown over trajectory.
 ###############################################
 
+
 from __future__ import division
 from __future__ import generators
+
+import argparse
 
 import time
 import Queue
@@ -38,7 +36,7 @@ import sys
 # Parameters of logging output
 import logging
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-logging.basicConfig(filename="log/pymol_session.log", filemode="w", format=FORMAT, level=logging.INFO)
+logging.basicConfig(filename="../log/pymol_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
 # workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
@@ -138,6 +136,7 @@ def check_selections(queue):
     global previous_mouse_mode
     global myspace
     while True:
+        logging.debug("Entered in infinite loop")
         # Check if the user changed the selection mode (atom/residue/chain/molecule)
         logging.debug("Current mouse selection mode : %d" % int(cmd.get("mouse_selection_mode")))
         logging.debug("Number of selections: %d" % len(cmd.get_names("selections")))
@@ -199,6 +198,7 @@ class Handler:
         #     parent = rootframe.interior()
         # else:
 
+        logging.info("Handler initialization...")
         if name is None:
             try:
                 name = cmd.get_unused_name('Handler')
@@ -692,13 +692,9 @@ if __name__ == "__main__":
     t.start()
     logging.info("Checking changes in selections... (infinite loop)")
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--mode", default="local",
-        help="The visualisation mode (local or moliscope)")
-
-    args = parser.parse_args()
-
-    handler = Handler(args.mode, '(enabled)')
+    mode = sys.argv[1]
+    logging.info("Mode: %s" % mode)
+    handler = Handler(mode, '(enabled)')
     #self.menuBar.addmenuitem('PlotTools', 'command', 'Launch Rama Plot', label='RMSD Plot',
     #                         command=lambda: Handler(queue, '(enabled)'))
 

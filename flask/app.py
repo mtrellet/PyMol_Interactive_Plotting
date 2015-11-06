@@ -68,6 +68,8 @@ def array2python():
         # USER DEFINED
         # liblo.send((osc_client, osc_port), "/selected", selected)
         liblo.send(target, "/selected", selected)
+        # Send for moliscope
+        liblo.send(target, "/moliscope/showmodels", selected)
         logging.info("Selected models sent on: %s" % target.url)
         return jsonify(result=wordlist)
     else:
@@ -168,7 +170,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--client_ip", default="127.0.0.1",
         help="The ip of the OSC client")
-    parser.add_argument("--client_port", type=int, default=8000,
+    parser.add_argument("--client_port", type=int, default=9000,
         help="The port the OSC client is listening on")
     parser.add_argument("--server_ip", default="127.0.0.1",
         help="The ip of the OSC server")
