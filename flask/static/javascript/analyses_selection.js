@@ -11,6 +11,26 @@ var stop = 0;
 
 $(document).ready(function() {
 
+    window.blockMenuHeaderScroll = false;
+    $(window).on('touchstart', function(e)
+    {
+        if ($(e.target).closest('#model_plots').length == 1)
+        {
+            blockMenuHeaderScroll = true;
+        }
+    });
+    $(window).on('touchend', function()
+    {
+        blockMenuHeaderScroll = false;
+    });
+    $(window).on('touchmove', function(e)
+    {
+        if (blockMenuHeaderScroll)
+        {
+            e.preventDefault();
+        }
+    });
+
     var to_hide = document.getElementById("model_buttons");
     to_hide.style.display = 'none';
     to_hide = document.getElementById("chain_buttons");
