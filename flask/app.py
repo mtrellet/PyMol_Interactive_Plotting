@@ -54,7 +54,7 @@ def index():
 @cross_origin() # allow all origins all methods.
 @nocache
 def array2python():
-    global target
+    # global target
     wordlist = json.loads(request.args.get('wordlist'))
     if len(wordlist) > 0:
         selected = [ int(s) for s in wordlist]
@@ -67,8 +67,9 @@ def array2python():
         #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
         # USER DEFINED
         # liblo.send((osc_client, osc_port), "/selected", selected)
-        liblo.send(target, "/selected", selected)
-        logging.info("Selected models sent on: %s" % target.url)
+        # liblo.send(target, "/selected", selected)
+        liblo.send((osc_client, osc_port), "/selected", selected)
+        logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
         return jsonify(result=wordlist)
     else:
         liblo.send(target, "/selected", 0 )
@@ -78,12 +79,13 @@ def array2python():
 @cross_origin() # allow all origins all methods.
 @nocache
 def uniq_selection():
-    global target, rdf_handler
+    global rdf_handler
     selected = json.loads(request.args.get('selected'))
     info = rdf_handler.get_info_uniq(selected)
     print info
-    liblo.send(target, "/selected", selected)
-    logging.info("Selected models sent on: %s" % target.url)
+    # liblo.send(target, "/selected", selected)
+    liblo.send((osc_client, osc_port), "/selected", selected)
+    logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
     return jsonify(result=selected)
 
 @socketio.on('connected', namespace='/socketio')
@@ -185,14 +187,14 @@ if __name__ == "__main__":
     logging.info("Web server \nIP: %s \t PORT: %d \t Debug: %s \nOSC server\nIP: %s \t PORT: %d\n" % (args.ip, args.port, args.debug, args.client_ip, args.client_port))
 
     # send all messages to port client_port on the local machine
-    try:
-        #target = liblo.Address(args.client_port)
-        target = liblo.Address('chm6048.limsi.fr', args.client_port)
-        logging.info("Initialization of sender adress on %s" % target.url)
-        logging.info(target.url)
-    except liblo.AddressError, err:
-        print str(err)
-        sys.exit()
+    # try:
+    #     #target = liblo.Address(args.client_port)
+    #     target = liblo.Address('chm6048.limsi.fr', args.client_port)
+    #     logging.info("Initialization of sender adress on %s" % target.url)
+    #     logging.info(target.url)
+    # except liblo.AddressError, err:
+    #     print str(err)
+    #     sys.exit()
 
     osc_client = args.client_ip
     osc_port = args.client_port
