@@ -236,7 +236,7 @@ class Handler:
         self.options_button = None
         self.main_button = None
         self.osc_ip = "127.0.0.1"
-        self.server_port = 5555
+        self.server_port = 5551
         self.client_port = 8100
         self.multi_port = 6000
         self.osc_receiver = []
