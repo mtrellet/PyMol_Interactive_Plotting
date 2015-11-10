@@ -74,7 +74,7 @@ def array2python():
 
         return jsonify(result=wordlist)
     else:
-        liblo.send(target, "/selected", 0 )
+        liblo.send((osc_client, osc_port), "/selected", 0 )
         return jsonify(result=wordlist)
 
 @app.route('/_uniq_selection', methods=['GET', 'POST'])

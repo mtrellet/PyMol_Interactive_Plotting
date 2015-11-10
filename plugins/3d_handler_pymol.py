@@ -641,48 +641,7 @@ class Handler:
         if self.lock:
             return
 
-        # Loop through each item on plot to see if updated
-        # for value in self.canvas.shapes.itervalues():
-        #     # Look for update flag...
-        #     if value[2]:
-        #         # Set residue's phi,psi to new values
-        #         model, index = value[5]
-        #         print " Re-setting Phi,Psi: %8.2f,%8.2f" % (value[3], value[4])
-        #         set_phipsi(model, index, value[3], value[4], self.state)
-        #         value[2] = 0
 
-
-# def rama(sel='(all)', name=None, symbols='aa', filename=None, state=-1):
-#     '''
-# DESCRIPTION
-#
-#     Ramachandran Plot
-#     http://pymolwiki.org/index.php/DynoPlot
-#
-# ARGUMENTS
-#
-#     sel = string: atom selection {default: all}
-#
-#     name = string: name of callback object which is responsible for setting
-#     angles when canvas points are dragged, or 'none' to not create a callback
-#     object {default: Handler}
-#
-#     symbols = string: aa for amino acid or ss for secondary structure {default: aa}
-#
-#     filename = string: filename for postscript dump of canvas {default: None}
-#     '''
-#     queue = Queue.Queue()
-#     # Start background thread to check selections
-#     t = threading.Thread(target=check_selections, args=(queue,))
-#     t.start()
-#     logging.info("Checking changes in selections... (infinite loop)")
-#     dyno = Handler(queue, sel, name, symbols, int(state))
-#     if filename is not None:
-#         dyno.canvas.postscript(file=filename)
-
-# Extend these commands
-# cmd.extend('ramachandran', rama)
-# cmd.auto_arg[0]['ramachandran'] = cmd.auto_arg[0]['zoom']
 
 # Launch PyMol handler
 if __name__ == "__main__":

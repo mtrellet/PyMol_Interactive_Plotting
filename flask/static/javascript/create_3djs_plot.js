@@ -326,6 +326,7 @@ function create_3djs_plot(filename, counter, level) {
     svg.on( "touchstart", function() {
         var p = d3.mouse( this);
         console.log("DOWN")
+        var selected = [];
 
         if(document.getElementById("sync_plots").checked){
 //            var svgs = document.getElementsByTagName("svg");
@@ -342,13 +343,12 @@ function create_3djs_plot(filename, counter, level) {
               .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1]);
         }
 
-        var re = svg.select("rect.selection_"+counter)
+        var re = d3.select("#"+level+"_svg_"+counter).select("rect.selection_"+counter)
         if(re.empty()){
             start_select.x = p[0];
             start_select.y = p[1];
             console.log("Selection started");
-            // console.log(p)
-            svg.append( "rect")
+            d3.select("#"+level+"_svg_"+counter).append( "rect")
             .attr({
               rx      : 6,
               ry      : 6,
@@ -357,11 +357,11 @@ function create_3djs_plot(filename, counter, level) {
               y       : p[1],
               width   : 0,
               height  : 0
-            })
+          })
         }
     })
     .on( "touchmove", function() {
-        var s = svg.select( "rect.selection_"+counter);
+        var s = d3.select("#"+level+"_svg_"+counter).select( "rect.selection_"+counter);
 
         if( !s.empty()) {
             var p = d3.mouse( this),
@@ -416,22 +416,43 @@ function create_3djs_plot(filename, counter, level) {
             })
 
             if (document.getElementById("sync_plots").checked){
-                d3.selectAll("div."+level).selectAll("circle.selected").each(function(data) {
-                    var id = d3.select(this).attr("id");
-                    d3.select("#"+id)
-                      .classed("selected", true)
-                      .style("fill", "blue")
-                      .style("stroke", "blue")
-                })
+                var svgs = d3.selectAll("div."+level);
+                console.log("LEVEL: "+level)
+                for(var i = 0; i < svgs[0].length; i++){
+                    if (i != counter){
+                        d3.select("#"+level+"_plot_"+counter).selectAll("circle.selected").each(function(data) {
+                            var id = d3.select(this).attr("id");
+                            d3.select("#"+level+"_plot_"+i).select("#"+id)
+                              .classed("selected", true)
+                              .style("fill", "blue")
+                              .style("stroke", "blue")
+                        })
+                    }
+                }
             }
 
             s.attr( d);
         }
     })
     .on( "touchend", function() {
-        svg.select( ".selection_"+counter).remove();
-        if(document.getElementById("sync_visu").checked){
-            checkSelected(counter, level);
+        d3.select("#"+level+"_svg_"+counter).select( ".selection_"+counter).remove();
+        selected = checkSelected(counter, level);
+        if(document.getElementById("sync_plots").checked){
+            for (var key in lvl_equivalence){
+                if (lvl_equivalence[key] == level)
+                    lvl_num = Number(key);
+            }
+            for(var j = lvl_num+1; j< 4; j++){
+                console.log(j+" "+plots[lvl_equivalence[j]].length)
+                for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
+                    name = plots[lvl_equivalence[j]][k]
+                    lvl = name.substring(0,name.indexOf('_'));
+                    c = Number(name.substr(name.length - 1)); // Won't work for more than 9 plots
+                    console.log(name+" "+lvl+" "+c);
+                    destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
+                    update_plots(lvl, selected, level);
+                }
+            }
         }
     });
 
