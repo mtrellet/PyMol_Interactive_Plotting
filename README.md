@@ -29,4 +29,6 @@ with
 [--server_ip SERVER_IP] [--server_port SERVER_PORT] [--ip IP]
 [--port PORT] [--debug DEBUG]`
 
-## 4. Enjoy !
+## 4. Access HTML interface
+
+Go to 129.175.156.48:5000 or localhost:5000
