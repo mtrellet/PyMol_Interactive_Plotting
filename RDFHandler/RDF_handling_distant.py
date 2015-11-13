@@ -37,7 +37,7 @@ class RDF_Handler:
     def set_scale(self,scale):
         pass
 
-    def create_JSON(self, x_query_type, y_query_type, scale, filter= None, filter_lvl = None):
+    def create_JSON(self, x_query_type, y_query_type, scale, filter= None):
         # Query points to draw plot
         """
         Query points to draw plots
@@ -50,8 +50,8 @@ class RDF_Handler:
             print "NO FILTER"
             points = self.query_rdf(x_query_type, y_query_type, scale.capitalize())
         else:
-            print "FILTER"
-            points = self.query_rdf_filtered(x_query_type, y_query_type, scale.capitalize(), filter, filter_lvl)
+            print "FILTER: %s " % filter
+            points = self.query_rdf_filtered(x_query_type, y_query_type, filter, scale.capitalize())
 
         ### Create dictionary for json
         all_models = set()
@@ -109,24 +109,74 @@ class RDF_Handler:
 
         return models
 
-    def query_rdf_filtered(self, x_query_type, y_query_type, scale=None, filter = None, filter_lvl = None):
+    def query_rdf_filtered(self, x_query_type, y_query_type, filter_ids, scale=None):
         """ Query the RDF graph to build complete plot with a filter"""
         scale = scale or self.scale
         logging.info(scale)
 
-        ids = tuple([int(i) for i in filter])
+        # ids = tuple([int(i) for i in filter_ids])
         # Remove the final comma when only one id is in the tuple
-        if len(ids) == 1:
-            ids_str = str(ids).replace(',','')
-        else:
-            ids_str = str(ids)
+        # if len(ids) == 1:
+        #     ids_str = str(ids).replace(',','')
+        # else:
+        #     ids_str = str(ids)
+        # print ids_str
 
-        print ids_str
+        filter_lvls = [lvl for lvl in filter_ids if len(filter_ids[lvl]) > 0]
+        print filter_lvls
+        hierarchical_lvl = ['model','chain','residue','atom']
+
+        indivs = []
+        last_filter_lvl = ''
+        for lvl in hierarchical_lvl:
+            if lvl in filter_lvls:
+                print "Apply filter: %s" % lvl
+                ids = tuple([int(i) for i in filter_ids[lvl]])
+                if len(ids) == 1:
+                    ids_str = str(ids).replace(',','')
+                else:
+                    ids_str = str(ids)
+                print ids_str
+
+                if not indivs:
+                    query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s)}' % (self.uri,
+                                                                                         lvl.capitalize(),
+                                                                                         lvl.lower(),
+                                                                                         ids_str)
+                else:
+                    if len(indivs) == 1:
+                        indivs_str = str(tuple(indivs)).replace(',','')
+                    else:
+                        indivs_str = str(tuple(indivs))
+                    print indivs_str
+                    query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s) . ' \
+                            '?ind my:belongs_to ?parent . filter (?parent in %s) }' % (self.uri, lvl.capitalize(),
+                                                                                       lvl.lower(), ids_str, indivs_str)
+
+                logging.info("QUERY: \n%s" % query)
+                self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+                qres = self.sparql_wrapper.query().convert()
+
+                logging.info("Number of queried entities: %d" % (len(qres["results"]["bindings"])))
+
+                for i in range(0,len(qres["results"]["bindings"])):
+                    indivs.append(str(qres["results"]["bindings"][i]["ind"]["value"].replace(self.graph_name,"my:")))
+                last_filter_lvl = lvl
+                print indivs
+
+        indivs_str = ''
+        if len(indivs) == 1:
+            indivs_str = str(tuple(indivs)).replace(',','').replace('\'','')
+        else:
+            indivs_str = str(tuple(indivs)).replace('\'','')
+        print indivs_str
+
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?ind my:%s ?x . ?ind my:%s ?y . ?ind a my:%s . ?ind my:belongs_to ?parent ' \
-                '. ?parent a my:%s . ?parent my:uniq_id ?id . filter(?id in %s)}'\
-                % (self.uri, x_query_type, y_query_type, scale, filter_lvl.capitalize(), ids_str)
+                '. ?parent a my:%s . filter(?parent in %s)}'\
+                % (self.uri, x_query_type, y_query_type, scale.capitalize(), last_filter_lvl.capitalize(), indivs_str)
+
         query2 = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?id . ?ind my:belongs_to ?parent ' \
-                '. ?parent a my:%s . ?parent my:uniq_id ?uniq . filter(?uniq in %s)}' % (self.uri, scale, filter_lvl.capitalize(), ids_str)
+                '. ?parent a my:%s . filter(?parent in %s)}' % (self.uri, scale,last_filter_lvl.capitalize(), indivs_str)
 
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -153,9 +203,9 @@ class RDF_Handler:
         # query2 = u"""SELECT ?id FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
 
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}'\
-                % (self.uri, x_query_type, y_query_type, scale, scale.lower())
+                % (self.uri, x_query_type, y_query_type, scale.capitalize(), scale.lower())
         # query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
-        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:uniq_id ?id}' % (self.uri, scale)
+        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:uniq_id ?id}' % (self.uri, scale.capitalize())
         
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -181,7 +231,7 @@ class RDF_Handler:
         :return: list of ids
         """
         scale = scale or self.scale
-        query = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
+        query = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale.capitalize(), scale.lower())
 
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)

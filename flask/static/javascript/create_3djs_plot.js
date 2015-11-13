@@ -521,7 +521,8 @@ function checkSelected(c, level, id) {
         console.log(list);
 //        if (list.length > 1){
         $.getJSON('/_array2python', {
-            wordlist: JSON.stringify(list)
+            idlist: JSON.stringify(list),
+            plot_level: level
         }, function(data){
             console.log(data.result)
             $( "#result" ).text(data.result);
