@@ -19,7 +19,7 @@ monkey.patch_all()
 import logging
 from RDFHandler.RDF_handling_distant import RDF_Handler
 
-FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)s %(funcName)s - %(message)s'
 logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 
 app = Flask('Visual Analytics')
@@ -62,34 +62,43 @@ def array2python():
     idlist = json.loads(request.args.get('idlist'))
     plot_level = str(request.args.get('plot_level'))
     if len(idlist) > 0:
-        selected = [ int(s) for s in idlist]
-        logging.info("Selected models: "+str(selected))
+        selected_uniq_ids = [ int(s) for s in idlist]
 
-        ######## LIBLO ##########
-        # LIMSI wired connection
-        #liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
-        # EDUROAM
-        #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
-        # USER DEFINED
-        # liblo.send((osc_client, osc_port), "/selected", selected)
+        # Convert uniq ids from plots to biologically meaningful ids
+        logging.info("Selected models (uniq_id): "+str(selected_uniq_ids))
+        selected_bio_ids = rdf_handler.from_uniq_to_bio_ids(plot_level, selected_uniq_ids)
+        logging.info("Selected models (bio_id): "+str(selected_bio_ids))
 
-        # ids[message['lvl']] = list_ids
-
-
-        if moliscope:
-            liblo.send((osc_client, osc_port), "/moliscope/new_selection", selected)
+        if plot_level != 'model':
+            liblo.send((osc_client, osc_port), "/moliscope/hide_level", plot_level)
+            hierarchical_tree_for_selection = rdf_handler.from_uniq_to_hierarchical_tree(plot_level, selected_uniq_ids)
+            for key in hierarchical_tree_for_selection.iterkeys():
+                liblo.send((osc_client, osc_port), "/moliscope/new_submodel_selection", hierarchical_tree_for_selection[key]['model'],
+                           hierarchical_tree_for_selection[key]['chain'], hierarchical_tree_for_selection[key]['residue'],
+                           hierarchical_tree_for_selection[key]['atom'])
         else:
-            liblo.send((osc_client, osc_port), "/selected", selected)
+            if moliscope:
+                liblo.send((osc_client, osc_port), "/moliscope/new_selection", *selected_bio_ids)
+            else:
+                liblo.send((osc_client, osc_port), "/selected", selected_bio_ids)
 
         logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
-        ids[plot_level] = selected
+        ids[plot_level] = selected_bio_ids
         return jsonify(result=idlist)
     else:
         if moliscope:
-            liblo.send((osc_client, osc_port), "/moliscope/new_selection", 0 )
+            liblo.send((osc_client, osc_port), "/moliscope/new_selection", None )
         else:
             liblo.send((osc_client, osc_port), "/selected", 0 )
         return jsonify(result=idlist)
+
+    ######## LIBLO ##########
+    # LIMSI wired connection
+    #liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
+    # EDUROAM
+    #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
+    # USER DEFINED
+    # liblo.send((osc_client, osc_port), "/selected", selected)
 
 @app.route('/_uniq_selection', methods=['GET', 'POST'])
 @cross_origin() # allow all origins all methods.

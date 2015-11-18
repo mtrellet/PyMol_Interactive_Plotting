@@ -47,10 +47,10 @@ class RDF_Handler:
         scale = scale or self.scale
 
         if not filter:
-            print "NO FILTER"
+            logging.info("NO FILTER")
             points = self.query_rdf(x_query_type, y_query_type, scale.capitalize())
         else:
-            print "FILTER: %s " % filter
+            logging.info("FILTER: %s " % filter)
             points = self.query_rdf_filtered(x_query_type, y_query_type, filter, scale.capitalize())
 
         ### Create dictionary for json
@@ -123,20 +123,19 @@ class RDF_Handler:
         # print ids_str
 
         filter_lvls = [lvl for lvl in filter_ids if len(filter_ids[lvl]) > 0]
-        print filter_lvls
-        hierarchical_lvl = ['model','chain','residue','atom']
+        logging.info(filter_lvls)
 
         indivs = []
         last_filter_lvl = ''
-        for lvl in hierarchical_lvl:
-            if lvl in filter_lvls:
-                print "Apply filter: %s" % lvl
-                ids = tuple([int(i) for i in filter_ids[lvl]])
+        for lvl in self.scales:
+            if lvl.lower() in filter_lvls:
+                logging.info("Apply filter: %s" % lvl.lower())
+                ids = tuple([int(i) for i in filter_ids[lvl.lower()]])
                 if len(ids) == 1:
                     ids_str = str(ids).replace(',','')
                 else:
                     ids_str = str(ids)
-                print ids_str
+                logging.info("ids_str: %s" % ids_str)
 
                 if not indivs:
                     query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s)}' % (self.uri,
@@ -148,7 +147,7 @@ class RDF_Handler:
                         indivs_str = str(tuple(indivs)).replace(',','')
                     else:
                         indivs_str = str(tuple(indivs))
-                    print indivs_str
+                    logging.info("indivs_str: %s" % indivs_str)
                     query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s) . ' \
                             '?ind my:belongs_to ?parent . filter (?parent in %s) }' % (self.uri, lvl.capitalize(),
                                                                                        lvl.lower(), ids_str, indivs_str)
@@ -161,15 +160,15 @@ class RDF_Handler:
 
                 for i in range(0,len(qres["results"]["bindings"])):
                     indivs.append(str(qres["results"]["bindings"][i]["ind"]["value"].replace(self.graph_name,"my:")))
-                last_filter_lvl = lvl
-                print indivs
+                last_filter_lvl = lvl.lower()
+                logging.info("Indivs: %s" % indivs)
 
         indivs_str = ''
         if len(indivs) == 1:
             indivs_str = str(tuple(indivs)).replace(',','').replace('\'','')
         else:
             indivs_str = str(tuple(indivs)).replace('\'','')
-        print indivs_str
+        logging.info("indivs_str after filtering: %s" % indivs_str)
 
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?ind my:%s ?x . ?ind my:%s ?y . ?ind a my:%s . ?ind my:belongs_to ?parent ' \
                 '. ?parent a my:%s . filter(?parent in %s)}'\
@@ -256,7 +255,7 @@ class RDF_Handler:
 
         logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
         res = {}
-        print qres
+        logging.info(qres)
         import re
         for row in qres["results"]["bindings"]:
             parsed=re.sub(r"http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#", r"", row["param"]["value"])
@@ -345,7 +344,7 @@ class RDF_Handler:
                     p = re.compile("RES_[0-9]+")
                     r=p.search(res)
                     if nb_pt == 1:
-                        print r.group(0)
+                        logging.info(r.group(0))
                     insertion += point+" "+self.prefix_name+":represent "+self.prefix_name+":"+r.group(0)+" . "
                     # self.rdf_graph.add( (point, my.X_type, Literal('resid')))
                     # res = str(indiv_list[nb_pt])
@@ -554,7 +553,6 @@ class RDF_Handler:
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
 
         logging.info('QUERY: %s' % query)
-        print self.rules+self.prefix+query
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
@@ -626,3 +624,69 @@ class RDF_Handler:
                 return True
 
         return False
+
+    def from_uniq_to_bio_ids(self, scale, selected):
+        logging.debug("Converting uniq ids %s to biologically meaningful ids" % selected)
+
+        selected_str = ''
+        if len(selected) == 1:
+            selected_str = str(tuple(selected)).replace(',','').replace('\'','')
+        else:
+            selected_str = str(tuple(selected)).replace('\'','')
+        logging.info(selected_str)
+
+        query = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . ?ind my:uniq_id ?uniq . filter(?uniq in %s)}' \
+                % (self.uri, scale.capitalize(), scale.lower(), selected_str)
+
+        self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+        qres = self.sparql_wrapper.query().convert()
+
+        bio_ids = []
+        for row in qres["results"]["bindings"]:
+            bio_ids.append(int(row["id"]["value"]))
+
+        return bio_ids
+
+    def from_uniq_to_hierarchical_tree(self, scale, selected):
+
+        ids = tuple([int(i) for i in selected])
+        if len(ids) == 1:
+            ids_str = str(ids).replace(',','')
+        else:
+            ids_str = str(ids)
+        logging.debug(ids_str)
+
+        hierarchical_tree = {}
+        hierarchical_tree = hierarchical_tree.fromkeys(selected, {'model':[], 'chain':[], 'residue':[], 'atom':[]})
+        logging.debug(hierarchical_tree)
+        for sel in selected:
+            logging.debug("New uniq id: %s " % sel)
+            hierarchical_tree[sel] = {'model':None, 'chain':None, 'residue':None, 'atom':None}
+            for lvl in self.scales:
+                logging.debug("New level: %s " % lvl)
+                if lvl.lower() == scale:
+                    query = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?uniq . FILTER ( ?uniq = %s ) . ' \
+                            '?ind my:%s_id ?id .}' % (self.uri, scale.capitalize(), str(sel), lvl.lower())
+                    logging.debug(query)
+                    self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+                    qres = self.sparql_wrapper.query().convert()
+                    logging.debug(qres["results"]["bindings"][0]["id"]["value"])
+                    parent_id = qres["results"]["bindings"][0]["id"]["value"]
+                    if parent_id.isdigit():
+                        hierarchical_tree[sel][lvl.lower()] = int(parent_id)
+                    else:
+                        hierarchical_tree[sel][lvl.lower()] = parent_id
+                    break
+                else:
+                    query = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?uniq . FILTER ( ?uniq = %s ) . ' \
+                            '?ind my:belongs_to ?parent . ?parent my:%s_id ?id .}' % (self.uri, scale.capitalize(), str(sel), lvl.lower())
+
+                    self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
+                    qres = self.sparql_wrapper.query().convert()
+                    parent_id = qres["results"]["bindings"][0]["id"]["value"]
+                    if parent_id.isdigit():
+                        hierarchical_tree[sel][lvl.lower()] = int(parent_id)
+                    else:
+                        hierarchical_tree[sel][lvl.lower()] = parent_id
+        logging.info(hierarchical_tree)
+        return hierarchical_tree
