@@ -15,7 +15,7 @@ function create_3djs_plot(filename, counter, level) {
     $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+' class="plot '+level+'"></div>');
     $("#"+level+"_plot_"+counter).append('<p class="value">Hint: You can click on the dots.</p>');
 //    $("#"+level+"_plot_"+counter).append('<form id="destroy" name="'+level+'_plot_'+counter+'" onclick="destroy_plot(this,'+level+','+counter+');"><button type="submit">Destroy</button>')
-    var button = '<button name="'+level+'_plot_'+counter+'" onclick="destroy_plot(this.name,\''+level+'\','+counter+')">Destroy</button>';
+    var button = '<button name="'+level+'_plot_'+counter+'" onclick="destroy_plot(this.name,\''+level+'\','+counter+',false)">Destroy</button>';
     $("#"+level+"_plot_"+counter).append(button);
 
 //    $('form#destroy').submit(function(event) {
@@ -416,29 +416,40 @@ function synchronize_plots(level) {
             if (lvl_equivalence[key] == level)
                 lvl_num = Number(key);
         }
-        destroyed = []
+        destroyed = [];
+        lvls_concerned = [];
         for(var j = lvl_num+1; j< 4; j++){
             console.log(j+" "+plots[lvl_equivalence[j]].length)
             for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
                 name = plots[lvl_equivalence[j]][k]
                 lvl = name.substring(0,name.indexOf('_'));
+                if (lvls_concerned.indexOf(lvl) == -1)
+                    lvls_concerned.push(lvl);
                 c = Number(name.replace(/^\D+/g, ""))
                 console.log(name+" "+lvl+" "+c);
-                destroyed.push(destroy_plot(plots[lvl_equivalence[j]][k], lvl, c));
-                update_plots(lvl, selected, level);
+                destroyed.push(destroy_plot(plots[lvl_equivalence[j]][k], lvl, c, true));
             }
         }
+        for(var m = 0 ; m < lvls_concerned.length ; m++){
+            update_plots(lvls_concerned[m], selected, level);
+        }
+
         for(var l = 0 ; l < destroyed.length ; l++){
             cur_plot = destroyed[l];
-            idx = plots[level].indexOf(cur_plot);
-            if(idx > -1)
-                plots[level].splice(idx, 1);
+            lvl = cur_plot.substring(0,name.indexOf('_'));
+            console.log(lvl)
+            console.log(plots[lvl])
+            idx = plots[lvl].indexOf(cur_plot);
+            if(idx > -1){
+                console.log(idx)
+                plots[lvl].splice(idx, 1);
+            }
             console.log(plots);
         }
     }
 }
 
-function destroy_plot(name,level,counter) {
+function destroy_plot(name,level,counter, update) {
     console.log(plots);
     var plot = name;
     console.log(name);
@@ -447,6 +458,14 @@ function destroy_plot(name,level,counter) {
     document.getElementById(level+"_current_plots").innerHTML = "";
     document.getElementById(level+"_buttons").style.display = "none";
     cur_plot = level+"_plot_"+counter;
+    remove_plot(counter);
+    if(!update){
+        console.log("Normal destruction of plot (no update)")
+        idx = plots[level].indexOf(cur_plot);
+        if(idx > -1)
+            plots[level].splice(idx, 1);
+        console.log(plots);
+    }
     return cur_plot
 }
 

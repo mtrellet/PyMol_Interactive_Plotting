@@ -3,7 +3,7 @@ var y_analyses_list = [];
 var ana_list = [];
 var request_ana = {'model':[], 'chain':[], 'residue':[], 'atom':[]};
 var stored_plots = {'model':[], 'chain':[], 'residue':[], 'atom':[]};
-var counter = 0;
+var counter = [true,true,true,true,true,true,true,true,true];
 var url = "http://" + document.domain + ":" + location.port;
 var socket = io.connect(url + "/socketio");
 var start = 0;
@@ -199,8 +199,8 @@ $(document).ready(function() {
 
     socket.on('new_plot', function(msg){
         console.log(msg);
-        create_3djs_plot(msg.data, counter, msg.lvl)
-        counter += 1;
+        create_3djs_plot(msg.data, counter.indexOf(true), msg.lvl)
+        counter[counter.indexOf(true)] = false;
         var to_show = document.getElementById("synchro");
         to_show.style.display = '';
 //        location.reload(true);
@@ -210,6 +210,12 @@ $(document).ready(function() {
 
     });
 });
+
+function remove_plot(c){
+    console.log(counter);
+    counter[c] = true;
+    console.log(counter);
+}
 
 function update_ana(struct_lvl, filters, filters_lvl){
     console.log(stored_plots[struct_lvl]);
@@ -281,16 +287,17 @@ function new_ana_lists(choice){
 
     var x_select = document.getElementById(struct_lvl+"_ana_choice_x")
     request_ana[struct_lvl].push(x_select.value)
-    x_select.selectedIndex = 0;
     $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" / ")
 
     var y_select = document.getElementById(struct_lvl+"_ana_choice_y")
     request_ana[struct_lvl].push(y_select.value)
-    y_select.selectedIndex = 0;
     $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ")
     console.log(request_ana[struct_lvl]);
 
     stored_plots[struct_lvl].push([x_select.value, y_select.value]);
+
+    x_select.selectedIndex = 0;
+    y_select.selectedIndex = 0;
 }
 
 
