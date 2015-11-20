@@ -112,7 +112,7 @@ class RDF_Handler:
     def query_rdf_filtered(self, x_query_type, y_query_type, filter_ids, scale=None):
         """ Query the RDF graph to build complete plot with a filter"""
         scale = scale or self.scale
-        logging.info(scale)
+        logging.debug(scale)
 
         # ids = tuple([int(i) for i in filter_ids])
         # Remove the final comma when only one id is in the tuple
@@ -123,7 +123,7 @@ class RDF_Handler:
         # print ids_str
 
         filter_lvls = [lvl for lvl in filter_ids if len(filter_ids[lvl]) > 0]
-        logging.info(filter_lvls)
+        logging.debug(filter_lvls)
 
         indivs = []
         last_filter_lvl = ''
@@ -135,7 +135,7 @@ class RDF_Handler:
                     ids_str = str(ids).replace(',','')
                 else:
                     ids_str = str(ids)
-                logging.info("ids_str: %s" % ids_str)
+                logging.debug("ids_str: %s" % ids_str)
 
                 if not indivs:
                     query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s)}' % (self.uri,
@@ -147,12 +147,12 @@ class RDF_Handler:
                         indivs_str = str(tuple(indivs)).replace(',','')
                     else:
                         indivs_str = str(tuple(indivs))
-                    logging.info("indivs_str: %s" % indivs_str)
+                    logging.debug("indivs_str: %s" % indivs_str)
                     query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s) . ' \
                             '?ind my:belongs_to ?parent . filter (?parent in %s) }' % (self.uri, lvl.capitalize(),
                                                                                        lvl.lower(), ids_str, indivs_str)
 
-                logging.info("QUERY: \n%s" % query)
+                logging.debug("QUERY: \n%s" % query)
                 self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
                 qres = self.sparql_wrapper.query().convert()
 
@@ -168,7 +168,7 @@ class RDF_Handler:
             indivs_str = str(tuple(indivs)).replace(',','').replace('\'','')
         else:
             indivs_str = str(tuple(indivs)).replace('\'','')
-        logging.info("indivs_str after filtering: %s" % indivs_str)
+        logging.debug("indivs_str after filtering: %s" % indivs_str)
 
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?ind my:%s ?x . ?ind my:%s ?y . ?ind a my:%s . ?ind my:belongs_to ?parent ' \
                 '. ?parent a my:%s . filter(?parent in %s)}'\
@@ -177,10 +177,10 @@ class RDF_Handler:
         query2 = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?id . ?ind my:belongs_to ?parent ' \
                 '. ?parent a my:%s . filter(?parent in %s)}' % (self.uri, scale,last_filter_lvl.capitalize(), indivs_str)
 
-        logging.info("QUERY: \n%s" % query)
+        logging.debug("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
-        logging.info("QUERY 2: \n%s" % query2)
+        logging.debug("QUERY 2: \n%s" % query2)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query2)
         qres2 = self.sparql_wrapper.query().convert()
 
@@ -275,11 +275,11 @@ class RDF_Handler:
             for s in scale:
                 query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
                 % (self.uri, s)
-                logging.info("QUERY: \n%s" % query)
+                logging.debug("QUERY: \n%s" % query)
                 self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
                 qres = self.sparql_wrapper.query().convert()
 
-                logging.info("Number of queried entities: %d " % len(qres["results"]["bindings"]))
+                logging.debug("Number of queried entities: %d " % len(qres["results"]["bindings"]))
                 results[s] = []
                 import re
                 for row in qres["results"]["bindings"]:

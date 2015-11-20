@@ -11,6 +11,7 @@ import argparse
 import liblo
 import sys
 import threading
+import time
 
 from OSCHandler.osc_server import MyServer
 from gevent import monkey
@@ -58,7 +59,7 @@ def index():
 @cross_origin() # allow all origins all methods.
 @nocache
 def array2python():
-    # global target
+    logging.warning("app.py = NEW SELECTION")
     idlist = json.loads(request.args.get('idlist'))
     plot_level = str(request.args.get('plot_level'))
     if len(idlist) > 0:
@@ -84,8 +85,10 @@ def array2python():
 
         logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
         ids[plot_level] = selected_bio_ids
-        return jsonify(result=idlist)
+        logging.info("Ids stored as selected in app.py: %s" % ids)
+        return jsonify(result=True)
     else:
+        ids[plot_level] = []
         if moliscope:
             liblo.send((osc_client, osc_port), "/moliscope/new_selection", None )
         else:
@@ -104,6 +107,7 @@ def array2python():
 @cross_origin() # allow all origins all methods.
 @nocache
 def uniq_selection():
+    logging.warning("app.py = NEW UNIQ SELECTION")
     global rdf_handler
     selected = json.loads(request.args.get('selected'))
     info = rdf_handler.get_info_uniq(selected)
@@ -132,6 +136,7 @@ def get_available_analyses(message):
 
 @socketio.on('create', namespace='/socketio')
 def get_plot_values(message):
+    logging.warning("app.py = CREATE PLOT")
     global rdf_handler
     print message
     filter_nb = 0
@@ -153,7 +158,7 @@ def get_plot_values(message):
         # Get data ids
         all_ids = rdf_handler.get_ids(x_type, y_type, message['lvl'])
         list_ids = [int(id) for id in all_ids]
-        logging.warning("List of ids: %s" % list_ids)
+        logging.info("List of ids: %s" % list_ids)
         # Send data ids to PyMol
         if moliscope:
             liblo.send((osc_client, osc_port), "/moliscope/set_level", message['lvl'])
@@ -163,19 +168,36 @@ def get_plot_values(message):
 
 @socketio.on('update', namespace='/socketio')
 def update_plot_values(message):
+    logging.warning("app.py = UPDATE PLOT")
     global rdf_handler
     print message
+    filter_nb = 0
     for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
         # Create json file with required information
-        json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], message['filter'], message['filter_lvl'])
+        for lvl in ids.keys(): # Check for higher levels models
+            # print lvl, hierarchical_lvl[message['lvl']], hierarchical_lvl[lvl]
+            if ids[lvl] and hierarchical_lvl[message['lvl']] < hierarchical_lvl[lvl]:
+                filter_ids[lvl] = ids[lvl]
+                filter_nb += 1
+
+        if filter_nb > 0:
+            print filter_ids
+            json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], filter_ids)
+        else:
+            json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
         # Send json file to webserver
         socketio.emit('new_plot', {'data' : json_file, 'lvl': message['lvl']}, namespace='/socketio')
         # Get data ids
-        ids = rdf_handler.get_ids(x_type, y_type)
-        list_ids = [int(id) for id in ids]
+        # ids = rdf_handler.get_ids(x_type, y_type)
+        all_ids = rdf_handler.get_ids(x_type, y_type, message['lvl'])
+        list_ids = [int(id) for id in all_ids]
         logging.info("List of ids: %s" % list_ids)
         # Send data ids to PyMol
-        liblo.send((osc_client, osc_port), "/ids", list_ids)
+        if moliscope:
+            liblo.send((osc_client, osc_port), "/moliscope/set_level", message['lvl'])
+            liblo.send((osc_client, osc_port), "/moliscope/ids", list_ids)
+        else:
+            liblo.send((osc_client, osc_port), "/ids", list_ids)
 
 @socketio.on('update_context', namespace='/socketio')
 def change_scale(message):

@@ -8,6 +8,8 @@ var plots = {"model": [], "chain": [], "residue": [], "atom": []};
 
 var lvl_equivalence = {0: "model", 1: "chain", 2: "residue", 3: "atom"};
 
+var lock = false
+
 function create_3djs_plot(filename, counter, level) {
 
     $("#"+level+"_plots").append('<div id='+level+'_plot_'+counter+' class="plot '+level+'"></div>');
@@ -115,23 +117,7 @@ function create_3djs_plot(filename, counter, level) {
                 d3.select(this)
                   .classed( "selected", !isSelected);
                 selected = checkSelected(counter, level, d.id);
-                if(document.getElementById("sync_plots").checked){
-                    for (var key in lvl_equivalence){
-                        if (lvl_equivalence[key] == level)
-                            lvl_num = Number(key);
-                    }
-                    for(var j = lvl_num+1; j< 4; j++){
-                        console.log(j+" "+plots[lvl_equivalence[j]].length)
-                        for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
-                            name = plots[lvl_equivalence[j]][k]
-                            lvl = name.substring(0,name.indexOf('_'));
-                            c = Number(name.substr(name.length - 1));
-                            console.log(name+" "+lvl+" "+c);
-                            destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
-                            update_plots(lvl, selected, level);
-                        }
-                    }
-                }
+//                synchronize_plots(level);
             })
             .on("mouseover", function(d) {
                 if(!d3.select(this).classed("selected")){
@@ -304,23 +290,8 @@ function create_3djs_plot(filename, counter, level) {
         console.log("UP")
         d3.select("#"+level+"_svg_"+counter).select( ".selection_"+counter).remove();
         selected = checkSelected(counter, level);
-        if(document.getElementById("sync_plots").checked){
-            for (var key in lvl_equivalence){
-                if (lvl_equivalence[key] == level)
-                    lvl_num = Number(key);
-            }
-            for(var j = lvl_num+1; j< 4; j++){
-                console.log(j+" "+plots[lvl_equivalence[j]].length)
-                for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
-                    name = plots[lvl_equivalence[j]][k]
-                    lvl = name.substring(0,name.indexOf('_'));
-                    c = Number(name.substr(name.length - 1)); // Won't work for more than 9 plots
-                    console.log(name+" "+lvl+" "+c);
-                    destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
-                    update_plots(lvl, selected, level);
-                }
-            }
-        }
+
+
     });
 
     svg.on( "touchstart", function() {
@@ -437,26 +408,29 @@ function create_3djs_plot(filename, counter, level) {
     .on( "touchend", function() {
         d3.select("#"+level+"_svg_"+counter).select( ".selection_"+counter).remove();
         selected = checkSelected(counter, level);
-        if(document.getElementById("sync_plots").checked){
-            for (var key in lvl_equivalence){
-                if (lvl_equivalence[key] == level)
-                    lvl_num = Number(key);
-            }
-            for(var j = lvl_num+1; j< 4; j++){
-                console.log(j+" "+plots[lvl_equivalence[j]].length)
-                for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
-                    name = plots[lvl_equivalence[j]][k]
-                    lvl = name.substring(0,name.indexOf('_'));
-                    c = Number(name.substr(name.length - 1)); // Won't work for more than 9 plots
-                    console.log(name+" "+lvl+" "+c);
-                    destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
-                    update_plots(lvl, selected, level);
-                }
-            }
-        }
     });
 
     plots[level].push(level+"_plot_"+counter);
+}
+
+function synchronize_plots(level) {
+    if(document.getElementById("sync_plots").checked){
+        for (var key in lvl_equivalence){
+            if (lvl_equivalence[key] == level)
+                lvl_num = Number(key);
+        }
+        for(var j = lvl_num+1; j< 4; j++){
+            console.log(j+" "+plots[lvl_equivalence[j]].length)
+            for(var k = 0 ; k < plots[lvl_equivalence[j]].length ; k++){
+                name = plots[lvl_equivalence[j]][k]
+                lvl = name.substring(0,name.indexOf('_'));
+                c = Number(name.replace(/^\D+/g, ""))
+                console.log(name+" "+lvl+" "+c);
+                destroy_plot(plots[lvl_equivalence[j]][k], lvl, c);
+                update_plots(lvl, selected, level);
+            }
+        }
+    }
 }
 
 function destroy_plot(name,level,counter) {
@@ -482,17 +456,6 @@ function destroy_plot(name,level,counter) {
 }
 
 
-function checkSelected() {
-  var list = [];
-  d3.selectAll('circle').each(function(data) {
-    if(d3.select(this).classed('selected_'+counter)){
-      list.push(d3.select(this).attr("id"));
-      d3.select(this).style("fill","blue");
-    };
-  });
-}
-
-
 function update_plots(lvl, filter, filter_lvl) {
     console.log(lvl+" "+String(filter)+" "+filter_lvl);
     update_ana(lvl, filter, filter_lvl);
@@ -502,7 +465,7 @@ function update_plots(lvl, filter, filter_lvl) {
 function checkSelected(c, level, id) {
     id = typeof id !== 'undefined' ? id : false;
     var list = [];
-    var time = new Date().getTime();
+//    var time = new Date().getTime();
 //    alert(time);
     if (id){
         console.log(id);
@@ -519,15 +482,14 @@ function checkSelected(c, level, id) {
             list.push(d3.select(this).attr("id").match(/id(\d+)/)[1])
         });
         console.log(list);
-//        if (list.length > 1){
         $.getJSON('/_array2python', {
             idlist: JSON.stringify(list),
             plot_level: level
         }, function(data){
             console.log(data.result)
             $( "#result" ).text(data.result);
-            });
-//        }
+            synchronize_plots(level);
+        });
     }
     console.log("CHECKSELECTED "+list);
     return list;

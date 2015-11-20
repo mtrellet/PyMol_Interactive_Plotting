@@ -243,10 +243,14 @@ function send_ana(event){
 
 function expand(elmt){
     to_expand = elmt.nextElementSibling.id;
-    if (elmt.nextElementSibling.style.display == "none")
+    if (elmt.nextElementSibling.style.display == "none"){
         elmt.nextElementSibling.style.display = ""
-    else
+        elmt.style.fontStyle = "normal"
+    }
+    else{
         elmt.nextElementSibling.style.display = "none"
+        elmt.style.fontStyle = "italic"
+    }
 }
 
 function check_x(choice){
