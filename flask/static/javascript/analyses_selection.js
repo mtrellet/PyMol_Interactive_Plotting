@@ -212,6 +212,7 @@ $(document).ready(function() {
 });
 
 function update_ana(struct_lvl, filters, filters_lvl){
+    console.log(stored_plots[struct_lvl]);
     socket.emit('update', {data: stored_plots[struct_lvl], lvl: struct_lvl, filter: filters, filter_lvl: filters_lvl});
 }
 
@@ -221,15 +222,16 @@ function send_ana(event){
     var x_select = document.getElementById(struct_lvl+"_ana_choice_x")
     if (x_select.value != "None"){
         request_ana[struct_lvl].push(x_select.value)
-        stored_plots[struct_lvl].push(x_select.value)
+//        stored_plots[struct_lvl].push(x_select.value)
     }
-    x_select.selectedIndex = 0;
 
     var y_select = document.getElementById(struct_lvl+"_ana_choice_y")
     if (y_select.value != "None"){
         request_ana[struct_lvl].push(y_select.value)
-        stored_plots[struct_lvl].push(y_select.value)
+//        stored_plots[struct_lvl].push(y_select.value)
     }
+    stored_plots[struct_lvl].push([x_select.value, y_select.value]);
+    x_select.selectedIndex = 0;
     y_select.selectedIndex = 0;
     console.log(request_ana[struct_lvl])
     socket.emit('create', {data: request_ana[struct_lvl], lvl: struct_lvl});
@@ -287,6 +289,8 @@ function new_ana_lists(choice){
     y_select.selectedIndex = 0;
     $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ")
     console.log(request_ana[struct_lvl]);
+
+    stored_plots[struct_lvl].push([x_select.value, y_select.value]);
 }
 
 

@@ -111,7 +111,7 @@ def uniq_selection():
     global rdf_handler
     selected = json.loads(request.args.get('selected'))
     info = rdf_handler.get_info_uniq(selected)
-    print info
+    logging.info("Info: %s" % info)
     # liblo.send(target, "/selected", selected)
     liblo.send((osc_client, osc_port), "/selected", selected)
     logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
@@ -119,14 +119,17 @@ def uniq_selection():
 
 @socketio.on('connected', namespace='/socketio')
 def connected(message):
-    print message['data']
+    logging.info(message['data'])
+    global ids, filter_ids
+    ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
+    filter_ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
     socketio.emit('response', {'data': 'OK'}, namespace='/socketio')
 
 
 @socketio.on('get', namespace='/socketio')
 def get_available_analyses(message):
     global rdf_handler
-    print message['data']
+    logging.info(message['data'])
     ava_ana = rdf_handler.get_analyses()
     logging.info("Available analyses: %s" % ava_ana)
     socketio.emit('list_model_ana', {'data': [ana for ana in ava_ana['Model']]}, namespace='/socketio')
@@ -138,7 +141,7 @@ def get_available_analyses(message):
 def get_plot_values(message):
     logging.warning("app.py = CREATE PLOT")
     global rdf_handler
-    print message
+    logging.info(message)
     filter_nb = 0
     for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
         # Create json file with required information
@@ -149,7 +152,7 @@ def get_plot_values(message):
                 filter_nb += 1
 
         if filter_nb > 0:
-            print filter_ids
+            logging.info("Filter ids: %s" % filter_ids)
             json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], filter_ids)
         else:
             json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
@@ -170,9 +173,12 @@ def get_plot_values(message):
 def update_plot_values(message):
     logging.warning("app.py = UPDATE PLOT")
     global rdf_handler
-    print message
+    logging.info(message)
     filter_nb = 0
-    for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
+    for plot in message['data']:
+        x_type = plot[0]
+        y_type = plot[1]
+    # for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
         # Create json file with required information
         for lvl in ids.keys(): # Check for higher levels models
             # print lvl, hierarchical_lvl[message['lvl']], hierarchical_lvl[lvl]
@@ -181,7 +187,7 @@ def update_plot_values(message):
                 filter_nb += 1
 
         if filter_nb > 0:
-            print filter_ids
+            logging.info("Filter ids: %s" % filter_ids)
             json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], filter_ids)
         else:
             json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
