@@ -11,6 +11,7 @@ import argparse
 import liblo
 import sys
 import threading
+import time
 
 from OSCHandler.osc_server import MyServer
 from gevent import monkey
@@ -19,7 +20,7 @@ monkey.patch_all()
 import logging
 from RDFHandler.RDF_handling_distant import RDF_Handler
 
-FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)s %(funcName)s - %(message)s'
 logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 
 app = Flask('Visual Analytics')
@@ -29,12 +30,16 @@ cors = CORS(app, resources=r'/*', allow_headers='Content-Type')
 
 socketio = SocketIO(app)
 
+# Arguments and params initialisation
 osc_client = None
 osc_port = None
 target = None
+moliscope = False
 context = "weak"
-
 rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj_21072015.com", "http://peptide_traj_21072015/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
+hierarchical_lvl = {'model': 4, 'residue':2, 'chain': 3, 'atom': 1}
+filter_ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
 
 # address = ('localhost', 6000)
 # conn = Client(address)
@@ -54,35 +59,59 @@ def index():
 @cross_origin() # allow all origins all methods.
 @nocache
 def array2python():
-    # global target
-    wordlist = json.loads(request.args.get('wordlist'))
-    if len(wordlist) > 0:
-        selected = [ int(s) for s in wordlist]
-        logging.info("Selected models: "+str(selected))
+    logging.warning("app.py = NEW SELECTION")
+    idlist = json.loads(request.args.get('idlist'))
+    plot_level = str(request.args.get('plot_level'))
+    if len(idlist) > 0:
+        selected_uniq_ids = [ int(s) for s in idlist]
 
-        ######## LIBLO ##########
-        # LIMSI wired connection
-        #liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
-        # EDUROAM
-        #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
-        # USER DEFINED
-        # liblo.send((osc_client, osc_port), "/selected", selected)
-        # liblo.send(target, "/selected", selected)
-        liblo.send((osc_client, osc_port), "/selected", selected)
+        # Convert uniq ids from plots to biologically meaningful ids
+        logging.info("Selected models (uniq_id): "+str(selected_uniq_ids))
+        selected_bio_ids = rdf_handler.from_uniq_to_bio_ids(plot_level, selected_uniq_ids)
+        logging.info("Selected models (bio_id): "+str(selected_bio_ids))
+
+        if plot_level != 'model':
+            liblo.send((osc_client, osc_port), "/moliscope/hide_level", plot_level)
+            hierarchical_tree_for_selection = rdf_handler.from_uniq_to_hierarchical_tree(plot_level, selected_uniq_ids)
+            for key in hierarchical_tree_for_selection.iterkeys():
+                liblo.send((osc_client, osc_port), "/moliscope/new_submodel_selection", hierarchical_tree_for_selection[key]['model'],
+                           hierarchical_tree_for_selection[key]['chain'], hierarchical_tree_for_selection[key]['residue'],
+                           hierarchical_tree_for_selection[key]['atom'])
+        else:
+            if moliscope:
+                liblo.send((osc_client, osc_port), "/moliscope/new_selection", *selected_bio_ids)
+            else:
+                liblo.send((osc_client, osc_port), "/selected", selected_bio_ids)
+
         logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
-        return jsonify(result=wordlist)
+        ids[plot_level] = selected_bio_ids
+        logging.info("Ids stored as selected in app.py: %s" % ids)
+        return jsonify(result=True)
     else:
-        liblo.send(target, "/selected", 0 )
-        return jsonify(result=wordlist)
+        ids[plot_level] = []
+        if moliscope:
+            liblo.send((osc_client, osc_port), "/moliscope/new_selection", None )
+        else:
+            liblo.send((osc_client, osc_port), "/selected", 0 )
+        return jsonify(result=idlist)
+
+    ######## LIBLO ##########
+    # LIMSI wired connection
+    #liblo.send(('chm6048.limsi.fr',8000), "/selected", selected )
+    # EDUROAM
+    #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
+    # USER DEFINED
+    # liblo.send((osc_client, osc_port), "/selected", selected)
 
 @app.route('/_uniq_selection', methods=['GET', 'POST'])
 @cross_origin() # allow all origins all methods.
 @nocache
 def uniq_selection():
+    logging.warning("app.py = NEW UNIQ SELECTION")
     global rdf_handler
     selected = json.loads(request.args.get('selected'))
     info = rdf_handler.get_info_uniq(selected)
-    print info
+    logging.info("Info: %s" % info)
     # liblo.send(target, "/selected", selected)
     liblo.send((osc_client, osc_port), "/selected", selected)
     logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
@@ -90,14 +119,17 @@ def uniq_selection():
 
 @socketio.on('connected', namespace='/socketio')
 def connected(message):
-    print message['data']
+    logging.info(message['data'])
+    global ids, filter_ids
+    ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
+    filter_ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
     socketio.emit('response', {'data': 'OK'}, namespace='/socketio')
 
 
 @socketio.on('get', namespace='/socketio')
 def get_available_analyses(message):
     global rdf_handler
-    print message['data']
+    logging.info(message['data'])
     ava_ana = rdf_handler.get_analyses()
     logging.info("Available analyses: %s" % ava_ana)
     socketio.emit('list_model_ana', {'data': [ana for ana in ava_ana['Model']]}, namespace='/socketio')
@@ -107,35 +139,71 @@ def get_available_analyses(message):
 
 @socketio.on('create', namespace='/socketio')
 def get_plot_values(message):
+    logging.warning("app.py = CREATE PLOT")
     global rdf_handler
-    print message
+    logging.info(message)
+    filter_nb = 0
     for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
         # Create json file with required information
-        json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
+        for lvl in ids.keys(): # Check for higher levels models
+            # print lvl, hierarchical_lvl[message['lvl']], hierarchical_lvl[lvl]
+            if ids[lvl] and hierarchical_lvl[message['lvl']] < hierarchical_lvl[lvl]:
+                filter_ids[lvl] = ids[lvl]
+                filter_nb += 1
+
+        if filter_nb > 0:
+            logging.info("Filter ids: %s" % filter_ids)
+            json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], filter_ids)
+        else:
+            json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
         # Send json file to webserver
         socketio.emit('new_plot', {'data' : json_file, 'lvl': message['lvl']}, namespace='/socketio')
         # Get data ids
-        ids = rdf_handler.get_ids(x_type, y_type)
-        list_ids = [int(id) for id in ids]
-        logging.warning("List of ids: %s" % list_ids)
+        all_ids = rdf_handler.get_ids(x_type, y_type, message['lvl'])
+        list_ids = [int(id) for id in all_ids]
+        logging.info("List of ids: %s" % list_ids)
         # Send data ids to PyMol
-        liblo.send((osc_client, osc_port), "/ids", list_ids)
+        if moliscope:
+            liblo.send((osc_client, osc_port), "/moliscope/set_level", message['lvl'])
+            liblo.send((osc_client, osc_port), "/moliscope/ids", list_ids)
+        else:
+            liblo.send((osc_client, osc_port), "/ids", list_ids)
 
 @socketio.on('update', namespace='/socketio')
 def update_plot_values(message):
+    logging.warning("app.py = UPDATE PLOT")
     global rdf_handler
-    print message
-    for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
+    logging.info(message)
+    filter_nb = 0
+    for plot in message['data']:
+        x_type = plot[0]
+        y_type = plot[1]
+    # for x_type, y_type in zip(message['data'][0::2], message['data'][1::2]):
         # Create json file with required information
-        json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], message['filter'], message['filter_lvl'])
+        for lvl in ids.keys(): # Check for higher levels models
+            # print lvl, hierarchical_lvl[message['lvl']], hierarchical_lvl[lvl]
+            if ids[lvl] and hierarchical_lvl[message['lvl']] < hierarchical_lvl[lvl]:
+                filter_ids[lvl] = ids[lvl]
+                filter_nb += 1
+
+        if filter_nb > 0:
+            logging.info("Filter ids: %s" % filter_ids)
+            json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'], filter_ids)
+        else:
+            json_file = rdf_handler.create_JSON(x_type, y_type, message['lvl'])
         # Send json file to webserver
         socketio.emit('new_plot', {'data' : json_file, 'lvl': message['lvl']}, namespace='/socketio')
         # Get data ids
-        ids = rdf_handler.get_ids(x_type, y_type)
-        list_ids = [int(id) for id in ids]
+        # ids = rdf_handler.get_ids(x_type, y_type)
+        all_ids = rdf_handler.get_ids(x_type, y_type, message['lvl'])
+        list_ids = [int(id) for id in all_ids]
         logging.info("List of ids: %s" % list_ids)
         # Send data ids to PyMol
-        liblo.send((osc_client, osc_port), "/ids", list_ids)
+        if moliscope:
+            liblo.send((osc_client, osc_port), "/moliscope/set_level", message['lvl'])
+            liblo.send((osc_client, osc_port), "/moliscope/ids", list_ids)
+        else:
+            liblo.send((osc_client, osc_port), "/ids", list_ids)
 
 @socketio.on('update_context', namespace='/socketio')
 def change_scale(message):
@@ -170,7 +238,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--client_ip", default="127.0.0.1",
         help="The ip of the OSC client")
-    parser.add_argument("--client_port", type=int, default=8000,
+    parser.add_argument("--client_port", type=int, default=9000,
         help="The port the OSC client is listening on")
     parser.add_argument("--server_ip", default="127.0.0.1",
         help="The ip of the OSC server")
@@ -180,6 +248,8 @@ if __name__ == "__main__":
         help="The ip of the web server")
     parser.add_argument("--port", type=int, default=5000,
         help="The port the web server is hosted")
+    parser.add_argument("--moliscope", type=bool, default=False,
+        help="Moliscope mode True/False")
     parser.add_argument("--debug", type=bool, default=True,
         help="Debug mode True/False")
     args = parser.parse_args()
@@ -196,9 +266,12 @@ if __name__ == "__main__":
     #     print str(err)
     #     sys.exit()
 
+    # Define global variable
     osc_client = args.client_ip
     osc_port = args.client_port
-    print osc_client, osc_port
+    moliscope = args.moliscope
+
+    logging.info("Client url -> %s:%s \nMoliscope mode -> %s" % (osc_client, osc_port, moliscope))
     # osc_thread = threading.Thread(target=create_osc_server, args=(args.server_port,))
     # osc_thread.start()
 

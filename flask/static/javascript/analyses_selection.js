@@ -3,13 +3,33 @@ var y_analyses_list = [];
 var ana_list = [];
 var request_ana = {'model':[], 'chain':[], 'residue':[], 'atom':[]};
 var stored_plots = {'model':[], 'chain':[], 'residue':[], 'atom':[]};
-var counter = 0;
+var counter = [true,true,true,true,true,true,true,true,true];
 var url = "http://" + document.domain + ":" + location.port;
 var socket = io.connect(url + "/socketio");
 var start = 0;
 var stop = 0;
 
 $(document).ready(function() {
+
+    window.blockMenuHeaderScroll = false;
+    $(window).on('touchstart', function(e)
+    {
+        if ($(e.target).closest('#model_plots').length == 1)
+        {
+            blockMenuHeaderScroll = true;
+        }
+    });
+    $(window).on('touchend', function()
+    {
+        blockMenuHeaderScroll = false;
+    });
+    $(window).on('touchmove', function(e)
+    {
+        if (blockMenuHeaderScroll)
+        {
+            e.preventDefault();
+        }
+    });
 
     var to_hide = document.getElementById("model_buttons");
     to_hide.style.display = 'none';
@@ -179,8 +199,8 @@ $(document).ready(function() {
 
     socket.on('new_plot', function(msg){
         console.log(msg);
-        create_3djs_plot(msg.data, counter, msg.lvl)
-        counter += 1;
+        create_3djs_plot(msg.data, counter.indexOf(true), msg.lvl)
+        counter[counter.indexOf(true)] = false;
         var to_show = document.getElementById("synchro");
         to_show.style.display = '';
 //        location.reload(true);
@@ -191,7 +211,14 @@ $(document).ready(function() {
     });
 });
 
+function remove_plot(c){
+    console.log(counter);
+    counter[c] = true;
+    console.log(counter);
+}
+
 function update_ana(struct_lvl, filters, filters_lvl){
+    console.log(stored_plots[struct_lvl]);
     socket.emit('update', {data: stored_plots[struct_lvl], lvl: struct_lvl, filter: filters, filter_lvl: filters_lvl});
 }
 
@@ -201,15 +228,16 @@ function send_ana(event){
     var x_select = document.getElementById(struct_lvl+"_ana_choice_x")
     if (x_select.value != "None"){
         request_ana[struct_lvl].push(x_select.value)
-        stored_plots[struct_lvl].push(x_select.value)
+//        stored_plots[struct_lvl].push(x_select.value)
     }
-    x_select.selectedIndex = 0;
 
     var y_select = document.getElementById(struct_lvl+"_ana_choice_y")
     if (y_select.value != "None"){
         request_ana[struct_lvl].push(y_select.value)
-        stored_plots[struct_lvl].push(y_select.value)
+//        stored_plots[struct_lvl].push(y_select.value)
     }
+    stored_plots[struct_lvl].push([x_select.value, y_select.value]);
+    x_select.selectedIndex = 0;
     y_select.selectedIndex = 0;
     console.log(request_ana[struct_lvl])
     socket.emit('create', {data: request_ana[struct_lvl], lvl: struct_lvl});
@@ -223,10 +251,14 @@ function send_ana(event){
 
 function expand(elmt){
     to_expand = elmt.nextElementSibling.id;
-    if (elmt.nextElementSibling.style.display == "none")
+    if (elmt.nextElementSibling.style.display == "none"){
         elmt.nextElementSibling.style.display = ""
-    else
+        elmt.style.fontStyle = "normal"
+    }
+    else{
         elmt.nextElementSibling.style.display = "none"
+        elmt.style.fontStyle = "italic"
+    }
 }
 
 function check_x(choice){
@@ -255,14 +287,17 @@ function new_ana_lists(choice){
 
     var x_select = document.getElementById(struct_lvl+"_ana_choice_x")
     request_ana[struct_lvl].push(x_select.value)
-    x_select.selectedIndex = 0;
     $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" / ")
 
     var y_select = document.getElementById(struct_lvl+"_ana_choice_y")
     request_ana[struct_lvl].push(y_select.value)
-    y_select.selectedIndex = 0;
     $("#"+struct_lvl+"_current_plots").append(request_ana[struct_lvl][request_ana[struct_lvl].length-1]+" | ")
     console.log(request_ana[struct_lvl]);
+
+    stored_plots[struct_lvl].push([x_select.value, y_select.value]);
+
+    x_select.selectedIndex = 0;
+    y_select.selectedIndex = 0;
 }
 
 
