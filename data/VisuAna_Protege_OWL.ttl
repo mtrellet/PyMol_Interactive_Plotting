@@ -1,0 +1,1881 @@
+@prefix : <http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#> .
+@prefix my: <http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix xml: <http://www.w3.org/XML/1998/namespace> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix amino-acid: <http://www.co-ode.org/ontologies/amino-acid/2006/05/18/amino-acid.owl#> .
+@base <http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics> .
+
+<http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics> rdf:type owl:Ontology ;
+                                                                       
+                                                                       owl:versionInfo """---
+http://www.co-ode.org/ontologies/amino-acid/2006/05/18/amino-acid.owl#
+version 1.2, copyright The University of
+			Manchester, Nick Drummond, Georgina Moulton, Robert Stevens, Phil Lord
+---
+http://semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#
+version 0.2, copyright The University of Paris-Sud, 
+Mikael Trellet
+---"""^^xsd:string ;
+                                                                       
+                                                                       rdfs:comment """Amino acids and their properties = http://www.co-ode.org/ontologies/amino-acid/2006/05/18/amino-acid.owl#
+Link between Structural Biology concepts and analytical components = http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#"""^^xsd:string ;
+                                                                       
+                                                                       owl:versionInfo "in progress"^^xsd:string .
+
+
+#################################################################
+#
+#    Annotation properties
+#
+#################################################################
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#shortName
+
+:shortName rdf:type owl:AnnotationProperty .
+
+
+
+
+
+#################################################################
+#
+#    Object Properties
+#
+#################################################################
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#belongs_to
+
+:belongs_to rdf:type owl:ObjectProperty ,
+                     owl:TransitiveProperty ;
+            
+            rdfs:domain :Molecule ;
+            
+            rdfs:range :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#compose
+
+:compose rdf:type owl:ObjectProperty ,
+                  owl:TransitiveProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#hasCharge
+
+:hasCharge rdf:type owl:FunctionalProperty ,
+                    owl:ObjectProperty ;
+           
+           rdfs:domain :AminoAcid ;
+           
+           rdfs:range :Charge ;
+           
+           rdfs:subPropertyOf :has_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#hasHydrophobicity
+
+:hasHydrophobicity rdf:type owl:FunctionalProperty ,
+                            owl:ObjectProperty ;
+                   
+                   rdfs:domain :AminoAcid ;
+                   
+                   rdfs:range :Hydrophobicity ;
+                   
+                   rdfs:subPropertyOf :has_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#hasPolarity
+
+:hasPolarity rdf:type owl:FunctionalProperty ,
+                      owl:ObjectProperty ;
+             
+             rdfs:domain :AminoAcid ;
+             
+             rdfs:range :Polarity ;
+             
+             rdfs:subPropertyOf :has_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#hasSideChainStructure
+
+:hasSideChainStructure rdf:type owl:FunctionalProperty ,
+                                owl:ObjectProperty ;
+                       
+                       rdfs:domain :AminoAcid ;
+                       
+                       rdfs:range :SideChainStructure ;
+                       
+                       rdfs:subPropertyOf :has_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#hasSize
+
+:hasSize rdf:type owl:FunctionalProperty ,
+                  owl:ObjectProperty ;
+         
+         rdfs:domain :AminoAcid ;
+         
+         rdfs:range :Size ;
+         
+         rdfs:subPropertyOf :has_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#has_property
+
+:has_property rdf:type owl:AsymmetricProperty ,
+                       owl:ObjectProperty ;
+              
+              rdfs:domain :Biological_component ;
+              
+              rdfs:range :Property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#is_composed_of
+
+:is_composed_of rdf:type owl:ObjectProperty ,
+                         owl:TransitiveProperty ;
+                
+                owl:inverseOf :compose .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#represent
+
+:represent rdf:type owl:ObjectProperty ,
+                    owl:TransitiveProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#require
+
+:require rdf:type owl:ObjectProperty ;
+         
+         rdfs:domain :Action ;
+         
+         rdfs:range :Object ,
+                    :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#structure
+
+:structure rdf:type owl:AsymmetricProperty ,
+                    owl:ObjectProperty ;
+           
+           rdfs:domain :AminoAcid ;
+           
+           rdfs:range :Secondary_structure .
+
+
+
+
+
+#################################################################
+#
+#    Data properties
+#
+#################################################################
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#X_type
+
+:X_type rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#X_value
+
+:X_value rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Y_type
+
+:Y_type rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Y_value
+
+:Y_value rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Z_value
+
+:Z_value rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#atom_id
+
+:atom_id rdf:type owl:DatatypeProperty ;
+         
+         rdfs:range xsd:int .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#atom_type
+
+:atom_type rdf:type owl:DatatypeProperty ;
+           
+           rdfs:range xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#chain_id
+
+:chain_id rdf:type owl:DatatypeProperty ;
+          
+          rdfs:range xsd:int .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#charge
+
+:charge rdf:type owl:DatatypeProperty ;
+        
+        rdfs:domain :AminoAcid ;
+        
+        rdfs:range xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#energy
+
+:energy rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#hydropathy
+
+:hydropathy rdf:type owl:DatatypeProperty ;
+            
+            rdfs:domain :AminoAcid ;
+            
+            rdfs:range xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#id
+
+:id rdf:type owl:DatatypeProperty ;
+    
+    rdfs:range xsd:int .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#model_id
+
+:model_id rdf:type owl:DatatypeProperty ;
+          
+          rdfs:range xsd:int .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#polarity
+
+:polarity rdf:type owl:DatatypeProperty ;
+          
+          rdfs:domain :AminoAcid ;
+          
+          rdfs:range xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#pos_x
+
+:pos_x rdf:type owl:DatatypeProperty ;
+       
+       rdfs:range xsd:float .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#pos_y
+
+:pos_y rdf:type owl:DatatypeProperty ;
+       
+       rdfs:range xsd:double .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#pos_z
+
+:pos_z rdf:type owl:DatatypeProperty ;
+       
+       rdfs:range xsd:double .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#residue_id
+
+:residue_id rdf:type owl:DatatypeProperty ;
+            
+            rdfs:range xsd:int .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#rmsd_to_reference
+
+:rmsd_to_reference rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#shortName
+
+:shortName rdf:type owl:DatatypeProperty ;
+           
+           rdfs:range xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#side_chain
+
+:side_chain rdf:type owl:DatatypeProperty ;
+            
+            rdfs:domain :AminoAcid ;
+            
+            rdfs:range xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#size
+
+:size rdf:type owl:DatatypeProperty ;
+      
+      rdfs:domain :AminoAcid ;
+      
+      rdfs:range xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#temperature
+
+:temperature rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#time_frame
+
+:time_frame rdf:type owl:DatatypeProperty ;
+            
+            rdfs:range xsd:int .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#uniq_id
+
+:uniq_id rdf:type owl:DatatypeProperty .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#value_type
+
+:value_type rdf:type owl:DatatypeProperty ;
+            
+            rdfs:range xsd:string .
+
+
+
+
+
+#################################################################
+#
+#    Classes
+#
+#################################################################
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Action
+
+:Action rdf:type owl:Class .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Adenine
+
+:Adenine rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Nucleotid .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Aliphatic
+
+:Aliphatic rdf:type owl:Class ;
+           
+           rdfs:subClassOf :SideChainStructure ;
+           
+           owl:disjointWith :Aromatic .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#AminoAcid
+
+:AminoAcid rdf:type owl:Class ;
+           
+           owl:equivalentClass [ rdf:type owl:Class ;
+                                 owl:unionOf ( :ala
+                                               :arg
+                                               :asn
+                                               :asp
+                                               :cys
+                                               :gln
+                                               :glu
+                                               :gly
+                                               :his
+                                               :ile
+                                               :leu
+                                               :lys
+                                               :met
+                                               :phe
+                                               :pro
+                                               :ser
+                                               :thr
+                                               :trp
+                                               :tyr
+                                               :val
+                                             )
+                               ] ;
+           
+           rdfs:subClassOf :Residue .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Analytical_component
+
+:Analytical_component rdf:type owl:Class ;
+                      
+                      rdfs:subClassOf :Object .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Anion
+
+:Anion rdf:type owl:Class ;
+       
+       owl:equivalentClass [ rdf:type owl:Restriction ;
+                             owl:onProperty :hasCharge ;
+                             owl:allValuesFrom :Negative
+                           ] ;
+       
+       rdfs:subClassOf :Ion .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Area
+
+:Area rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Analytical_component .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Aromatic
+
+:Aromatic rdf:type owl:Class ;
+          
+          rdfs:subClassOf :SideChainStructure .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Atom
+
+:Atom rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Biological_component ;
+      
+      rdfs:comment :Atom_type ,
+                   :Id ;
+      
+      rdfs:isDefinedBy :time_frame .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Atomid
+
+:Atomid rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Identifier .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Attribute
+
+:Attribute rdf:type owl:Class .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Axis
+
+:Axis rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Analytical_component .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#B-factor
+
+:B-factor rdf:type owl:Class ;
+          
+          rdfs:subClassOf :Experimental_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Biological_component
+
+:Biological_component rdf:type owl:Class ;
+                      
+                      rdfs:subClassOf :Object .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Biophysical_property
+
+:Biophysical_property rdf:type owl:Class ;
+                      
+                      rdfs:subClassOf :Property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Black
+
+:Black rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Blue
+
+:Blue rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Cartoon
+
+:Cartoon rdf:type owl:Class ;
+         
+         owl:equivalentClass :Secondary_structure ;
+         
+         rdfs:subClassOf :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Cation
+
+:Cation rdf:type owl:Class ;
+        
+        owl:equivalentClass [ rdf:type owl:Restriction ;
+                              owl:onProperty :hasCharge ;
+                              owl:allValuesFrom :Positive
+                            ] ;
+        
+        rdfs:subClassOf :Ion .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Chain
+
+:Chain rdf:type owl:Class ;
+       
+       owl:equivalentClass [ rdf:type owl:Restriction ;
+                             owl:onProperty :is_composed_of ;
+                             owl:onClass :Residue ;
+                             owl:minQualifiedCardinality "1"^^xsd:nonNegativeInteger
+                           ] ,
+                           [ rdf:type owl:Restriction ;
+                             owl:onProperty :is_composed_of ;
+                             owl:allValuesFrom :Residue
+                           ] ;
+       
+       rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Charge
+
+:Charge rdf:type owl:Class ;
+        
+        owl:equivalentClass [ rdf:type owl:Class ;
+                              owl:unionOf ( :Negative
+                                            :Neutral
+                                            :Positive
+                                          )
+                            ] ;
+        
+        rdfs:subClassOf :Biophysical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Color
+
+:Color rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Action ,
+                       [ rdf:type owl:Restriction ;
+                         owl:onProperty :require ;
+                         owl:someValuesFrom :Colors
+                       ] .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Colors
+
+:Colors rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Visual_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Cyan
+
+:Cyan rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Cytosine
+
+:Cytosine rdf:type owl:Class ;
+          
+          rdfs:subClassOf :Nucleotid .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#DNA
+
+:DNA rdf:type owl:Class ;
+     
+     owl:equivalentClass [ rdf:type owl:Restriction ;
+                           owl:onProperty :is_composed_of ;
+                           owl:allValuesFrom :Nucleotid
+                         ] ;
+     
+     rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Experimental_property
+
+:Experimental_property rdf:type owl:Class ;
+                       
+                       rdfs:subClassOf :Property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Geometrical_property
+
+:Geometrical_property rdf:type owl:Class ;
+                      
+                      rdfs:subClassOf :Property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Graphic
+
+:Graphic rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Analytical_component .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Green
+
+:Green rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Guanine
+
+:Guanine rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Nucleotid .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Hide
+
+:Hide rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Action ,
+                      [ rdf:type owl:Restriction ;
+                        owl:onProperty :require ;
+                        owl:someValuesFrom :Visual_representation
+                      ] .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Highlight
+
+:Highlight rdf:type owl:Class ;
+           
+           rdfs:subClassOf :Action .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#HistidineP
+
+:HistidineP rdf:type owl:Class ;
+            
+            rdfs:label "HistidineP" ;
+            
+            owl:equivalentClass :his ;
+            
+            rdfs:subClassOf :AminoAcid ,
+                            :Aromatic ,
+                            :Hydrophilic ,
+                            :Large ,
+                            :Polar ,
+                            :Positive ;
+            
+            :shortName "hsp"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Histogram
+
+:Histogram rdf:type owl:Class ;
+           
+           rdfs:subClassOf :Graphic .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Hydrophilic
+
+:Hydrophilic rdf:type owl:Class ;
+             
+             rdfs:subClassOf :Hydrophobicity ;
+             
+             owl:disjointWith :Hydrophobic .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Hydrophobic
+
+:Hydrophobic rdf:type owl:Class ;
+             
+             rdfs:subClassOf :Hydrophobicity .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Hydrophobicity
+
+:Hydrophobicity rdf:type owl:Class ;
+                
+                owl:equivalentClass [ rdf:type owl:Class ;
+                                      owl:unionOf ( :Hydrophilic
+                                                    :Hydrophobic
+                                                  )
+                                    ] ;
+                
+                rdfs:subClassOf :Biophysical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Identifier
+
+:Identifier rdf:type owl:Class ;
+            
+            rdfs:subClassOf :Attribute .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Ion
+
+:Ion rdf:type owl:Class ;
+     
+     rdfs:subClassOf :Atom .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Large
+
+:Large rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Size ;
+       
+       owl:disjointWith :Small ,
+                        :Tiny .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Ligand
+
+:Ligand rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Line_plot
+
+:Line_plot rdf:type owl:Class ;
+           
+           rdfs:subClassOf :Graphic .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Lines
+
+:Lines rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Magenta
+
+:Magenta rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Membrane
+
+:Membrane rdf:type owl:Class ;
+          
+          rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Model
+
+:Model rdf:type owl:Class ;
+       
+       owl:equivalentClass :Protein ,
+                           [ rdf:type owl:Restriction ;
+                             owl:onProperty :is_composed_of ;
+                             owl:allValuesFrom :Chain
+                           ] ;
+       
+       rdfs:subClassOf :Molecule ;
+       
+       rdfs:isDefinedBy :time_frame .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Molecule
+
+:Molecule rdf:type owl:Class ;
+          
+          owl:equivalentClass [ rdf:type owl:Restriction ;
+                                owl:onProperty :is_composed_of ;
+                                owl:someValuesFrom :Atom
+                              ] ;
+          
+          rdfs:subClassOf :Biological_component .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Negative
+
+:Negative rdf:type owl:Class ;
+          
+          rdfs:subClassOf :Charge ;
+          
+          owl:disjointWith :Neutral ,
+                           :Positive .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Neutral
+
+:Neutral rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Charge ;
+         
+         owl:disjointWith :Positive .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Non-Polar
+
+:Non-Polar rdf:type owl:Class ;
+           
+           rdfs:subClassOf :Polarity ;
+           
+           owl:disjointWith :Polar .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Nucleotid
+
+:Nucleotid rdf:type owl:Class ;
+           
+           rdfs:subClassOf :Residue .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Object
+
+:Object rdf:type owl:Class .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Pharmacophore
+
+:Pharmacophore rdf:type owl:Class ;
+               
+               rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Pie
+
+:Pie rdf:type owl:Class ;
+     
+     rdfs:subClassOf :Graphic .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Point
+
+:Point rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Analytical_component ;
+       
+       rdfs:isDefinedBy :Biological_component ,
+                        :Represent ,
+                        :X_type ,
+                        :X_value ,
+                        :Y_type ,
+                        :Y_value ,
+                        :Z_value .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Polar
+
+:Polar rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Polarity .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Polarity
+
+:Polarity rdf:type owl:Class ;
+          
+          owl:equivalentClass [ rdf:type owl:Class ;
+                                owl:unionOf ( :Non-Polar
+                                              :Polar
+                                            )
+                              ] ;
+          
+          rdfs:subClassOf :Biophysical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Position
+
+:Position rdf:type owl:Class ;
+          
+          rdfs:subClassOf :Geometrical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Positive
+
+:Positive rdf:type owl:Class ;
+          
+          rdfs:subClassOf :Charge .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Primary_structure
+
+:Primary_structure rdf:type owl:Class ;
+                   
+                   rdfs:subClassOf :Structure .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Property
+
+:Property rdf:type owl:Class .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Protein
+
+:Protein rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Radius
+
+:Radius rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Biophysical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Red
+
+:Red rdf:type owl:Class ;
+     
+     rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#RefiningFeature
+
+:RefiningFeature rdf:type owl:Class ;
+                 
+                 rdfs:subClassOf :Biophysical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Representation
+
+:Representation rdf:type owl:Class .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Resid
+
+:Resid rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Identifier .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Residue
+
+:Residue rdf:type owl:Class ;
+         
+         owl:equivalentClass [ rdf:type owl:Restriction ;
+                               owl:onProperty :is_composed_of ;
+                               owl:allValuesFrom :Atom
+                             ] ;
+         
+         rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Ribbon
+
+:Ribbon rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Scatter_plot
+
+:Scatter_plot rdf:type owl:Class ;
+              
+              rdfs:subClassOf :Graphic .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Secondary_structure
+
+:Secondary_structure rdf:type owl:Class ;
+                     
+                     rdfs:subClassOf :Geometrical_property ,
+                                     :Structure ,
+                                     :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Select
+
+:Select rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Action ,
+                        [ rdf:type owl:Restriction ;
+                          owl:onProperty :require ;
+                          owl:someValuesFrom :Object
+                        ] .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Selection
+
+:Selection rdf:type owl:Class ;
+           
+           rdfs:subClassOf :Analytical_component .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#ShortName
+
+:ShortName rdf:type owl:Class ;
+           
+           rdfs:subClassOf :Identifier .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Show
+
+:Show rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Action ,
+                      [ rdf:type owl:Restriction ;
+                        owl:onProperty :require ;
+                        owl:someValuesFrom :Visual_representation
+                      ] .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#SideChainStructure
+
+:SideChainStructure rdf:type owl:Class ;
+                    
+                    owl:equivalentClass [ rdf:type owl:Class ;
+                                          owl:unionOf ( :Aliphatic
+                                                        :Aromatic
+                                                      )
+                                        ] ;
+                    
+                    rdfs:subClassOf :Biophysical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Size
+
+:Size rdf:type owl:Class ;
+      
+      owl:equivalentClass [ rdf:type owl:Class ;
+                            owl:unionOf ( :Large
+                                          :Small
+                                          :Tiny
+                                        )
+                          ] ;
+      
+      rdfs:subClassOf :Biophysical_property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Small
+
+:Small rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Size ;
+       
+       owl:disjointWith :Tiny .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Solvent
+
+:Solvent rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Molecule .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Sticks
+
+:Sticks rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Structure
+
+:Structure rdf:type owl:Class .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Surface
+
+:Surface rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Tertiary_structure
+
+:Tertiary_structure rdf:type owl:Class ;
+                    
+                    rdfs:subClassOf :Structure .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Tiny
+
+:Tiny rdf:type owl:Class ;
+      
+      rdfs:subClassOf :Size .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Uracile
+
+:Uracile rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Nucleotid .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Value
+
+:Value rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Analytical_component .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#VdW
+
+:VdW rdf:type owl:Class ;
+     
+     rdfs:subClassOf :Visual_representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Visual_property
+
+:Visual_property rdf:type owl:Class ;
+                 
+                 rdfs:subClassOf :Property .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Visual_representation
+
+:Visual_representation rdf:type owl:Class ;
+                       
+                       rdfs:subClassOf :Representation .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Water
+
+:Water rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Solvent .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#White
+
+:White rdf:type owl:Class ;
+       
+       rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#X
+
+:X rdf:type owl:Class ;
+   
+   rdfs:subClassOf :Axis .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Y
+
+:Y rdf:type owl:Class ;
+   
+   rdfs:subClassOf :Axis .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Yellow
+
+:Yellow rdf:type owl:Class ;
+        
+        rdfs:subClassOf :Colors .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#Z
+
+:Z rdf:type owl:Class ;
+   
+   rdfs:subClassOf :Axis .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#ala
+
+:ala rdf:type owl:Class ;
+     
+     rdfs:label "Alanine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Neutral ,
+                     :Non-Polar ,
+                     :Tiny ;
+     
+     owl:disjointWith :arg ,
+                      :asn ,
+                      :asp ,
+                      :cys ,
+                      :gln ,
+                      :glu ,
+                      :gly ,
+                      :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "ala"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#arg
+
+:arg rdf:type owl:Class ;
+     
+     rdfs:label "Arginine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Large ,
+                     :Polar ,
+                     :Positive ;
+     
+     owl:disjointWith :asn ,
+                      :asp ,
+                      :cys ,
+                      :gln ,
+                      :glu ,
+                      :gly ,
+                      :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "arg"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#asn
+
+:asn rdf:type owl:Class ;
+     
+     rdfs:label "Asparagine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Neutral ,
+                     :Polar ,
+                     :Small ;
+     
+     owl:disjointWith :asp ,
+                      :cys ,
+                      :gln ,
+                      :glu ,
+                      :gly ,
+                      :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     owl:versionInfo "TODO: Should this be Aliphatic?"^^xsd:string ;
+     
+     :shortName "asn"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#asp
+
+:asp rdf:type owl:Class ;
+     
+     rdfs:label "Aspartate"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Negative ,
+                     :Polar ,
+                     :Small ;
+     
+     owl:disjointWith :cys ,
+                      :gln ,
+                      :glu ,
+                      :gly ,
+                      :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     owl:versionInfo "TODO: Aspartate?"^^xsd:string ;
+     
+     :shortName "asp"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#cys
+
+:cys rdf:type owl:Class ;
+     
+     rdfs:label "Cysteine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Neutral ,
+                     :Polar ,
+                     :Small ;
+     
+     owl:disjointWith :gln ,
+                      :glu ,
+                      :gly ,
+                      :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "cys"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#gln
+
+:gln rdf:type owl:Class ;
+     
+     rdfs:label "Glutamine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Large ,
+                     :Neutral ,
+                     :Polar ;
+     
+     owl:disjointWith :glu ,
+                      :gly ,
+                      :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "gln"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#glu
+
+:glu rdf:type owl:Class ;
+     
+     rdfs:label "Glutamate"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Negative ,
+                     :Polar ,
+                     :Small ;
+     
+     owl:disjointWith :gly ,
+                      :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "glu"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#gly
+
+:gly rdf:type owl:Class ;
+     
+     rdfs:label "Glycine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Neutral ,
+                     :Non-Polar ,
+                     :Tiny ;
+     
+     owl:disjointWith :his ,
+                      :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "gly"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#his
+
+:his rdf:type owl:Class ;
+     
+     rdfs:label "Histidine"^^xsd:string ;
+     
+     rdfs:subClassOf :AminoAcid ,
+                     :Aromatic ,
+                     :Hydrophilic ,
+                     :Large ,
+                     :Polar ,
+                     :Positive ;
+     
+     owl:disjointWith :ile ,
+                      :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "his"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#ile
+
+:ile rdf:type owl:Class ;
+     
+     rdfs:label "Isoleucine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Large ,
+                     :Neutral ,
+                     :Non-Polar ;
+     
+     owl:disjointWith :leu ,
+                      :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "ile"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#leu
+
+:leu rdf:type owl:Class ;
+     
+     rdfs:label "Leucine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Large ,
+                     :Neutral ,
+                     :Non-Polar ;
+     
+     owl:disjointWith :lys ,
+                      :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "leu"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#lys
+
+:lys rdf:type owl:Class ;
+     
+     rdfs:label "Lysine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Large ,
+                     :Polar ,
+                     :Positive ;
+     
+     owl:disjointWith :met ,
+                      :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "lys"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#met
+
+:met rdf:type owl:Class ;
+     
+     rdfs:label "Methionine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Large ,
+                     :Neutral ,
+                     :Non-Polar ;
+     
+     owl:disjointWith :phe ,
+                      :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "met"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#phe
+
+:phe rdf:type owl:Class ;
+     
+     rdfs:label "Phenylalanine"^^xsd:string ;
+     
+     rdfs:subClassOf :AminoAcid ,
+                     :Aromatic ,
+                     :Hydrophobic ,
+                     :Large ,
+                     :Neutral ,
+                     :Non-Polar ;
+     
+     owl:disjointWith :pro ,
+                      :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "phe"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#pro
+
+:pro rdf:type owl:Class ;
+     
+     rdfs:label "Proline"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Neutral ,
+                     :Non-Polar ,
+                     :Small ;
+     
+     owl:disjointWith :ser ,
+                      :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "pro"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#ser
+
+:ser rdf:type owl:Class ;
+     
+     rdfs:label "Serine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Neutral ,
+                     :Polar ,
+                     :Tiny ;
+     
+     owl:disjointWith :thr ,
+                      :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "ser"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#thr
+
+:thr rdf:type owl:Class ;
+     
+     rdfs:label "Threonine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophilic ,
+                     :Neutral ,
+                     :Polar ,
+                     :Tiny ;
+     
+     owl:disjointWith :trp ,
+                      :tyr ,
+                      :val ;
+     
+     :shortName "thr"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#thymine
+
+:thymine rdf:type owl:Class ;
+         
+         rdfs:subClassOf :Nucleotid .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#trp
+
+:trp rdf:type owl:Class ;
+     
+     rdfs:label "Tryptophan"^^xsd:string ;
+     
+     rdfs:subClassOf :AminoAcid ,
+                     :Aromatic ,
+                     :Hydrophobic ,
+                     :Large ,
+                     :Neutral ,
+                     :Non-Polar ;
+     
+     owl:disjointWith :tyr ,
+                      :val ;
+     
+     :shortName "trp"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#tyr
+
+:tyr rdf:type owl:Class ;
+     
+     rdfs:label "Tyrosine"^^xsd:string ;
+     
+     rdfs:subClassOf :AminoAcid ,
+                     :Aromatic ,
+                     :Hydrophobic ,
+                     :Large ,
+                     :Neutral ,
+                     :Polar ;
+     
+     owl:disjointWith :val ;
+     
+     :shortName "tyr"^^xsd:string .
+
+
+
+###  http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#val
+
+:val rdf:type owl:Class ;
+     
+     rdfs:label "Valine"^^xsd:string ;
+     
+     rdfs:subClassOf :Aliphatic ,
+                     :AminoAcid ,
+                     :Hydrophobic ,
+                     :Neutral ,
+                     :Non-Polar ,
+                     :Small ;
+     
+     :shortName "val"^^xsd:string .
+
+
+
+[ :time_frame ""
+] .
+
+###  Generated by the OWL API (version 3.5.0) http://owlapi.sourceforge.net
+
