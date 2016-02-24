@@ -23,6 +23,8 @@ from RDFHandler.RDF_handling_distant import RDF_Handler
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)s %(funcName)s - %(message)s'
 logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 
+logging.getLogger('flask_cors').level = logging.DEBUG
+
 app = Flask('Visual Analytics')
 app.debug = False
 
