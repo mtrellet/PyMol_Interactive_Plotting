@@ -112,6 +112,16 @@ div[id*="_plots"] {
 
 div[id*="_plot_"] {
     float:left;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+div[id*="_plot_"]:hover {
+    cursor: default;
 }
 
 #sync_all {
