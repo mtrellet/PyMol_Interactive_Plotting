@@ -38,7 +38,8 @@ osc_port = None
 target = None
 moliscope = False
 context = "weak"
-rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj_21072015.com", "http://peptide_traj_21072015/rules", "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj_21072015.com", "http://peptide_traj_21072015/rules",
+                        "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
 ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
 hierarchical_lvl = {'model': 4, 'residue':2, 'chain': 3, 'atom': 1}
 filter_ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
@@ -240,7 +241,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--client_ip", default="127.0.0.1",
         help="The ip of the OSC client")
-    parser.add_argument("--client_port", type=int, default=9000,
+    parser.add_argument("--client_port", type=int, default=5555,
         help="The port the OSC client is listening on")
     parser.add_argument("--server_ip", default="127.0.0.1",
         help="The ip of the OSC server")
