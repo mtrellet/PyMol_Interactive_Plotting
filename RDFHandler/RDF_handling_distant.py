@@ -14,7 +14,7 @@ from utils.color_by_residue import aa_1_3, aa_3_1
 #logging.basicConfig(filename='pymol_session.log',filemode='w',level=logging.DEBUG)
 
 class RDF_Handler:
-    def __init__(self, server, uri, rules, prefix, graph, scale='Model'):
+    def __init__(self, server, graph, rules, prefix, uri, scale='Model'):
         #self.main_handler = main_handler
         # self.rdf_graph = Graph()
         self.scale = scale
@@ -26,7 +26,7 @@ class RDF_Handler:
         self.graph_name = graph
         # To force Virtuoso to use inference rules (RDFS and OWL)
         self.rules = 'define input:inference "'+self.rules_name+'" '
-        self.prefix = 'prefix '+self.prefix_name+':<'+self.graph_name+'> '
+        self.prefix = 'prefix '+self.prefix_name+':<'+self.uri+'> '
         self.sparql_wrapper = SPARQLWrapper(self.distant_server)
         self.sparql_wrapper.setReturnFormat(JSON)
         logging.info(self.distant_server)
@@ -94,7 +94,7 @@ class RDF_Handler:
         scale = scale or self.scale
         logging.info(scale)
         query = 'SELECT ?id FROM <%s> WHERE { ?model my:%s ?y . FILTER (?y > %s && ?y < %s) . ?model my:%s ?x . FILTER ' \
-                '(?x > %s && ?x < %s) . ?model my:%s_id ?id .}' % (self.uri, str(canvas.y_query_type), str(ylow),
+                '(?x > %s && ?x < %s) . ?model my:%s_id ?id .}' % (self.graph_name, str(canvas.y_query_type), str(ylow),
                                                                    str(yhigh), str(canvas.x_query_type), str(xlow),
                                                                    str(xhigh), str(scale.lower()))
         logging.info("QUERY: \n%s" % query)
@@ -138,7 +138,7 @@ class RDF_Handler:
                 logging.debug("ids_str: %s" % ids_str)
 
                 if not indivs:
-                    query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s)}' % (self.uri,
+                    query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s)}' % (self.graph_name,
                                                                                          lvl.capitalize(),
                                                                                          lvl.lower(),
                                                                                          ids_str)
@@ -149,7 +149,7 @@ class RDF_Handler:
                         indivs_str = str(tuple(indivs))
                     logging.debug("indivs_str: %s" % indivs_str)
                     query = 'SELECT ?ind FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . filter(?id in %s) . ' \
-                            '?ind my:belongs_to ?parent . filter (?parent in %s) }' % (self.uri, lvl.capitalize(),
+                            '?ind my:belongs_to ?parent . filter (?parent in %s) }' % (self.graph_name, lvl.capitalize(),
                                                                                        lvl.lower(), ids_str, indivs_str)
 
                 logging.debug("QUERY: \n%s" % query)
@@ -159,7 +159,7 @@ class RDF_Handler:
                 logging.info("Number of queried entities: %d" % (len(qres["results"]["bindings"])))
 
                 for i in range(0,len(qres["results"]["bindings"])):
-                    indivs.append(str(qres["results"]["bindings"][i]["ind"]["value"].replace(self.graph_name,"my:")))
+                    indivs.append(str(qres["results"]["bindings"][i]["ind"]["value"].replace(self.uri,"my:")))
                 last_filter_lvl = lvl.lower()
                 logging.info("Indivs: %s" % indivs)
 
@@ -172,10 +172,10 @@ class RDF_Handler:
 
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?ind my:%s ?x . ?ind my:%s ?y . ?ind a my:%s . ?ind my:belongs_to ?parent ' \
                 '. ?parent a my:%s . filter(?parent in %s)}'\
-                % (self.uri, x_query_type, y_query_type, scale.capitalize(), last_filter_lvl.capitalize(), indivs_str)
+                % (self.graph_name, x_query_type, y_query_type, scale.capitalize(), last_filter_lvl.capitalize(), indivs_str)
 
         query2 = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?id . ?ind my:belongs_to ?parent ' \
-                '. ?parent a my:%s . filter(?parent in %s)}' % (self.uri, scale,last_filter_lvl.capitalize(), indivs_str)
+                '. ?parent a my:%s . filter(?parent in %s)}' % (self.graph_name, scale,last_filter_lvl.capitalize(), indivs_str)
 
         logging.debug("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -202,9 +202,9 @@ class RDF_Handler:
         # query2 = u"""SELECT ?id FROM <%s> WHERE { ?point rdf:type my:Point . ?point my:Y_type "%s" . ?point my:Y_value ?y . ?point my:X_type "%s" . ?point my:X_value ?x . ?point my:represent ?mod . ?mod my:%s_id ?id .}""" % (self.uri, y_query_type, x_query_type, scale.lower())
 
         query = 'SELECT ?x ?y FROM <%s> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s . ?model my:%s_id ?id}'\
-                % (self.uri, x_query_type, y_query_type, scale.capitalize(), scale.lower())
+                % (self.graph_name, x_query_type, y_query_type, scale.capitalize(), scale.lower())
         # query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
-        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:uniq_id ?id}' % (self.uri, scale.capitalize())
+        query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:uniq_id ?id}' % (self.graph_name, scale.capitalize())
         
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -230,7 +230,7 @@ class RDF_Handler:
         :return: list of ids
         """
         scale = scale or self.scale
-        query = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale.capitalize(), scale.lower())
+        query = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.graph_name, scale.capitalize(), scale.lower())
 
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -248,7 +248,7 @@ class RDF_Handler:
         scale = scale or self.scale
         query = 'SELECT DISTINCT ?param ?val FROM <%s> WHERE { ?model my:%s_id ?id . FILTER ( ?id = %s ) . ' \
                 '?model ?param ?o . filter (isLiteral(?o)) . ?model ?param ?val}'\
-                % (self.uri, scale.lower(), uniq_id)
+                % (self.graph_name, scale.lower(), uniq_id)
         logging.info("QUERY: \n%s" % query)
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
@@ -274,7 +274,7 @@ class RDF_Handler:
             results = {}
             for s in scale:
                 query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
-                % (self.uri, s)
+                % (self.graph_name, s)
                 logging.debug("QUERY: \n%s" % query)
                 self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
                 qres = self.sparql_wrapper.query().convert()
@@ -289,7 +289,7 @@ class RDF_Handler:
         else:
             #query = u"""SELECT DISTINCT ?x_type ?y_type FROM <%s> WHERE { ?point my:X_type ?x_type . ?point my:Y_type ?y_type . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:%s .}""" % (self.uri, scale)
             query = 'SELECT DISTINCT ?param FROM <%s> WHERE { ?model ?param ?o . ?model a my:%s . filter (isLiteral(?o))}'\
-                    % (self.uri, scale)
+                    % (self.graph_name, scale)
             logging.info("QUERY: \n%s" % query)
             self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
             qres = self.sparql_wrapper.query().convert()
@@ -317,7 +317,7 @@ class RDF_Handler:
         last_point_id = self.get_last_id("Point")
         nb_pt = 1
         start_time = time.time()
-        rdf_insert_header = "%s\ninsert data { graph <%s> { " % (self.prefix, self.uri)
+        rdf_insert_header = "%s\ninsert data { graph <%s> { " % (self.prefix, self.graph_name)
         for item in item_list:
             if item != item_selected:
                 if scale == "Residue":
@@ -369,7 +369,7 @@ class RDF_Handler:
 
 
     def get_id_indiv_from_RDF(self, model):
-        query = 'SELECT ?res ?resid FROM <'+self.uri+'> WHERE{ ?res my:residue_id ?resid . ?res my:belongs_to+ my:MODEL_'\
+        query = 'SELECT ?res ?resid FROM <'+self.graph_name+'> WHERE{ ?res my:residue_id ?resid . ?res my:belongs_to+ my:MODEL_'\
                 +str(model)+' .} ORDER BY ?resid'
         logging.info("QUERY: \n%s" % query)
 
@@ -389,7 +389,7 @@ class RDF_Handler:
         return id_list, indiv_list
 
     def get_last_id(self, type):
-        query = """SELECT ?id FROM <%s> WHERE {?id rdf:type my:%s .}""" % (self.uri, type)
+        query = """SELECT ?id FROM <%s> WHERE {?id rdf:type my:%s .}""" % (self.graph_name, type)
         logging.info("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -410,7 +410,7 @@ class RDF_Handler:
         scale = scale or self.scale
         # query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <'+self.uri+'> WHERE { ?model my:%s ?x . ?model my:%s ?y . ?model my:X_type "'+xtype+'" . ?point my:Y_type "'+ytype+'" . ?point my:represent ?ind . ?ind rdf:type ?type . ?type rdfs:subClassOf* my:'+scale+' .}'
         query = 'SELECT (MIN(?x) AS ?xmin) (MAX(?x) AS ?xmax) (MIN(?y) AS ?ymin) (MAX(?y) AS ?ymax) FROM <%s> WHERE ' \
-                '{ ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s .}' % (self.uri, xtype, ytype, scale)
+                '{ ?model my:%s ?x . ?model my:%s ?y . ?model a my:%s .}' % (self.graph_name, xtype, ytype, scale)
         logging.info("QUERY: \n%s" % query)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
@@ -531,26 +531,26 @@ class RDF_Handler:
             # else:
             if isinstance(id1, int):
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id = %s ) . ?r a my:%s . ?r my:belongs_to ?s . ' \
-                        '?r my:%s_id ?num}' % (self.uri, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
+                        '?r my:%s_id ?num}' % (self.graph_name, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
             else:
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( regex(?id, "%s") ) . ?r a my:%s . ?r my:belongs_to ' \
-                        '?s . ?r my:%s_id ?num}' % (self.uri, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
+                        '?s . ?r my:%s_id ?num}' % (self.graph_name, component.lower(), id1, self.scale.capitalize(), self.scale.lower())
         elif id1 and id2:
             logging.info("SPARQL step - 2 ids")
             logging.info('Key to identify: from %s to %s for component: %s at scale: %s' % (id1, id2, component, self.scale))
             if component.capitalize() in aa_name_3:
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s a my:%s . ?s my:residue_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
-                            '?r my:%s_id ?num}' % (self.uri, from_name_to_3_letters(component.capitalize()).lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
+                            '?r my:%s_id ?num}' % (self.graph_name, from_name_to_3_letters(component.capitalize()).lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
             else:
                 query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?s my:%s_id ?id . FILTER ( ?id > %s && ?id < %s ) . ?r a my:%s . ' \
-                            '?r my:%s_id ?num}' % (self.uri, component.lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
+                            '?r my:%s_id ?num}' % (self.graph_name, component.lower(), id1, id2, self.scale.capitalize(), self.scale.lower())
         else:
             logging.info("SPARQL step - No id")
             logging.info('Component: %s' % component)
             if component.capitalize() in aa_name_3:
-                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, from_name_to_3_letters(component.capitalize()).lower(), self.scale.lower())
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.graph_name, from_name_to_3_letters(component.capitalize()).lower(), self.scale.lower())
             else:
-                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.uri, component.capitalize(), self.scale.lower())
+                query = 'SELECT DISTINCT ?r ?num FROM <%s> WHERE {?r a my:%s . ?r my:%s_id ?num}' % (self.graph_name, component.capitalize(), self.scale.lower())
 
         logging.info('QUERY: %s' % query)
 
@@ -577,7 +577,7 @@ class RDF_Handler:
 
     def check_indiv_for_property(self, property):
         logging.info('Property: %s' % (property))
-        query = 'SELECT DISTINCT ?num FROM <%s> WHERE {?r a my:%s . ?r a my:%s . ?r my:%s_id ?num}' % (self.uri, self.scale.capitalize(),
+        query = 'SELECT DISTINCT ?num FROM <%s> WHERE {?r a my:%s . ?r a my:%s . ?r my:%s_id ?num}' % (self.graph_name, self.scale.capitalize(),
                                                                                   property.capitalize(), self.scale.lower())
 
         logging.info("QUERY: \n%s" % query)
@@ -594,7 +594,7 @@ class RDF_Handler:
     def requirement_for_action(self, action):
         logging.info('Requirement(s) for action: %s' % action)
         query = 'SELECT DISTINCT ?req FROM <%s> WHERE {?a rdfs:subClassOf my:%s . ?a rdfs:subClassOf ?restriction . ?restriction ' \
-                'owl:someValuesFrom ?req}' % (self.uri, action.capitalize())
+                'owl:someValuesFrom ?req}' % (self.graph_name, action.capitalize())
 
         logging.info('QUERY: %s' % query)
 
@@ -636,7 +636,7 @@ class RDF_Handler:
         logging.info(selected_str)
 
         query = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:%s_id ?id . ?ind my:uniq_id ?uniq . filter(?uniq in %s)}' \
-                % (self.uri, scale.capitalize(), scale.lower(), selected_str)
+                % (self.graph_name, scale.capitalize(), scale.lower(), selected_str)
 
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
@@ -666,7 +666,7 @@ class RDF_Handler:
                 logging.debug("New level: %s " % lvl)
                 if lvl.lower() == scale:
                     query = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?uniq . FILTER ( ?uniq = %s ) . ' \
-                            '?ind my:%s_id ?id .}' % (self.uri, scale.capitalize(), str(sel), lvl.lower())
+                            '?ind my:%s_id ?id .}' % (self.graph_name, scale.capitalize(), str(sel), lvl.lower())
                     logging.debug(query)
                     self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
                     qres = self.sparql_wrapper.query().convert()
@@ -679,7 +679,7 @@ class RDF_Handler:
                     break
                 else:
                     query = 'SELECT ?id FROM <%s> WHERE { ?ind a my:%s . ?ind my:uniq_id ?uniq . FILTER ( ?uniq = %s ) . ' \
-                            '?ind my:belongs_to ?parent . ?parent my:%s_id ?id .}' % (self.uri, scale.capitalize(), str(sel), lvl.lower())
+                            '?ind my:belongs_to ?parent . ?parent my:%s_id ?id .}' % (self.graph_name, scale.capitalize(), str(sel), lvl.lower())
 
                     self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
                     qres = self.sparql_wrapper.query().convert()

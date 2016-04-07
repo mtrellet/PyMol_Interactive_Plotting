@@ -14,14 +14,14 @@ import threading
 import time
 
 from OSCHandler.osc_server import MyServer
-from gevent import monkey
-monkey.patch_all()
+# from gevent import monkey
+# monkey.patch_all()
 
 import logging
 from RDFHandler.RDF_handling_distant import RDF_Handler
 
 FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)s %(funcName)s - %(message)s'
-logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.INFO)
+logging.basicConfig(filename="flask_session.log", filemode="w", format=FORMAT, level=logging.DEBUG)
 
 logging.getLogger('flask_cors').level = logging.DEBUG
 
@@ -38,8 +38,9 @@ osc_port = None
 target = None
 moliscope = False
 context = "weak"
-rdf_handler=RDF_Handler("http://localhost:8890/sparql", "http://peptide_traj_21072015.com", "http://peptide_traj_21072015/rules",
-                        "my", "http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+rdf_handler=RDF_Handler(server="http://localhost:8890/sparql", graph="http://glic_traj_rmsd_nomemb_ligand_0_50_1.com",
+                        rules="http://glic_traj_rmsd_nomemb_ligand_0_50_1.com/rules",
+                        prefix="my", uri="http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
 ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
 hierarchical_lvl = {'model': 4, 'residue':2, 'chain': 3, 'atom': 1}
 filter_ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
