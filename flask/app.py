@@ -14,8 +14,7 @@ import threading
 import time
 
 from OSCHandler.osc_server import MyServer
-# from gevent import monkey
-# monkey.patch_all()
+
 
 import logging
 from RDFHandler.RDF_handling_distant import RDF_Handler

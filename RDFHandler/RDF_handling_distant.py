@@ -53,7 +53,7 @@ class RDF_Handler:
             logging.info("FILTER: %s " % filter)
             points = self.query_rdf_filtered(x_query_type, y_query_type, filter, scale.capitalize())
 
-        ### Create dictionary for json
+        # Create dictionary for json
         all_models = set()
         json_dic = {'values': []}
         for row in points:
