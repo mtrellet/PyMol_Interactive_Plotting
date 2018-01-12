@@ -89,7 +89,7 @@ $(document).ready(function() {
             var length = list_y.length;
             list_y[length] = new Option (msg.data[i]);
             ana_list.push(msg.data[i])
-        }
+        } 
         $("body").append('<br>');
     });
 

@@ -4,11 +4,12 @@ Multi-component architecture to bind PyMol molecular visualisation software and 
 
 ## REQUIREMENTS
 
-- [Flask](http://flask.pocoo.org/docs/0.10/installation/) (`pip install flask`)
-- [Flask_Cors](https://pypi.python.org/pypi/Flask-Cors) (`pip install flask-cors`)
-- [Flask-SocketIO](https://flask-socketio.readthedocs.org/en/latest/) (`pip install flask-socketio`)
-- [Liblo](http://liblo.sourceforge.net/README.html) (`brew install liblo`)
-- [pyliblo](http://das.nasophon.de/pyliblo/) (`pip install pyliblo`)
+- [Flask](http://flask.pocoo.org/docs/0.10/installation/) - `pip install flask`
+- [Flask_Cors](https://pypi.python.org/pypi/Flask-Cors) - `pip install flask-cors`
+- [Flask-SocketIO](https://flask-socketio.readthedocs.org/en/latest/) - `pip install flask-socketio`
+- [Liblo](http://liblo.sourceforge.net/README.html) - `brew install liblo`
+- [pyliblo](http://das.nasophon.de/pyliblo/) - `pip install pyliblo`
+- [SPARQLWrapper](https://rdflib.github.io/sparqlwrapper/) - `pip install sparqlwrapper`
 
 
 ### 1. Start the Virtuoso server (RDF database)

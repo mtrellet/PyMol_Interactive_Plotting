@@ -75,8 +75,8 @@ class RDF_Handler:
         logging.debug("json dictionary: \n%s" % json_string)
 
         import os.path
-        file_name = "%s_%s_%s.json" % (scale.lower(), x_query_type, y_query_type)
-        file_path = "/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/flask/static/json/%s" % file_name
+        file_name = "{}_{}_{}.json".format(scale.lower(), x_query_type, y_query_type)
+        file_path = "/Users/mtrellet/Dev/PyMol_Interactive_Plotting/flask/static/json/{}".format(file_name)
         # if not os.path.exists(file_path):
         output = open(file_path, 'w')
         output.write(json_string)
@@ -206,7 +206,7 @@ class RDF_Handler:
         # query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:%s_id ?id}' % (self.uri, scale, scale.lower())
         query2 = 'SELECT ?id FROM <%s> WHERE { ?model a my:%s . ?model my:uniq_id ?id}' % (self.graph_name, scale.capitalize())
         
-        logging.info("QUERY: \n%s" % query)
+        logging.info("QUERY: \n{}".format(query))
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 

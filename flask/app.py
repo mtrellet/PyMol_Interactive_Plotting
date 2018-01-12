@@ -3,7 +3,7 @@ from flask import render_template
 from flask import request
 from flask import jsonify
 from flask_cors import CORS, cross_origin
-from flask.ext.socketio import SocketIO
+from flask_socketio import SocketIO
 from nocache import nocache
 import json
 
@@ -37,8 +37,11 @@ osc_port = None
 target = None
 moliscope = False
 context = "weak"
-rdf_handler=RDF_Handler(server="http://localhost:8890/sparql", graph="http://glic_traj_rmsd_nomemb_ligand_0_50_1.com",
-                        rules="http://glic_traj_rmsd_nomemb_ligand_0_50_1.com/rules",
+# rdf_handler=RDF_Handler(server="http://localhost:8890/sparql", graph="http:// glic_traj_rmsd_nomemb_ligand_0_50_1.com",
+#                         rules="http://glic_traj_rmsd_nomemb_ligand_0_50_1.com/rules",
+#                         prefix="my", uri="http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
+rdf_handler=RDF_Handler(server="http://localhost:8890/sparql", graph="http://peptide_traj.org",
+                        rules="http://visuana.org/rules",
                         prefix="my", uri="http://www.semanticweb.org/trellet/ontologies/2015/0/VisualAnalytics#")
 ids = {'model': [], 'residue':[], 'chain': [], 'atom': []}
 hierarchical_lvl = {'model': 4, 'residue':2, 'chain': 3, 'atom': 1}
@@ -134,7 +137,7 @@ def get_available_analyses(message):
     global rdf_handler
     logging.info(message['data'])
     ava_ana = rdf_handler.get_analyses()
-    logging.info("Available analyses: %s" % ava_ana)
+    logging.info("Available analyses: {}".format(ava_ana))
     socketio.emit('list_model_ana', {'data': [ana for ana in ava_ana['Model']]}, namespace='/socketio')
     socketio.emit('list_chain_ana', {'data': [ana for ana in ava_ana['Chain']]}, namespace='/socketio')
     socketio.emit('list_residue_ana', {'data': [ana for ana in ava_ana['Residue']]}, namespace='/socketio')
@@ -257,7 +260,7 @@ if __name__ == "__main__":
         help="Debug mode True/False")
     args = parser.parse_args()
 
-    logging.info("Web server \nIP: %s \t PORT: %d \t Debug: %s \nOSC server\nIP: %s \t PORT: %d\n" % (args.ip, args.port, args.debug, args.client_ip, args.client_port))
+    logging.info("\nWeb server \nIP: %s \t PORT: %d \t Debug: %s \nOSC server\nIP: %s \t PORT: %d\n" % (args.ip, args.port, args.debug, args.client_ip, args.client_port))
 
     # send all messages to port client_port on the local machine
     # try:

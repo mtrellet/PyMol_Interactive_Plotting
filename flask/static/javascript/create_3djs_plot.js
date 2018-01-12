@@ -40,22 +40,22 @@ function create_3djs_plot(filename, counter, level) {
     console.log(counter);
     console.log(level);
 
-    var getID = function(d) { return "id"+d.id }
-    var getX = function(d) { return d.x }
-    var getY = function(d) { return d.y }
-    var getXtype = function(d) { return d.x_type}
-    var getYtype = function(d) { return d.y_type}
+    var getID = function(d) { return "id"+d.id };
+    var getX = function(d) { return d.x };
+    var getY = function(d) { return d.y };
+    var getXtype = function(d) { return d.x_type};
+    var getYtype = function(d) { return d.y_type};
 
-    var margin = {top: 30, right: 15, bottom: 20, left: 40},
+    var margin = {top: 30, right: 10, bottom: 20, left: 50},
       width = 500 - margin.left - margin.right,
       height = 300 - margin.top - margin.bottom;
 
     var x = d3.scale.linear()
-      .range([0, width])
+      .range([0, width]);
 
 
     var y = d3.scale.linear()
-      .range([height, 0])
+      .range([height, 0]);
 
 
     window.svg = d3.select("#"+level+"_plot_"+counter)
@@ -66,7 +66,7 @@ function create_3djs_plot(filename, counter, level) {
         .attr("transform",
               "translate("+margin.left + "," + margin.top + ")")
 //        .attr("class", counter)
-        .attr("id", level+"_svg_"+counter)
+        .attr("id", level+"_svg_"+counter);
 
     // Define the axes
     var xAxis = d3.svg.axis().scale(x)
@@ -77,28 +77,29 @@ function create_3djs_plot(filename, counter, level) {
 
     // var createGraph = function() {
     d3.json("../static/json/"+filename+'?nocache=' + (new Date()).getTime(), function(error, data) {
+        console.log("../static/json/"+filename+'?nocache=' + (new Date()).getTime());
         if (error){
             console.log(error);
         }
-        var x_type = data.type[0].x_type
-        var y_type = data.type[0].y_type
+        var x_type = data.type[0].x_type;
+        var y_type = data.type[0].y_type;
         console.log(data.type);
-        x.domain(d3.extent(data.values, getX))
-        y.domain(d3.extent(data.values, getY))
+        x.domain(d3.extent(data.values, getX));
+        y.domain(d3.extent(data.values, getY));
 
         d3.select("#"+level+"_svg_"+counter).append("text")
             .attr("class", "x_label")
             .attr("text-anchor", "end")
             .attr("x", width)
             .attr("y", height - 6)
-            .text(x_type)
+            .text(x_type);
         d3.select("#"+level+"_svg_"+counter).append("text")
             .attr("class", "y_label")
             .attr("text-anchor", "end")
             .attr("y", 6)
             .attr("dy", "0.75em")
             .attr("transform", "rotate(-90)")
-            .text(y_type)
+            .text(y_type);
 
         svg.attr("class", filename)
 
@@ -135,16 +136,17 @@ function create_3djs_plot(filename, counter, level) {
 
         // Add the X Axis
         d3.select("#"+level+"_svg_"+counter).append("g")
-          .attr("class", "x axis")
-          .attr("id", "plot_"+counter)
-          .attr("transform", "translate(0," + height + ")")
-          .call(xAxis);
+            .attr("class", "x axis")
+            .attr("id", "plot_"+counter)
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
 
         // Add the Y Axis
         d3.select("#"+level+"_svg_"+counter).append("g")
-          .attr("class", "y axis")
-          .attr("id", "plot_"+counter)
-          .call(yAxis);
+            .attr("class", "y axis")
+            .attr("id", "plot_"+counter)
+            // .attr("transform", "translate(20,0)")
+            .call(yAxis);
     })
 
     var start_select = {x : 0, y : 0}
