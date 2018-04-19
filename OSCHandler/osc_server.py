@@ -6,7 +6,7 @@ import threading
 
 
 class MyServer(Server):
-    def __init__(self, port, pymol_handler = None, flask_server = None):
+    def __init__(self, port, pymol_handler=None, flask_server=None):
         """
         Initialize an OSC server to listen to specific port
         :param port: OSC port
@@ -61,6 +61,18 @@ class MyServer(Server):
             ids = args[0]
             logging.info("received message '%s' with arguments: %s" % (path, args))
             self.pymol_handler.set_new_ids(ids)
+
+    @make_method('/hide_level', 's')
+    def hide_level_callback(self, path, args):
+        if self.pymol_handler:
+            logging.info("received message '%s' with arguments: %s" % (path, args))
+            self.pymol_handler.hide_lvl(args[0])
+
+    @make_method('/new_submodel_selection', None)
+    def new_subselection_callback(self, path, args, types, src, data):
+        if self.pymol_handler:
+            logging.info("received message '%s' with arguments: %s" % (path, args))
+            self.pymol_handler.new_subselection(args)
 
     @make_method(None, None)
     def fallback(self, path, args):

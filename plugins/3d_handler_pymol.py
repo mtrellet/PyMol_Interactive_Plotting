@@ -35,7 +35,7 @@ import sys
 
 # Parameters of logging output
 import logging
-FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)s %(funcName)s - %(message)s'
 logging.basicConfig(filename="../log/pymol_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
@@ -298,7 +298,6 @@ class Handler:
         #############################################
         # self.create_ids_equivalent_dict()
 
-
     def create_osc_server(self, port):
         logging.info("Create OSC receiver and sender")
         # create server, listening on port 1234
@@ -319,8 +318,6 @@ class Handler:
         while True:
             self.osc_receiver.recv(100)
 
-
-
     # def create_multiproc_server(self, port=6000):
     #
     #     logging.info("Create OSC receiver and sender")
@@ -337,6 +334,34 @@ class Handler:
     #             break
     #     #listener.close()
 
+    def set_lvl(self, level):
+        """
+        :param level: level to hide
+        :return: PyMol command to hide indivs of specific level
+        """
+        self.scale = level.capitalize()
+
+    def hide_lvl(self, level):
+        """
+        :param level: level to hide
+        :return: PyMol command to hide indivs of specific level
+        """
+        repr_3D = ''
+        if level != self.scale.lower():
+            self.set_lvl(level)
+        if level == "model":
+            repr_3D = "everything"
+        elif level == "chain":
+            repr_3D = "cartoon"
+        elif level == "residue":
+            repr_3D = "sticks"
+        elif level == "atom":
+            repr_3D = "spheres"
+        else:
+            logging.error("NO PYMOL COMMAND GENERATED FOR LEVEL: %s " % level)
+        cmd.hide(repr_3D)
+        logging.info("PyMol command for level {}: {}".format(level, repr_3D))
+
     def new_selected_models(self, selected_models):
         to_display = set()
         logging.info(selected_models)
@@ -344,6 +369,24 @@ class Handler:
             to_display.add(m)
         logging.info("to display %s " % to_display)
         self.update_plot_multiple(1, to_display)
+
+    def new_subselection(self, selection):
+        to_display = set()
+        logging.info("Current scale: {}".format(self.scale))
+        logging.info("Subselection: {}".format(selection))
+        command = ''
+        if self.scale.lower() == "chain":
+            command = "show cartoon, chain %s and %04d" % (selection[1], selection[0])
+        elif self.scale.lower() == "residue":
+            command = "show sticks, resid %s and chain %s and %04d" % (selection[2], selection[1], selection[0])
+        elif self.scale.lower() == "atom":
+            command = "show spheres, id %s and resid %s and chain %s and %04d" % (
+            selection[3], selection[2], selection[1], selection[0])
+        if command == '':
+            logging.error("NO PYMOL COMMAND GENERATED FOR SELECTION: {} at level {} ".format(selection, self.scale))
+        else:
+            logging.info("PyMol command for level {}: {}".format(self.scale, command))
+            cmd.do(command)
 
     def set_new_ids(self, ids):
         """

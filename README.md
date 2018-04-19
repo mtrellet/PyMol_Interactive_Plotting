@@ -20,15 +20,9 @@ Multi-component architecture to bind PyMol molecular visualisation software and 
 
 ### 2. Launch PyMol in interactive mode
 
-`$> pymol load_traj.pml`
-
-Then in PyMol, click on:
-
-`Plugins >> Distant interactive plots`
+`$> python plugins/start_3d_visu.py --pdb ../data/peptide_fit.pdb`
 
 ### 3. Launch Flask server (webserver)
-
-Run 
 
 `python app.py [OPTIONS]`
 

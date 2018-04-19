@@ -77,12 +77,24 @@ def array2python():
         logging.info("Selected models (bio_id): "+str(selected_bio_ids))
 
         if plot_level != 'model':
-            liblo.send((osc_client, osc_port), "/moliscope/hide_level", plot_level)
+            if moliscope:
+                liblo.send((osc_client, osc_port), "/moliscope/hide_level", plot_level)
+            else:
+                liblo.send((osc_client, osc_port), "/hide_level", plot_level)
             hierarchical_tree_for_selection = rdf_handler.from_uniq_to_hierarchical_tree(plot_level, selected_uniq_ids)
             for key in hierarchical_tree_for_selection.iterkeys():
-                liblo.send((osc_client, osc_port), "/moliscope/new_submodel_selection", hierarchical_tree_for_selection[key]['model'],
-                           hierarchical_tree_for_selection[key]['chain'], hierarchical_tree_for_selection[key]['residue'],
-                           hierarchical_tree_for_selection[key]['atom'])
+                if moliscope:
+                    liblo.send((osc_client, osc_port), "/moliscope/new_submodel_selection",
+                               hierarchical_tree_for_selection[key]['model'],
+                               hierarchical_tree_for_selection[key]['chain'],
+                               hierarchical_tree_for_selection[key]['residue'],
+                               hierarchical_tree_for_selection[key]['atom'])
+                else:
+                    liblo.send((osc_client, osc_port), "/new_submodel_selection",
+                               hierarchical_tree_for_selection[key]['model'],
+                               hierarchical_tree_for_selection[key]['chain'],
+                               hierarchical_tree_for_selection[key]['residue'],
+                               hierarchical_tree_for_selection[key]['atom'])
         else:
             if moliscope:
                 liblo.send((osc_client, osc_port), "/moliscope/new_selection", *selected_bio_ids)
@@ -96,9 +108,9 @@ def array2python():
     else:
         ids[plot_level] = []
         if moliscope:
-            liblo.send((osc_client, osc_port), "/moliscope/new_selection", None )
+            liblo.send((osc_client, osc_port), "/moliscope/new_selection", None)
         else:
-            liblo.send((osc_client, osc_port), "/selected", 0 )
+            liblo.send((osc_client, osc_port), "/selected", 0)
         return jsonify(result=idlist)
 
     ######## LIBLO ##########
@@ -108,6 +120,7 @@ def array2python():
     #liblo.send(('client-172-18-36-30.clients.u-psud.fr', 8000), "/selected", selected)
     # USER DEFINED
     # liblo.send((osc_client, osc_port), "/selected", selected)
+
 
 @app.route('/_uniq_selection', methods=['GET', 'POST'])
 @cross_origin() # allow all origins all methods.
@@ -122,6 +135,7 @@ def uniq_selection():
     liblo.send((osc_client, osc_port), "/selected", selected)
     logging.info("Selected models sent on: %s:%s" % (osc_client, osc_port))
     return jsonify(result=selected)
+
 
 @socketio.on('connected', namespace='/socketio')
 def connected(message):
@@ -142,6 +156,7 @@ def get_available_analyses(message):
     socketio.emit('list_chain_ana', {'data': [ana for ana in ava_ana['Chain']]}, namespace='/socketio')
     socketio.emit('list_residue_ana', {'data': [ana for ana in ava_ana['Residue']]}, namespace='/socketio')
     socketio.emit('list_atom_ana', {'data': [ana for ana in ava_ana['Atom']]}, namespace='/socketio')
+
 
 @socketio.on('create', namespace='/socketio')
 def get_plot_values(message):
@@ -174,6 +189,7 @@ def get_plot_values(message):
             liblo.send((osc_client, osc_port), "/moliscope/ids", list_ids)
         else:
             liblo.send((osc_client, osc_port), "/ids", list_ids)
+
 
 @socketio.on('update', namespace='/socketio')
 def update_plot_values(message):
@@ -211,6 +227,7 @@ def update_plot_values(message):
         else:
             liblo.send((osc_client, osc_port), "/ids", list_ids)
 
+
 @socketio.on('update_context', namespace='/socketio')
 def change_scale(message):
     global context
@@ -227,6 +244,7 @@ def change_scale(message):
 #     for a, t in zip(args, types):
 #         print "argument of type '%s': %s" % (t, a)
 
+
 def create_osc_server(server_port):
     # create server, listening on port 1234
     try:
@@ -237,6 +255,7 @@ def create_osc_server(server_port):
         sys.exit()
 
     osc_receiver.start()
+
 
 if __name__ == "__main__":
     # Parse args to setup OSC client

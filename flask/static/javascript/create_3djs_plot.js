@@ -46,34 +46,28 @@ function create_3djs_plot(filename, counter, level) {
     var getXtype = function(d) { return d.x_type};
     var getYtype = function(d) { return d.y_type};
 
-    var margin = {top: 30, right: 10, bottom: 20, left: 50},
+    var margin = {top: 30, right: 20, bottom: 20, left: 50},
       width = 500 - margin.left - margin.right,
       height = 300 - margin.top - margin.bottom;
 
-    var x = d3.scale.linear()
-      .range([0, width]);
-
-
-    var y = d3.scale.linear()
-      .range([height, 0]);
+    var xScale = d3.scale.linear().range([0, width]);
+    var yScale = d3.scale.linear().range([height, 0]);
 
 
     window.svg = d3.select("#"+level+"_plot_"+counter)
       .append("svg")
         .attr("width", width + margin.left + margin.right)
         .attr("height", height + margin.top + margin.bottom)
-      // .append("g")
+        .attr("id", level+"_svg_"+counter)
+      .append("g")
         .attr("transform",
               "translate("+margin.left + "," + margin.top + ")")
 //        .attr("class", counter)
-        .attr("id", level+"_svg_"+counter);
+
 
     // Define the axes
-    var xAxis = d3.svg.axis().scale(x)
-      .orient("bottom").ticks(5);
-
-    var yAxis = d3.svg.axis().scale(y)
-      .orient("left").ticks(5);
+    var xAxis = d3.svg.axis().scale(xScale).orient("bottom").ticks(5);
+    var yAxis = d3.svg.axis().scale(yScale).orient("left").ticks(5);
 
     // var createGraph = function() {
     d3.json("../static/json/"+filename+'?nocache=' + (new Date()).getTime(), function(error, data) {
@@ -84,31 +78,69 @@ function create_3djs_plot(filename, counter, level) {
         var x_type = data.type[0].x_type;
         var y_type = data.type[0].y_type;
         console.log(data.type);
-        x.domain(d3.extent(data.values, getX));
-        y.domain(d3.extent(data.values, getY));
+        xScale.domain(d3.extent(data.values, getX));
+        yScale.domain(d3.extent(data.values, getY));
+        // xScale.domain([d3.min(data.values, getX)-1, d3.max(data.values, getX)+1]);
+        // yScale.domain([d3.min(data.values, getY)-1, d3.max(data.values, getY)+1]);
 
-        d3.select("#"+level+"_svg_"+counter).append("text")
+        // Define the line
+        // var valueline = d3.svg.line()
+        //     .x(function(d) { return xScale(getX(d)); })
+        //     .y(function(d) { return yScale(getY(d)); });
+
+        d3.select("#"+level+"_svg_"+counter)
+            .append("text")
             .attr("class", "x_label")
             .attr("text-anchor", "end")
             .attr("x", width)
             .attr("y", height - 6)
+            .attr("transform",
+              "translate("+margin.left + "," + margin.top + ")")
             .text(x_type);
-        d3.select("#"+level+"_svg_"+counter).append("text")
+        d3.select("#"+level+"_svg_"+counter)
+            .append("text")
             .attr("class", "y_label")
             .attr("text-anchor", "end")
             .attr("y", 6)
             .attr("dy", "0.75em")
-            .attr("transform", "rotate(-90)")
+            // .attr("transform", "rotate(-90)")
+            .attr("transform",
+              "translate("+margin.left + "," + margin.top + ") rotate(-90)")
             .text(y_type);
 
         svg.attr("class", filename)
+
+        // Add the valueline path.
+        // svg.append("path")
+        //     .attr("class", "line")
+        //     .attr("d", valueline(data.values));
+
+        // Add the X Axis
+        d3.select("#"+level+"_svg_"+counter)
+            .append("g")
+                .attr("class", "x axis")
+                .attr("id", "plot_"+counter)
+                // .attr("transform", "translate(0," + height + ")")
+            .attr("transform",
+              "translate("+margin.left + "," + (margin.top + height) + ")")
+                .call(xAxis);
+
+        // Add the Y Axis
+        d3.select("#"+level+"_svg_"+counter)
+            .append("g")
+                .attr("class", "y axis")
+                .attr("id", "plot_"+counter)
+                .attr("transform",
+                    "translate("+margin.left + "," + margin.top + ")")
+                // .attr("transform", "translate(20,0)")
+                .call(yAxis);
 
         svg.selectAll(".temp").data(data.values).enter()
           .append("circle")
             .attr("r", 4)
             .attr("id", function(d) { return getID(d) })
-            .attr("cx", function(d) { return x(getX(d)) })
-            .attr("cy", function(d) { return y(getY(d)) })
+            .attr("cx", function(d) { return xScale(getX(d)) })
+            .attr("cy", function(d) { return yScale(getY(d)) })
             .classed("selected", false)
             .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])
             .style("stroke", context_colors[$('input[name="context_lvl"]:checked').val()][1])
@@ -134,25 +166,14 @@ function create_3djs_plot(filename, counter, level) {
                 }
             })
 
-        // Add the X Axis
-        d3.select("#"+level+"_svg_"+counter).append("g")
-            .attr("class", "x axis")
-            .attr("id", "plot_"+counter)
-            .attr("transform", "translate(0," + height + ")")
-            .call(xAxis);
 
-        // Add the Y Axis
-        d3.select("#"+level+"_svg_"+counter).append("g")
-            .attr("class", "y axis")
-            .attr("id", "plot_"+counter)
-            // .attr("transform", "translate(20,0)")
-            .call(yAxis);
-    })
+    });
 
     var start_select = {x : 0, y : 0}
 
     d3.select("#"+level+"_svg_"+counter).on( "mousedown", function() {
         var p = d3.mouse( this);
+        console.log(p);
         console.log("DOWN")
         var selected = [];
 
@@ -234,13 +255,15 @@ function create_3djs_plot(filename, counter, level) {
             d3.select("#"+level+"_plot_"+counter).selectAll("circle").each(function(data) {
                 var circle = {x : d3.select(this).attr("cx"), y : d3.select(this).attr("cy")}
                 //console.log(circle)
-                if(!d3.select(this).classed("selected") && circle.x >= d.x && circle.x <= d.x+d.width && circle.y >= d.y && circle.y <= d.y+d.height ) {
+                if(!d3.select(this).classed("selected") && circle.x >= d.x - margin.left && circle.x <= d.x+d.width-margin.left
+                    && circle.y >= d.y-margin.top && circle.y <= d.y+d.height-margin.top ) {
                     d3.select(this)
                       .classed("selected", true)
                       .style("fill", "blue")
                       .style("stroke", "blue")
                 }
-                else if (circle.x < d.x || circle.x > d.x+d.width || circle.y < d.y || circle.y > d.y+d.height){
+                else if (circle.x < d.x-margin.left || circle.x > d.x+d.width-margin.left || circle.y < d.y-margin.top
+                    || circle.y > d.y+d.height-margin.top){
                     d3.select(this)
                       .classed("selected", false)
                       .style("fill", context_colors[$('input[name="context_lvl"]:checked').val()][0])

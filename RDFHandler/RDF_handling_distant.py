@@ -416,13 +416,15 @@ class RDF_Handler:
         self.sparql_wrapper.setQuery(self.rules+self.prefix+query)
         qres = self.sparql_wrapper.query().convert()
 
-        logging.info("Number of queried entities (min/max): %d " % len(qres["results"]["bindings"]))
+        logging.info("RESULT(S): \n{} ".format(qres["results"]["bindings"]))
 
         tmp = []
         res = []
         for row in qres["results"]["bindings"]:
             tmp = [row["xmin"]["value"], row["xmax"]["value"], row["ymin"]["value"], row["ymax"]["value"]]
             for r in tmp:
+                if r == "NAN":
+                    r = 0.0
                 try:
                     res.append(int(r))
                 except ValueError:
