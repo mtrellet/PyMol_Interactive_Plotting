@@ -3,6 +3,7 @@ __author__ = 'trellet'
 import sys,os
 import pyaudio
 import wave
+import speech_recognition as sr
 
 # hmdir = "/usr/share/pocketsphinx/model/FR/"
 dic = '/Users/trellet/Dev/Visual_Analytics/PyMol_Interactive_Plotting/data/ontology.dic'
@@ -20,6 +21,22 @@ def decodeSpeech(lm,dic,wavfile):
     result = speechRec.get_hyp()
 
     return result[0]
+
+def decodeSpeechGoogle(wavfile):
+
+    r = sr.Recognizer()
+    with sr.WavFile(wavfile) as source:
+        audio = r.record(source)
+
+
+    try:
+        print("Google Speech Recognition thinks you said: " + r.recognize_google(audio))
+    except sr.UnknownValueError:
+        print("Google Speech Recognition could not understand audio")
+    except sr.RequestError as e:
+        print("Could not request results from Google Speech Recognition service; {0}".format(e))
+
+    return r.recognize_google(audio)
 
 #CHUNK = 1024
 CHUNK = 512
@@ -52,7 +69,6 @@ for x in range(10):
     wf.close()
     wavfile = fn
     recognised = decodeSpeech(lm,dic,wavfile)
+    # recognised = decodeSpeechGoogle(wavfile)
     print recognised
     os.remove(fn)
-    # cm = 'espeak "'+recognised+'"'
-    # os.system(cm)

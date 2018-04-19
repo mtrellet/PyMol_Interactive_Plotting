@@ -4,7 +4,8 @@
 <head>
   <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
   <script src="http://d3js.org/d3.v3.min.js" type="text/javascript"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>
+  <!--<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/0.9.16/socket.io.min.js"></script>-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.0.4/socket.io.js"></script>
 </head>
 <body>
 
@@ -47,9 +48,9 @@
                 <!--</form>-->
             </div>
             <div id="model_plots"></div>
+            </br>
+            <hr>
         </div>
-        <br>
-        <hr>
         <h2 onclick="expand(this);"> CHAIN </h2>
         <div id='chain_lvl'>
             <div id="chain_two_column"></div>
@@ -59,9 +60,11 @@
                 <button type="submit" name="chain" onclick="send_ana(this);">Create plots</button>
             </div>
             <div id="chain_plots"></div>
+            </br>
+            <hr>
         </div>
-        </br>
-        <hr>
+
+
         <h2 onclick="expand(this);"> RESIDUE </h2>
         <div id='residue_lvl'>
             <div id="residue_two_column"></div>
@@ -71,9 +74,10 @@
                 <button type="submit" name="residue" onclick="send_ana(this);">Create plots</button>
             </div>
             <div id="residue_plots"></div>
+            </br>
+            <hr>
         </div>
-        </br>
-        <hr>
+
         <h2 onclick="expand(this);"> ATOM </h2>
         <div id='atom_lvl'>
             <div id="atom_two_column"></div>
@@ -83,9 +87,9 @@
                 <button type="submit" name="atom" onclick="send_ana(this);">Create plots</button>
             </div>
             <div id="atom_plots"></div>
+            </br>
+            <hr>
         </div>
-        </br>
-        <hr>
     </div>
 </body>
 </html>

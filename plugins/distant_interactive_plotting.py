@@ -40,7 +40,7 @@ from multiprocessing.connection import Listener
 
 # Parameters of logging output
 import logging
-FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)s %(funcName)s - %(message)s'
 logging.basicConfig(filename="log/pymol_session.log", filemode="w", format=FORMAT, level=logging.INFO)
 #logging.getLogger().addHandler(logging.StreamHandler())
 
@@ -351,6 +351,11 @@ class Handler:
         logging.info("to display %s " % to_display)
         self.update_plot_multiple(1, to_display)
 
+    def new_subselection(self, selection):
+        to_display = set()
+        logging.info("Current scale: {}".format(self.scale))
+        logging.info("Subselection: {}".format(selection))
+
     def set_new_ids(self, ids):
         """
         Define new object ids represented in the analysis space
@@ -358,7 +363,7 @@ class Handler:
         """
         self.all_models = set(ids)
 
-    def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
+    def update_plot_multiple(self, source=0, to_display=set(), canvas = None):
         """ Check for updated selections data in all plots simultaneously"""
         start_time = time.time()
         if source == 1:

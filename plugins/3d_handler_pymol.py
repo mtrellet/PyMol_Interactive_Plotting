@@ -1,0 +1,704 @@
+###############################################
+#  File:          interactive_plotting.py
+#  Author:        Dan Kulp
+#  Creation Date: 8/29/05
+#
+#  Created 2011-11-17 by Thomas Holder
+#  Modified 2015-01-15 by Mikael Trellet
+#
+#  Notes:
+#  Draw plots that display interactive data
+#  Added:   * back-and-forth communication.
+#           * RDF parsing and querying with SPARQL
+#   RMSD plot shown over trajectory.
+###############################################
+
+
+from __future__ import division
+from __future__ import generators
+
+import argparse
+
+import time
+import Queue
+import threading
+
+from pymol import cmd, util
+from pymol.wizard import Wizard
+from OSCHandler.osc_server import MyServer
+
+from utils import color_by_residue
+
+import liblo
+import sys
+
+
+# Parameters of logging output
+import logging
+FORMAT = '%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)s %(funcName)s - %(message)s'
+logging.basicConfig(filename="../log/pymol_session.log", filemode="w", format=FORMAT, level=logging.INFO)
+#logging.getLogger().addHandler(logging.StreamHandler())
+
+# workaround: Set to True if nothing gets drawn on canvas, for example on linux with "pymol -x"
+with_mainloop = False
+# Global variables for pymol event checking
+myspace = {'previous':set(), 'models':set(), 'residues':set()}
+previous_mouse_mode = cmd.get("mouse_selection_mode")
+locked = False
+
+# Multi-threading queue init
+queue = Queue.Queue()
+
+class PickWizard(Wizard):
+
+    def __init__(self, handler):
+        self.sele_name = "sele" # must be set to "lb" for now...
+        self.selected = []
+        self.handler = handler
+        # self.__observers = []
+
+    # def register_observer(self, observer):
+    #     self.__observers.append(observer)
+
+    # def notify_observers(self, *args, **kwargs):
+    #     for observer in self.__observers:
+    #         observer(self, *args, **kwargs)
+
+    def set_buttons(self):
+
+        # just use selections (disable atom and bond picking)
+
+        cmd.button('m','ctrl','+sele')
+        cmd.button('r','ctrl','none')
+        cmd.button('r','ctsh','none')
+
+    def get_prompt(self):
+
+        # returns prompt for the viewer window (optional)
+
+        if self.sele_name in cmd.get_names('selections'):
+            n_atom = cmd.count_atoms("sele")
+        else:
+            n_atom = 0
+        if n_atom:
+            list = cmd.identify("sele")
+            return ["%d atoms selected..."%n_atom,str(list)]
+        else:
+            return ["Please select some atoms..."]
+
+    def do_select(self,name):
+
+        # handle mouse selection callback
+
+        # if not "sele" in cmd.get_names('selections'):
+        #     cmd.select("sele",'none')
+        # cmd.enable("sele")
+        cmd.refresh_wizard()
+
+    def get_panel(self):
+        return [[ 1, 'Mode of selection',''], [ 2, 'Selection by atom','cmd.set("mouse_selection_mode", 0);cmd.refresh_wizard()'],
+                [ 2, 'Selection by residues','cmd.set("mouse_selection_mode", 1);cmd.refresh_wizard()'],
+                [ 2, 'Selection by chain','cmd.set("mouse_selection_mode", 2);cmd.refresh_wizard()'],
+                [ 2, 'Selection by model','cmd.set("mouse_selection_mode", 5);cmd.refresh_wizard()'],
+                [ 2, 'Clear Selection','cmd.delete("'+self.sele_name+'");cmd.refresh_wizard()'],]
+
+
+def groups(glist, numPerGroup=2):
+    result = []
+
+    i = 0
+    cur = []
+    for item in glist:
+        if not i < numPerGroup:
+            result.append(cur)
+            cur = []
+            i = 0
+
+        cur.append(item)
+        i += 1
+
+    if cur:
+        result.append(cur)
+
+    return result
+
+def average(points):
+    aver = [0,0]
+
+    for point in points:
+        aver[0] += point[0]
+        aver[1] += point[1]
+
+    return aver[0]/len(points), aver[1]/len(points)
+
+def check_selections(queue):
+    """ Check if the selection made by the user changed """
+    global previous_mouse_mode
+    global myspace
+    while True:
+        logging.debug("Entered in infinite loop")
+        # Check if the user changed the selection mode (atom/residue/chain/molecule)
+        logging.debug("Current mouse selection mode : %d" % int(cmd.get("mouse_selection_mode")))
+        logging.debug("Number of selections: %d" % len(cmd.get_names("selections")))
+        if int(cmd.get("mouse_selection_mode")) == 5 and len(cmd.get_names("selections")) > 0:
+            #logging.debug(cmd.get_names("selections")[1])
+            nb_selected_objects = cmd.count_atoms('sele')
+            if nb_selected_objects > 0:
+                logging.info("--- Selection made by the user ---")
+                logging.info(nb_selected_objects)
+                cmd.iterate('(sele)', 'models.add(model)', space=myspace)
+                logging.info(myspace['models'])
+                tmp = set()
+                # Make the list with unique items
+                for i in myspace['models']:
+                    if int(i) not in tmp:
+                        tmp.add(int(i))
+                # Check if the selection has changed
+                if tmp != myspace['previous']:
+                    myspace['previous'] = tmp
+                    queue.put(tmp)
+                else:
+                    time.sleep(1)
+                cmd.select('none')
+        elif int(cmd.get("mouse_selection_mode")) == 1 and len(cmd.get_names("selections")) > 0:
+            #logging.debug(cmd.get_names("selections")[0])
+
+            nb_selected_objects = cmd.count_atoms('sele')
+            if nb_selected_objects > 0:
+                logging.info("--- Selection made by the user ---")
+                cmd.iterate('(sele)', 'residues.add(resv)', space=myspace)
+                logging.info(myspace['residues'])
+                tmp = set()
+                # Make the list with unique items
+                for i in myspace['residues']:
+                    if int(i) not in tmp:
+                        tmp.add(int(i))
+                # Check if the selection has changed
+                if tmp != myspace['previous']:
+                    myspace['previous'] = tmp
+                    queue.put(tmp)
+                    #cmd.delete('lb')
+                else:
+                    time.sleep(1)
+                cmd.select('none')
+
+        else:
+            # if len(cmd.get_names("selections", enabled_only=1)) == 0:
+            #     queue.put(set())
+            #previous_mouse_mode = cmd.get("mouse_selection_mode")
+            time.sleep(0.5)
+
+class Handler:
+
+    def __init__(self, selection=None, name=None, symbols='', state=-1):
+        # from pymol import _ext_gui as pmgapp
+        # if pmgapp is not None:
+        #     import Pmw
+        #     rootframe = Pmw.MegaToplevel(pmgapp.root)
+        #     parent = rootframe.interior()
+        # else:
+
+        logging.info("Handler initialization...")
+        if name is None:
+            try:
+                name = cmd.get_unused_name('Handler')
+            except AttributeError:
+                name = 'Handler'
+
+        self.queue = queue
+
+        self.lock = 0
+        self.state = state
+        self.show = [False]*251
+        self.models_to_display = set()
+        self.residues_to_display = set()
+        self.all_models = set()
+        self.all_residues = set()
+        self.models_shown = set()
+        self.residues_shown = set()
+        self.choices = [] # Array of IntVar to store CHeckbuttons for user choices
+        self.rect_trackers = []
+        self.proposed_analyses = ["distance", "x_position", "y_position", "z_position"]
+        self.scale = 'Model'
+        self.model_selected = 0
+        self.item_selected = 0
+        self.current_state = "default"
+        self.color_selection = {0: "blue", 1:"red", 2:"yellow", 3:"black", 4:"orange"}
+        self.x_choice = ""
+        self.y_choice = ""
+        self.params_plot = []
+        self.options_button = None
+        self.main_button = None
+        self.osc_ip = "127.0.0.1"
+        self.server_port = 5555
+        self.client_port = 8100
+        self.multi_port = 6000
+        self.osc_receiver = []
+        self.osc_sender = None
+
+        # send all messages to port 1234 on the local machine
+        # try:
+        #     self.osc_sender = liblo.Address(self.server_port)
+        #     logging.info("Initialization of sender adress on %s" % self.osc_sender.url)
+        # except liblo.AddressError, err:
+        #     print str(err)
+        #     sys.exit()
+
+        for t in threading.enumerate():
+            print t
+
+        osc_thread = threading.Thread(target=self.create_osc_server, args=(self.server_port,))
+        osc_thread.start()
+
+        for t in threading.enumerate():
+            print t
+
+
+
+
+        # for t in threading.enumerate():
+        #     print t
+        #
+        # while True:
+        #     for t in threading.enumerate():
+        #         print t
+        #     time.sleep(2)
+
+        # osc_manager = OSCManager()
+        # print "OSC manager initialized"
+        # osc_manager.run()
+
+        #
+        # osc_thread2 = threading.Thread(target=self.create_osc_server, args=(self.client_port,))
+        # osc_thread2.start()
+
+        # osc_thread = threading.Thread(target=self.create_multiproc_server)
+        # osc_thread.start()
+
+        # for t in threading.enumerate():
+        #     print t
+
+        ######################################
+        ##### NEW WINDOW FOR TEMPERATURE #####
+        ######################################
+
+        # if selection is not None:
+        #     self.start('time_frame', 'rmsd_to_reference')
+        #     self.start('time_frame', 'temperature')
+            #self.start(self.canvas[2], 'time_frame', 'energy')
+
+
+        # Send keyword command
+        # keywords = ['show', 'positive', 'hydrophobic', 'residue', 'chain', 'A', 'ribbon']
+        # keyword2command = Keyword2Cmd(keywords)
+        # keyword2command.translate()
+
+        #############################################
+        ##### CREATE CANVAS ITEM IDs DICTIONARY #####
+        #############################################
+        # self.create_ids_equivalent_dict()
+
+    def create_osc_server(self, port):
+        logging.info("Create OSC receiver and sender")
+        # create server, listening on port 1234
+        try:
+            print port
+            # self.osc_receiver.append(MyServer(port, pymol_handler=self))
+            self.osc_receiver = MyServer(port, pymol_handler=self)
+        except liblo.ServerError, err:
+            print str(err)
+            sys.exit()
+
+        # self.osc_receiver.start()
+
+        # register method taking a blob, and passing user data to the callback
+        #self.osc_receiver.add_method("/selected", 'b', self.selected_callback, "user")
+
+        # loop and dispatch messages every 100ms
+        while True:
+            self.osc_receiver.recv(100)
+
+    # def create_multiproc_server(self, port=6000):
+    #
+    #     logging.info("Create OSC receiver and sender")
+    #     # create server, listening on port 1234
+    #     address = ('localhost', port)
+    #     listener = Listener(address)
+    #     conn = listener.accept()
+    #
+    #     while True:
+    #         msg = conn.recv()
+    #         print msg
+    #         if msg == 'close':
+    #             conn.close()
+    #             break
+    #     #listener.close()
+
+    def set_lvl(self, level):
+        """
+        :param level: level to hide
+        :return: PyMol command to hide indivs of specific level
+        """
+        self.scale = level.capitalize()
+
+    def hide_lvl(self, level):
+        """
+        :param level: level to hide
+        :return: PyMol command to hide indivs of specific level
+        """
+        repr_3D = ''
+        if level != self.scale.lower():
+            self.set_lvl(level)
+        if level == "model":
+            repr_3D = "everything"
+        elif level == "chain":
+            repr_3D = "cartoon"
+        elif level == "residue":
+            repr_3D = "sticks"
+        elif level == "atom":
+            repr_3D = "spheres"
+        else:
+            logging.error("NO PYMOL COMMAND GENERATED FOR LEVEL: %s " % level)
+        cmd.hide(repr_3D)
+        logging.info("PyMol command for level {}: {}".format(level, repr_3D))
+
+    def new_selected_models(self, selected_models):
+        to_display = set()
+        logging.info(selected_models)
+        for m in selected_models:
+            to_display.add(m)
+        logging.info("to display %s " % to_display)
+        self.update_plot_multiple(1, to_display)
+
+    def new_subselection(self, selection):
+        to_display = set()
+        logging.info("Current scale: {}".format(self.scale))
+        logging.info("Subselection: {}".format(selection))
+        command = ''
+        if self.scale.lower() == "chain":
+            command = "show cartoon, chain %s and %04d" % (selection[1], selection[0])
+        elif self.scale.lower() == "residue":
+            command = "show sticks, resid %s and chain %s and %04d" % (selection[2], selection[1], selection[0])
+        elif self.scale.lower() == "atom":
+            command = "show spheres, id %s and resid %s and chain %s and %04d" % (
+            selection[3], selection[2], selection[1], selection[0])
+        if command == '':
+            logging.error("NO PYMOL COMMAND GENERATED FOR SELECTION: {} at level {} ".format(selection, self.scale))
+        else:
+            logging.info("PyMol command for level {}: {}".format(self.scale, command))
+            cmd.do(command)
+
+    def set_new_ids(self, ids):
+        """
+        Define new object ids represented in the analysis space
+        :param ids: list of int
+        """
+        self.all_models = set(ids)
+
+    def update_plot_multiple(self, source =0, to_display=set(), canvas = None):
+        """ Check for updated selections data in all plots simultaneously"""
+        start_time = time.time()
+        if source == 1:
+            # Check mulltiple selection by dragging rectangle
+            if self.scale == "Model":
+                logging.info("Display models sent by OnDrag: ")
+                logging.info(to_display)
+                self.models_to_display = to_display.intersection(self.all_models)
+                logging.info(self.models_to_display)
+                #if self.correlate.get():
+                for m in self.all_models:
+                    if m in self.models_to_display:
+                        logging.debug("Color: %04d" % m)
+                        #cmd.select('sele', '%04d' % s[5][1])
+                        #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+                        cmd.show('line', '%04d' % m)
+                        #cmd.disable('sele')
+                    elif m in self.models_shown:
+                        cmd.hide('line', '%04d' % m)
+
+                self.models_shown = self.models_to_display
+            #     elif s[5][1] not in self.models_to_display and s[5][1] in self.models_shown:
+            #                 canvas.itemconfig(k, fill='grey')
+            #                 cpt=0
+            #                 for it in canvas.ids_ext[k]:
+            #                     if self.canvas[cpt] != canvas:
+            #                         self.canvas[cpt].itemconfig(it, fill='grey')
+            #                     else:
+            #                         cpt+=1
+            #                         self.canvas[cpt].itemconfig(it, fill='grey')
+            #                     cpt+=1
+            #                 logging.debug("Hide: %04d" % s[5][1])
+            #                 #cmd.select('sele', '%04d' % s[5][1])
+            #                 cmd.hide('everything', '%04d' % s[5][1])
+            #                 #cmd.disable('sele')
+            #         self.models_shown = self.models_to_display
+            #     else:
+            #         for k,s in canvas.shapes.iteritems():
+            #             if s[5][1] in canvas.selected:
+            #                 canvas.itemconfig(k, fill=self.color_selection[self.canvas.index(canvas)])
+            #             elif s[5][1] not in self.models_to_display:
+            #                 canvas.itemconfig(k, fill='grey')
+            #         show = canvas.selected
+            #         tmp = []
+            #         for canv in self.canvas:
+            #             if len(canv.selected) > 0 and canv != canvas:
+            #                 tmp = [val for val in show if val in canv.selected]
+            #                 show = tmp
+            #         for model in self.models_shown:
+            #             if model in show:
+            #                 cmd.show('line', '%04d' % model)
+            #             else:
+            #                 cmd.hide('everything', '%04d' % model)
+            #         self.models_shown = show
+            #
+            # elif self.scale == "Residue":
+            #     logging.info("Display residues sent by OnDrag: ")
+            #     logging.info(to_display)
+            #     self.residues_to_display = to_display.intersection(self.all_residues)
+            #     logging.info(self.residues_to_display)
+            #     for k,s in canvas.shapes.iteritems():
+            #         if s[5][1] in self.residues_to_display and s[5][1] not in self.residues_shown:
+            #             canvas.itemconfig(k, fill='blue')
+            #             cpt = 0
+            #             for it in canvas.ids_ext[k]:
+            #                 if self.canvas[cpt] != canvas:
+            #                     self.canvas[cpt].itemconfig(it, fill='blue')
+            #                 else:
+            #                     cpt+=1
+            #                     self.canvas[cpt].itemconfig(it, fill='blue')
+            #                 cpt+=1
+            #             logging.debug("Stick: %04d" % s[5][1])
+            #             #cmd.select('sele', '%04d' % s[5][1])
+            #             #cmd.show('cartoon', 'name CA and %04d' % s[5][1])
+            #             cmd.show('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+            #             #cmd.disable('sele')
+            #         elif s[5][1] not in self.residues_to_display and s[5][1] in self.residues_shown:
+            #             canvas.itemconfig(k, fill='grey')
+            #             cpt=0
+            #             for it in canvas.ids_ext[k]:
+            #                 if self.canvas[cpt] != canvas:
+            #                     self.canvas[cpt].itemconfig(it, fill='grey')
+            #                 else:
+            #                     cpt+=1
+            #                     self.canvas[cpt].itemconfig(it, fill='grey')
+            #                 cpt+=1
+            #             logging.debug("Line: %04d" % s[5][1])
+            #             #cmd.select('sele', '%04d' % s[5][1])
+            #             cmd.hide('sticks', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+            #             # cmd.show('line', 'resid %d and model %04d' % (s[5][1], self.model_selected))
+            #             #cmd.disable('sele')
+            #     self.residues_shown = self.residues_to_display
+
+        elif source == 0:
+            # Check single picking items
+            for canv in self.canvas:
+                if canv.picked != 0 and canv.picked != canv.previous:
+                    logging.info("Something has been picked")
+                    canv.itemconfig(canv.picked, fill='blue')
+                    cpt = 0
+                    for it in canv.ids_ext[canv.picked]:
+                        if self.canvas[cpt] != canv:
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='blue')
+                        cpt+=1
+                    if self.scale == "Model":
+                        cmd.show('cartoon', 'name CA and %04d' % canv.shapes[canv.picked][5][1])
+                        cmd.show('lines', '%04d' % canv.shapes[canv.picked][5][1])
+                        logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
+                    elif self.scale == "Residue":
+                        cmd.show('sticks', 'resid %d and model %04d' % (canv.shapes[canv.picked][5][1], self.model_selected))
+                        logging.info("You selected item %d corresponding to model %d" % (canv.picked, canv.shapes[canv.picked][5][1]))
+                    if canv.previous != 0:
+                        canv.itemconfig(canv.previous, fill='grey')
+                        cpt=0
+                        for it in canv.ids_ext[canv.previous]:
+                            if self.canvas[cpt] != canv:
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            else:
+                                cpt+=1
+                                self.canvas[cpt].itemconfig(it, fill='grey')
+                            cpt+=1
+                        if self.scale == "Model":
+                            cmd.hide('everything', '%04d' % canv.shapes[canv.previous][5][1])
+                        elif self.scale == "Residue":
+                            cmd.hide('sticks', 'resid %d and model %04d' % (canv.shapes[canv.previous][5][1], self.model_selected))
+                    canv.previous = canv.picked
+                    break # We can pick only one item among all canvas
+            # Check selection from PyMol viewer
+            try:
+                items = self.queue.get_nowait()
+                logging.info("Items from user selection in the viewer: "+str(items))
+                logging.info("Current state: %s / Scale: %s" % (self.current_state, self.scale))
+
+                # Automatic checking of model selection by the user
+                if self.current_state == "default" and self.scale == "Model":
+                    self.models_to_display = items.intersection(self.all_models)
+                    if len(self.models_to_display) > 0:
+                        for k,s in canvas.shapes.iteritems():
+                            if s[5][1] in self.models_to_display:
+                                logging.info("Color red -> %04d" % s[5][1])
+                                canvas.itemconfig(k, fill='blue')
+                                cpt=0
+                                for it in canvas.ids_ext[k]:
+                                    if self.canvas[cpt] != canvas:
+                                        self.canvas[cpt].itemconfig(it, fill='blue')
+                                    else:
+                                        cpt+=1
+                                        self.canvas[cpt].itemconfig(it, fill='blue')
+                                    cpt+=1
+                                cmd.color('red', '%04d' % s[5][1])
+                            else:
+                                logging.info("Color default -> %04d" % s[5][1])
+                                canvas.itemconfig(k, fill='grey')
+                                cpt=0
+                                for it in canvas.ids_ext[k]:
+                                    if self.canvas[cpt] != canvas:
+                                        self.canvas[cpt].itemconfig(it, fill='grey')
+                                    else:
+                                        cpt+=1
+                                        self.canvas[cpt].itemconfig(it, fill='grey')
+                                    cpt+=1
+                                util.cbag('%04d' % s[5][1])
+                                # cmd.select('sele', '%04d' % s[5][1])
+                                # cmd.hide('line', '(sele)')
+                        cmd.disable('lb')
+                # We wait for user selection to trigger next steps
+                elif self.current_state == "selection":
+                    # Model selection
+                    if int(cmd.get("mouse_selection_mode")) == 5:
+                        try:
+                            logging.info("Model selected for analyses: %d " % list(items)[0])
+                            self.model_selected = list(items)[0]
+                            cmd.hide('everything', 'all')
+                            cmd.show('cartoon', '%04d' % self.model_selected)
+                            cmd.show('lines', '%04d' % self.model_selected)
+                            color_by_residue.color_by_restype()
+                            for k,s in canvas.shapes.iteritems():
+                                if s[5][1] == self.model_selected:
+                                    canvas.itemconfig(k, fill='blue')
+                                    cpt=0
+                                    for it in canvas.ids_ext[k]:
+                                        if self.canvas[cpt] != canvas:
+                                            self.canvas[cpt].itemconfig(it, fill='blue')
+                                        else:
+                                            cpt+=1
+                                            self.canvas[cpt].itemconfig(it, fill='blue')
+                                        cpt+=1
+                                else:
+                                    logging.info("Color default -> %04d" % s[5][1])
+                                    canvas.itemconfig(k, fill='grey')
+                                    cpt=0
+                                    for it in canvas.ids_ext[k]:
+                                        if self.canvas[cpt] != canvas:
+                                            self.canvas[cpt].itemconfig(it, fill='grey')
+                                        else:
+                                            cpt+=1
+                                            self.canvas[cpt].itemconfig(it, fill='grey')
+                                        cpt+=1
+                                    # cmd.select('sele', '%04d' % s[5][1])
+
+                            #cmd.disable('lb')
+                            self.current_state = "default"
+                            self.on_model_selected(evt=None)
+                            items = set()
+                        except IndexError:
+                            logging.info("No model selected in the viewer")
+                            pass
+                    # Residue selection
+                    elif int(cmd.get("mouse_selection_mode")) == 1:
+                        try:
+                            logging.info("Residue selection for analyses: %d " % list(items)[0])
+                            self.item_selected = list(items)[0]
+                            items = set()
+                            self.current_state = "default"
+                            self.on_reference_selected_for_distance(evt=None)
+                        except IndexError:
+                            logging.info("No residue selected in the viewer")
+                            pass
+
+            except Queue.Empty:
+                pass
+        # Reset plot and viewer
+        elif source == 2:
+            logging.info("RESET")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canvas.ids_ext[k]:
+                        if self.canvas[cpt] != canvas:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    self.models_to_display.clear()
+                    self.models_shown.clear()
+                canv.previous = 0
+                canv.picked = 0
+            cmd.hide('everything', 'all')
+
+        # "Selection mode"
+        elif source == 3:
+            logging.info("SELECTION MODE")
+            for canv in self.canvas:
+                for k,s in canv.shapes.iteritems():
+                    canv.itemconfig(k, fill='grey')
+                    cpt=0
+                    for it in canv.ids_ext[k]:
+                        if self.canvas[cpt] != canv:
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        else:
+                            cpt+=1
+                            self.canvas[cpt].itemconfig(it, fill='grey')
+                        cpt+=1
+                    self.models_to_display.add(s[5][1])
+                    self.models_shown.add(s[5][1])
+            cmd.show('cartoon', 'name CA')
+            cmd.show('lines', 'all')
+
+        logging.debug("---- %s seconds ----" % str(time.time()-start_time))
+        print time.time()
+        try:
+            self.rootframe.after(500, self.update_plot_multiple)
+        except:
+            pass
+
+    def try_convert_to_int(self, array):
+        result = []
+        for a in array:
+            f = float(a)
+            i = int(f)
+            if f != i:
+                return array
+            result.append(i)
+        return result
+
+    def close_callback(self):
+        cmd.delete(self.name)
+        self.rootframe.destroy()
+
+    def __call__(self):
+        if self.lock:
+            return
+
+
+
+# Launch PyMol handler
+if __name__ == "__main__":
+    #queue = Queue.Queue()
+    # Start background thread to check selections
+    t = threading.Thread(target=check_selections, args=(queue,))
+    t.start()
+    logging.info("Checking changes in selections... (infinite loop)")
+
+    mode = sys.argv[1]
+    logging.info("Mode: %s" % mode)
+    handler = Handler(mode, '(enabled)')
+    #self.menuBar.addmenuitem('PlotTools', 'command', 'Launch Rama Plot', label='RMSD Plot',
+    #                         command=lambda: Handler(queue, '(enabled)'))
+
+# vi:expandtab:smarttab
+

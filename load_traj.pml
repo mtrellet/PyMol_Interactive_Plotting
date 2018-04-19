@@ -1,19 +1,16 @@
+from sys import argv
+from pymol import cmd
 
-load ~/Dev/Molecules_data/00_PEPTIDE.200/trajectory/pdbs/peptide_fit.pdb
+print sys.argv
 
-split_states peptide_fit, prefix=""
+name = os.path.basename(os.path.splitext(sys.argv[2])[0])
 
-#set_name 0001, 0201
-#set_name 0002, 0202
-#set_name 0003, 0203
-#set_name 0004, 0204
-#set_name 0005, 0205
-#set_name 0006, 0206
-#set_name 0007, 0207
+cmd.load(sys.argv[2])
+cmd.do('split_states %s, prefix=""' % name)
 
-delete peptide_fit
+cmd.do("delete %s" % name)
 
-hide everything
+cmd.do("hide everything")
 
 set cartoon_transparency, 0.1
 set stick_radius, 0.40
